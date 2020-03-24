@@ -365,92 +365,76 @@ code {
           : 'default'
     });
   </script>
-<h1 id="python%E3%81%A7%E3%81%AE%E9%85%8D%E5%88%97%E3%82%84%E5%A4%9A%E9%87%8D%E9%85%8D%E5%88%97%E3%81%AE%E5%85%A5%E5%8A%9B%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6">pythonでの配列や多重配列の入力について</h1>
-<p>AtCoderを解いていてとても苦労した。<br>
-C/C++で今までコードを書いてきていたため配列の入力も従来のC/C++の書き方で問題ないかと思いきや全く違っていたいたのだ。</p>
-<p>配列に数字を入力する場合は<br>
-<strong>C++</strong></p>
-<pre class="hljs"><code><div><span class="hljs-function"><span class="hljs-built_in">vector</span>&lt;<span class="hljs-keyword">int</span>&gt; <span class="hljs-title">v</span><span class="hljs-params">(b)</span></span>;
-    <span class="hljs-keyword">for</span> (<span class="hljs-keyword">int</span> i=<span class="hljs-number">0</span>; i&lt;b; i++) {
-        <span class="hljs-built_in">cin</span> &gt;&gt; v[i];
-    }
+<h1 id="docker%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6%E3%82%8F%E3%81%8B%E3%81%A3%E3%81%9F%E3%81%93%E3%81%A8">Dockerについてわかったこと</h1>
+<p>docker環境を構築してC言語の開発してるのだがほしいソフトをインストールする際に良くてまどうのでDckerらしいかは定かではないが私が覚えたインストールの仕方をメモする</p>
+<p>Dockerfileにほしいソフトを記載する<br>
+<strong>Dockerfile</strong></p>
+<pre class="hljs"><code><div><span class="hljs-keyword">FROM</span> ubuntu:<span class="hljs-number">18.04</span>
+
+<span class="hljs-comment">#ここがapt-get updatae and apt-get installの場所</span>
+<span class="hljs-keyword">RUN</span><span class="bash"> apt-get update &amp;&amp; \
+    apt-get install -y \
+    <span class="hljs-comment">#gitをインストールしている</span></span>
+    git \
+    <span class="hljs-comment">#cコンパイル用にbuild-essentialをインストール</span>
+    build-essential \
+    <span class="hljs-comment">#makefileを使いたいのでインストール</span>
+    cmake \
+    <span class="hljs-comment">#これはなんだっけ？</span>
+    libssl-dev \
+    <span class="hljs-comment">#buildツールが使いたかったのでインストール</span>
+    gdb \
+    <span class="hljs-comment">#vimを使いたかったのでインストール</span>
+    vim
+<span class="hljs-comment">#いちいちdockerに入るたびにcdするのが面倒なので作業用ファイルに移動するようにする</span>
+<span class="hljs-keyword">WORKDIR</span><span class="bash"> /cpp-dev</span>
 </div></code></pre>
-<p><strong>python</strong></p>
-<pre class="hljs"><code><div>array = list(map(int, input().split()))
+<p>docker-compose buildコマンドでコンテナに設定を反映する。<br>
+<strong>docker-compose</strong></p>
+<pre class="hljs"><code><div>docker-compose build
 </div></code></pre>
-<p>多重配列に数字を入力する場合は<br>
-<strong>C++</strong></p>
-<pre class="hljs"><code><div><span class="hljs-keyword">int</span> data[a][b];
-    <span class="hljs-keyword">for</span> (<span class="hljs-keyword">int</span> i=<span class="hljs-number">0</span>; i&lt;a; i++) {
-        <span class="hljs-keyword">for</span> (<span class="hljs-keyword">int</span> j=<span class="hljs-number">0</span>; j&lt;b; j++) {
-            <span class="hljs-built_in">cin</span> &gt;&gt; data[i][j];
-        }
-    }
+<p>ここが参考になった<br>
+<a href="https://www.atmarkit.co.jp/ait/articles/1407/08/news031.html">いいかんじに色々と書いてある</a></p>
+<p>
+また今まで対応ができなかった<strong>docker内でgdb動かない問題</strong>も無事解決されたのでメモしておく</p>
+<p><strong>今までは</strong></p>
+<pre class="hljs"><code><div>(gdb) run
+Starting program: /cpp-dev/src/pointa/p45
+warning: Error disabling address space randomization: Operation not permitted
+warning: Could not trace the inferior process.
+Error:
+warning: ptrace: Operation not permitted
+During startup program exited with code 127.
 </div></code></pre>
-<p><strong>python</strong></p>
-<pre class="hljs"><code><div>multi_list = [list(map(int, input().split())) <span class="hljs-keyword">for</span> _ <span class="hljs-keyword">in</span> range(a)]
+<p>起動してもエラーが起こっていた。<br>
+どうもdockerのセキュリティがいけないとわかったのでネットで検索してみると<a href="https://stackoverflow.com/questions/42029834/gdb-in-docker-container-returns-ptrace-operation-not-permitted">こんな記事</a>を見つけた。</p>
+<p>真似してみた</p>
+<pre class="hljs"><code><div>version: '3.3'
+services:
+  dev:
+    build: .
+    volumes:
+      - type: bind
+        source: .
+        target: /cpp-dev
+    #書きを追加した
+    cap_add:
+      - SYS_PTRACE
 </div></code></pre>
-<p>やはりC++は静的型付けなだけありint型を宣言してから配列を作るのに対してpythonは肩を付けるという概念がないため、mapの中のintのように宣言しないとinput()の入力の際にstring型と勘違いされて入力されてしまい［i］［j］のようにリストの中身を指定する際に思いもかけないアウトプットが出てきて苦労してしまう。</p>
-<p>ただ全体的なコードの記述量ではC++よりPythonのほうが圧倒的に少なかった。さすが可読性が高い言語と呼ばれているだけのことはあるなと感心した。</p>
-<p>以下はコードを比較してみた結果だ。</p>
-<p><strong>C++</strong></p>
-<pre class="hljs"><code><div><span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;iostream&gt;</span></span>
-<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;vector&gt;</span></span>
-<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;utility&gt;</span></span>
-<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;algorithm&gt;</span></span>
-<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;cstdlib&gt;</span></span>
-<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;cmath&gt;</span></span>
-<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;iomanip&gt;</span></span>
-<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;map&gt;</span></span>
-<span class="hljs-keyword">typedef</span> <span class="hljs-keyword">long</span> <span class="hljs-keyword">long</span> ll;
-<span class="hljs-keyword">using</span> <span class="hljs-keyword">namespace</span> <span class="hljs-built_in">std</span>;
-<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">main</span><span class="hljs-params">(<span class="hljs-keyword">void</span>)</span>
-</span>{
-    <span class="hljs-keyword">int</span> a, b, c;
-    <span class="hljs-built_in">cin</span> &gt;&gt; a &gt;&gt; b &gt;&gt; c;
-    <span class="hljs-function"><span class="hljs-built_in">vector</span>&lt;<span class="hljs-keyword">int</span>&gt; <span class="hljs-title">v</span><span class="hljs-params">(b)</span></span>;
-    <span class="hljs-keyword">for</span> (<span class="hljs-keyword">int</span> i=<span class="hljs-number">0</span>; i&lt;b; i++) {
-        <span class="hljs-built_in">cin</span> &gt;&gt; v[i];
-    }
-    <span class="hljs-keyword">int</span> data[a][b];
-    <span class="hljs-keyword">for</span> (<span class="hljs-keyword">int</span> i=<span class="hljs-number">0</span>; i&lt;a; i++) {
-        <span class="hljs-keyword">for</span> (<span class="hljs-keyword">int</span> j=<span class="hljs-number">0</span>; j&lt;b; j++) {
-            <span class="hljs-built_in">cin</span> &gt;&gt; data[i][j];
-        }
-    }
-    <span class="hljs-keyword">int</span> cnt = <span class="hljs-number">0</span>;
-    <span class="hljs-keyword">int</span> sum = <span class="hljs-number">0</span>;
-    <span class="hljs-keyword">for</span> (<span class="hljs-keyword">int</span> i=<span class="hljs-number">0</span>; i&lt;a; i++) {
-        sum = <span class="hljs-number">0</span>;
-        <span class="hljs-keyword">for</span> (<span class="hljs-keyword">int</span> j=<span class="hljs-number">0</span>; j&lt;b; j++) {
-            sum += data[i][j] * v[j];
-        }
-        <span class="hljs-keyword">if</span> (sum + c &gt; <span class="hljs-number">0</span>)
-            cnt++;
-    }
-    <span class="hljs-built_in">cout</span> &lt;&lt; cnt &lt;&lt; <span class="hljs-built_in">endl</span>;
-    <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
-}
+<p>gdbが動くことを確認</p>
+<pre class="hljs"><code><div>(gdb) run
+Starting program: /cpp-dev/src/pointa/p45
+warning: Error disabling address space randomization: Operation not permitted
+Shape
+35
+Rectangle
+45
+Shape
+55
+[Inferior 1 (process 17) exited normally]
+(gdb)
 </div></code></pre>
-<p><strong>Python</strong></p>
-<pre class="hljs"><code><div><span class="hljs-function"><span class="hljs-keyword">def</span> <span class="hljs-title">main</span><span class="hljs-params">()</span>:</span>
-    a, b, c = map(int, input().split())
-    array = list(map(int, input().split()))
-    <span class="hljs-comment"># 多重リスト</span>
-    multi_list = [list(map(int, input().split())) <span class="hljs-keyword">for</span> _ <span class="hljs-keyword">in</span> range(a)]
-    cnt = <span class="hljs-number">0</span>
-    <span class="hljs-keyword">for</span> i <span class="hljs-keyword">in</span> range(a):
-        sum = <span class="hljs-number">0</span>
-        <span class="hljs-keyword">for</span> j <span class="hljs-keyword">in</span> range(b):
-            sum += multi_list[i][j] * array[j]
-        <span class="hljs-keyword">if</span> sum + c &gt; <span class="hljs-number">0</span>:
-            cnt += <span class="hljs-number">1</span>
-    print(cnt)
-<span class="hljs-keyword">if</span> __name__ == <span class="hljs-string">"__main__"</span>:
-    main()
-</div></code></pre>
-<p>コードの記述量やみやすさではPythonに軍配があがるのがわかる。<br>
-だが書きやすさでいうとC++になってしまう。のでもっとPythonで精進しなくては。</p>
+<p>これでデバッガも揃ったので色々と作れるようになるぞ！</p>
 
 </body>
 </html>
