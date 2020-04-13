@@ -1204,3 +1204,136 @@ bootpack.bim : bootpack.obj naskfunc.obj Makefile
 
 これにて本日は終了です。   
 凄くハードでしたがお疲れさまでした。   
+
+## day4
+VRAMに何か書き込みたいのでnaskfunc.nasをいじります。
+naskfunc.nas
+```
+; naskfunc
+; TAB=4
+
+[FORMAT "WCOFF"]
+[INSTRSET "i486p"]
+[BITS 32]
+
+; object file
+
+[FILE "naskfunc.nas"]
+
+        GLOBAL  _io_hlt,_write_mem8
+
+; function
+
+[SECTION .test]
+
+_io_hlt:
+        HLT
+        RET
+
+_write_mem8:    ; void write_mem8(int addr, int data);
+        MOV     ECX,[ESP+4]     ; [ESP+4] in addr read ECX
+        MOV     AL,[ESP+8]      ; [ESP+8] in data read AL
+        MOV     [ECX],AL
+        RET
+```
+
+_write_mem8を呼び出すためにbootpack.cも改造します。
+bootpack.c
+```
+void io_hlt(void);
+void write_mem8(int addr, int data);
+
+void HariMain(void)
+{
+    int i;
+
+    for (i = 0xa0000; i <= 0xaffff; i++) {
+        write_mem8(i, 15);
+    }
+
+    for (;;) {
+        io_hlt();
+    }
+    
+}
+```
+
+次はしましまに改造するためにbootpack.cに少し手を加えます。   
+bootpack.c
+```
+void HariMain(void)
+{
+    int i;
+
+    for (i = 0xa0000; i <= 0xaffff; i++) {
+        write_mem8(i, i & 0x0f);
+    }
+
+    for (;;) {
+        io_hlt();
+    }
+    
+}
+```
+
+ここからはポインタについて見ていく回なのでざっと書いていきます。   
+青い画面が表示されます。   
+bootpack.c
+```
+void HariMain(void)
+{
+    int i;
+    char *p;
+
+    for (i = 0xa0000; i <= 0xaffff; i++) {
+        p =i;
+        *p = 1 & 0x0f;
+    }
+
+    for (;;) {
+        io_hlt();
+    }
+    
+}
+```
+次はしましまの画面が表示されます。   
+bootpack.c
+```
+void HariMain(void)
+{
+    int i;
+    char *p;
+
+    p = (char *) 0xa0000;
+
+    for (i = 0; i <= 0xffff; i++) {
+        *(p + i) = i & 0x0f;
+    }
+
+    for (;;) {
+        io_hlt();
+    }
+    
+}
+```
+次も企保的に瓦井ですが*(p + i)の部分がp[i]になっています。   
+bootpack.c
+```
+void HariMain(void)
+{
+    int i;
+    char *p;
+
+    p = (char *) 0xa0000;
+
+    for (i = 0; i <= 0xffff; i++) {
+        p[i] = i & 0x0f;
+    }
+
+    for (;;) {
+        io_hlt();
+    }
+    
+}
+```
+
