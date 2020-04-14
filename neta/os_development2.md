@@ -1203,9 +1203,12 @@ bootpack.bim : bootpack.obj naskfunc.obj Makefile
 ```
 
 これにて本日は終了です。   
-凄くハードでしたがお疲れさまでした。   
+凄くハードでしたがお疲れさまでした。 
 
-## day4
+**実装過程**   
+・　[f19327e0cd072bdbc70833d803d423437a7c9823](f19327e0cd072bdbc70833d803d423437a7c9823)
+
+
 VRAMに何か書き込みたいのでnaskfunc.nasをいじります。
 naskfunc.nas
 ```
@@ -1337,3 +1340,410 @@ void HariMain(void)
 }
 ```
 
+**実装過程**   
+・　[cb092449d4b3f7dee5bd09004a736b6905d3a889](cb092449d4b3f7dee5bd09004a736b6905d3a889)
+
+## day4
+day5と言っていますがこれは書籍の4日目ではなく筆者がOS作りを初めて4日目がということを指します。煩わしくて申し訳ありません。   
+今回は色をカラフルにしてあげるところからスタートします。C言語をゴリゴリ実装していくのでとても楽しみです。   
+bootpack.c
+```
+void io_hlt(void);
+void io_cli(void);
+void io_out8(int port, int data);
+int io_load_eflags(void);
+void io_store_eflags(int eflags);
+
+void init_palette(void);
+void set_palette(int start, int end, unsigned char *rgd);
+
+void HariMain(void)
+{
+    int i;
+    char *p;
+
+    init_palette();
+
+    p = (char *) 0xa0000;
+
+    for (i = 0; i <= 0xffff; i++) {
+        p[i] = i & 0x0f;
+    }
+
+    for (;;) {
+        io_hlt();
+    }
+    
+}
+
+void init_palette(void)
+{
+    static unsigned char table_rgb[16 * 3] = {
+        0x00, 0x00, 0x00,   /* 0:black */
+        0xff, 0x00, 0x00,   /* 1:light red */
+        0x00, 0xff, 0x00,   /* 2:light green */
+        0xff, 0xff, 0x00,   /* 3:light yellow */
+        0x00, 0x00, 0xff,   /* 4:light blue */
+        0xff, 0x00, 0xff,   /* 5:light puple */
+        0x00, 0xff, 0xff,   /* 6:light sky blue */
+        0xff, 0xff, 0xff,   /* 7:white */
+        0xc6, 0xc6, 0xc6,   /* 8:light grey */
+        0x84, 0x00, 0x00,   /* 9:dark green */
+        0x00, 0x84, 0x00,   /* 10:dark green */
+        0x84, 0x84, 0x00,   /* 11:dark yellow */
+        0x00, 0x00, 0x84,   /* 12:dark blue */
+        0x84, 0x00, 0x84,   /* 13:dark puple */
+        0x00, 0x84, 0x84,   /* 14:dark sky blue */
+        0x84, 0x84, 0x84    /* 15:dark grey */
+    };
+    set_palette(0, 15, table_rgb);
+    return;
+}
+
+void set_palette(int start, int end, unsigned char *rgb)
+{
+    int i, eflags;
+    eflags = io_load_eflags();
+    io_cli();
+    io_out8(0x03c8, start);
+    for (i = start; i <= end; i++) {
+        io_out8(0x03c9, rgb[0] / 4);
+        io_out8(0x03c9, rgb[1] / 4);
+        io_out8(0x03c9, rgb[2] / 4);
+        rgb += 3;
+    }
+    io_store_eflags(eflags);
+    return;
+}
+```
+
+
+続いては、    
+void io_cli(void)    
+void io_out8(int port, int data)    
+int io_load_eflags(void)    
+void io_store_eflags(int eflags)    
+の4つを実装していくためにnaskfunc.nasを修正します。    
+naskfunc.nas
+```
+; naskfunc
+; TAB=4
+
+[FORMAT "WCOFF"]
+[INSTRSET "i486p"]
+[BITS 32]
+[FILE "naskfunc.nas"]
+
+        GLOBAL  _io_hlt, _io_cli, _io_sci, _io_stihlt
+        GLOBAL  _io_in8, _io_in16, _io_in32
+        GLOBAL  _io_out8, _io_out16, _io_out32
+        GLOBAL  _io_load_eflags, _io_store_eflags
+
+; object file
+
+[FILE "naskfunc.nas"]
+
+; function
+
+[SECTION .text]
+
+_io_hlt:
+        HLT
+        RET
+
+_io_cli:
+        CLI
+        RET
+
+_io_sti:
+        STI
+        HLT
+        RET
+
+_io_in8:
+        MOV     EDX,[ESP+4]
+        MOV     EAX,0
+        IN      AL,DX
+        RET
+
+_io_in16:
+        MOV     EDX,[ESP+4]
+        MOV     EAX,0
+        IN      AX,DX
+        RET
+
+_io_in32:
+        MOV     EDX,[ESP+4]
+        IN      EAX,DX
+        RET
+        
+_io_out8:
+        MOV     EDX,[ESP+4]
+        MOV     AL,[ESP+8]
+        OUT     DX,AL
+        RET
+
+_io_out16:
+        MOV     EDX,[ESP+4]
+        MOV     EAX,[ESP+8]
+        OUT     DX,AX
+        RET
+
+_io_out32:
+        MOV     EDX,[ESP+4]
+        MOV     EAX,[ESP+8]
+        OUT     DX,EAX
+        RET
+
+_io_load_eflags:
+        PUSHFD
+        POP     EAX
+        RET
+
+_io_store_eflags:
+        MOV     EAX,[ESP+4]
+        PUSH    EAX
+        POPFD
+        RET
+```
+
+これで画面のしましまのいろが変わりました。    
+続いて四角形を描画していきます。ここではdefineでvramの番地をあらかじめ決めています。    
+bootpack.c
+```
+void io_hlt(void);
+void io_cli(void);
+void io_out8(int port, int data);
+int io_load_eflags(void);
+void io_store_eflags(int eflags);
+
+void init_palette(void);
+void set_palette(int start, int end, unsigned char *rgd);
+void boxfill8(unsigned char *vram, int xsize, unsigned char c, int x0, int y0, int x1, int y1);
+
+#define COL8_000000  0
+#define COL8_FF0000  1
+#define COL8_00FF00  2
+#define COL8_FFFF00  3
+#define COL8_0000FF  4
+#define COL8_FF00FF  5
+#define COL8_00FFFF  6
+#define COL8_FFFFFF  7
+#define COL8_C6C6C6  8
+#define COL8_840000  9
+#define COL8_008400  10
+#define COL8_848400  11
+#define COL8_000084  12
+#define COL8_840084  13
+#define COL8_008484  14
+#define COL8_848484  15
+
+
+void HariMain(void)
+{
+    int i;
+    char *p;
+
+    init_palette();
+
+    p = (char *) 0xa0000;
+
+    boxfill8(p, 320, COL8_FF0000, 20, 20, 120, 120);
+    boxfill8(p, 320, COL8_00FF00, 70, 50, 170, 150);
+    boxfill8(p, 320, COL8_0000FF, 120, 80, 220, 180);
+
+    for (;;) {
+        io_hlt();
+    }
+    
+}
+
+void init_palette(void)
+{
+    static unsigned char table_rgb[16 * 3] = {
+        0x00, 0x00, 0x00,   /* 0:black */
+        0xff, 0x00, 0x00,   /* 1:light red */
+        0x00, 0xff, 0x00,   /* 2:light green */
+        0xff, 0xff, 0x00,   /* 3:light yellow */
+        0x00, 0x00, 0xff,   /* 4:light blue */
+        0xff, 0x00, 0xff,   /* 5:light puple */
+        0x00, 0xff, 0xff,   /* 6:light sky blue */
+        0xff, 0xff, 0xff,   /* 7:white */
+        0xc6, 0xc6, 0xc6,   /* 8:light grey */
+        0x84, 0x00, 0x00,   /* 9:dark green */
+        0x00, 0x84, 0x00,   /* 10:dark green */
+        0x84, 0x84, 0x00,   /* 11:dark yellow */
+        0x00, 0x00, 0x84,   /* 12:dark blue */
+        0x84, 0x00, 0x84,   /* 13:dark puple */
+        0x00, 0x84, 0x84,   /* 14:dark sky blue */
+        0x84, 0x84, 0x84    /* 15:dark grey */
+    };
+    set_palette(0, 15, table_rgb);
+    return;
+}
+
+void set_palette(int start, int end, unsigned char *rgb)
+{
+    int i, eflags;
+    eflags = io_load_eflags();
+    io_cli();
+    io_out8(0x03c8, start);
+    for (i = start; i <= end; i++) {
+        io_out8(0x03c9, rgb[0] / 4);
+        io_out8(0x03c9, rgb[1] / 4);
+        io_out8(0x03c9, rgb[2] / 4);
+        rgb += 3;
+    }
+    io_store_eflags(eflags);
+    return;
+}
+
+void boxfill8(unsigned char *vram, int xsize, unsigned char c, int x0, int y0, int x1, int y1)
+{
+    int x, y;
+    for (y= y0; y <= y1; y++) {
+        for (x = x0; x <= x1; x++)
+            vram[y * xsize + x] = c;
+    }
+    return;
+}
+```
+
+これで四角形が出てきました。   
+つぎはタスクバーを表示させるところです。   
+四角形を出すところで定義したbpxfill8関数を使っていきます。   
+
+bootpack.c
+```
+void HariMain(void)
+{
+    char *vram;
+    int xsize, ysize;
+
+    init_palette();
+    vram = (char *) 0xa0000;
+    xsize = 320;
+    ysize = 200;
+
+    boxfill8(vram, xsize, COL8_008484,  0,          0,           xsize - 1,   ysize - 29);
+    boxfill8(vram, xsize, COL8_C6C6C6,  0,          ysize - 28,  xsize - 1,   ysize - 28);
+    boxfill8(vram, xsize, COL8_FFFFFF,  0,          ysize - 27,  xsize - 1,   ysize - 27);
+    boxfill8(vram, xsize, COL8_C6C6C6,  0,          ysize - 26,  xsize - 1,   ysize -  1);
+
+    boxfill8(vram, xsize, COL8_FFFFFF,  3,          ysize - 24,  59,          ysize - 24);
+    boxfill8(vram, xsize, COL8_FFFFFF,  2,          ysize - 24,   2,          ysize -  4);
+    boxfill8(vram, xsize, COL8_848484,  3,          ysize -  4,  59,          ysize -  4);
+    boxfill8(vram, xsize, COL8_848484, 59,          ysize - 23,  59,          ysize -  5);
+    boxfill8(vram, xsize, COL8_000000,  2,          ysize -  3,  59,          ysize -  3);
+    boxfill8(vram, xsize, COL8_000000, 60,          ysize - 24,  60,          ysize -  3);
+
+    boxfill8(vram, xsize, COL8_848484, xsize - 47,  ysize - 24,  xsize -  4,   ysize - 24);
+    boxfill8(vram, xsize, COL8_848484, xsize - 47,  ysize - 23,  xsize - 47,   ysize -  4);
+    boxfill8(vram, xsize, COL8_FFFFFF, xsize - 47,  ysize -  3,  xsize -  4,   ysize -  3);
+    boxfill8(vram, xsize, COL8_FFFFFF, xsize -  3,  ysize - 24,  xsize -  3,   ysize -  3);
+
+    for (;;) {
+        io_hlt();
+    }
+    
+}
+```
+
+これでOSっぽくなりました。   
+達成感半端ないです！    
+
+本では五日目に突入しました。   
+asmhead.nasの値を取得するために少しbootpack.cを改造します。   
+bootpack.c
+```
+void HariMain(void)
+{
+    char *vram;
+    int xsize, ysize;
+    short *binfo_scrnx, *binfo_scrny;
+    int *binfo_vram;
+
+    init_palette();
+    binfo_scrnx = (short *) 0x0ff4;
+    binfo_scrny = (short *) 0x0ff6;
+    binfo_vram = (int *) 0x0ff8;
+    xsize = *binfo_scrnx;
+    ysize = *binfo_scrny;
+    vram = (char *) *binfo_vram;
+```
+
+次は構造体を使用してHariMain関数の行数を削りました。   
+
+```
+struct BOOTINFO {
+    char cyls, leds, vmode, reserve;
+    short scrnx, scrny;
+    char *vram;
+};
+
+void HariMain(void)
+{
+    char *vram;
+    int xsize, ysize;
+    struct BOOTINFO *binfo;
+
+    init_palette();
+    binfo = (struct BOOTINFO *) 0x0ff0;
+    xsize = (*binfo).scrnx;
+    ysize = (*binfo).scrny;
+    vram = (*binfo).vram;
+```
+
+あまり削れてないような。
+さら削るためにアロー演算子を使ってみます   
+
+```
+void HariMain(void)
+{
+    struct BOOTINFO *binfo = (struct BOOTINFO *) 0x0ff0;
+ 
+    init_palette();
+    init_screen(binfo->vram, binfo->scrnx, binfo->scrny);
+
+    for (;;) {
+        io_hlt();
+    }
+    
+}
+```
+
+またinit_screen関数を定義してboxfill8(vram, x, COL8_008484,  0,          0,       x - 1,    y - 29);の文を小分けにしました。
+
+```
+void init_screen(char *vram, int x, int y)
+{
+    boxfill8(vram, x, COL8_008484,  0,          0,       x - 1,    y - 29);
+    boxfill8(vram, x, COL8_C6C6C6,  0,          y - 28,  x - 1,    y - 28);
+    boxfill8(vram, x, COL8_FFFFFF,  0,          y - 27,  x - 1,    y - 27);
+    boxfill8(vram, x, COL8_C6C6C6,  0,          y - 26,  x - 1,    y -  1);
+
+    boxfill8(vram, x, COL8_FFFFFF,  3,          y - 24,  59,       y - 24);
+    boxfill8(vram, x, COL8_FFFFFF,  2,          y - 24,   2,       y -  4);
+    boxfill8(vram, x, COL8_848484,  3,          y -  4,  59,       y -  4);
+    boxfill8(vram, x, COL8_848484, 59,          y - 23,  59,       y -  5);
+    boxfill8(vram, x, COL8_000000,  2,          y -  3,  59,       y -  3);
+    boxfill8(vram, x, COL8_000000, 60,          y - 24,  60,       y -  3);
+
+    boxfill8(vram, x, COL8_848484, x - 47,      y - 24,  x -  4,   y - 24);
+    boxfill8(vram, x, COL8_848484, x - 47,      y - 23,  x - 47,   y -  4);
+    boxfill8(vram, x, COL8_FFFFFF, x - 47,      y -  3,  x -  4,   y -  3);
+    boxfill8(vram, x, COL8_FFFFFF, x -  3,      y - 24,  x -  3,   y -  3);
+    return;
+}
+```
+
+プロト関数も忘れずにつけましょう。   
+```
+void init_palette(void);
+void set_palette(int start, int end, unsigned char *rgd);
+void boxfill8(unsigned char *vram, int xsize, unsigned char c, int x0, int y0, int x1, int y1);
+void init_screen(char *vram, int x, int y);
+```
+
+**実装過程**   
+・　[57a54599e9dedb9733ffbfdcb8a75f72732b31c7](57a54599e9dedb9733ffbfdcb8a75f72732b31c7)
