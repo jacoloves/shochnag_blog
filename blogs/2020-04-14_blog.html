@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>20200414.md</title>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+
+<style>
+/* https://github.com/microsoft/vscode/blob/master/extensions/markdown-language-features/media/markdown.css */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+body {
+	font-family: var(--vscode-markdown-font-family, -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif);
+	font-size: var(--vscode-markdown-font-size, 14px);
+	padding: 0 26px;
+	line-height: var(--vscode-markdown-line-height, 22px);
+	word-wrap: break-word;
+}
+
+#code-csp-warning {
+	position: fixed;
+	top: 0;
+	right: 0;
+	color: white;
+	margin: 16px;
+	text-align: center;
+	font-size: 12px;
+	font-family: sans-serif;
+	background-color:#444444;
+	cursor: pointer;
+	padding: 6px;
+	box-shadow: 1px 1px 1px rgba(0,0,0,.25);
+}
+
+#code-csp-warning:hover {
+	text-decoration: none;
+	background-color:#007acc;
+	box-shadow: 2px 2px 2px rgba(0,0,0,.25);
+}
+
+body.scrollBeyondLastLine {
+	margin-bottom: calc(100vh - 22px);
+}
+
+body.showEditorSelection .code-line {
+	position: relative;
+}
+
+body.showEditorSelection .code-active-line:before,
+body.showEditorSelection .code-line:hover:before {
+	content: "";
+	display: block;
+	position: absolute;
+	top: 0;
+	left: -12px;
+	height: 100%;
+}
+
+body.showEditorSelection li.code-active-line:before,
+body.showEditorSelection li.code-line:hover:before {
+	left: -30px;
+}
+
+.vscode-light.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.15);
+}
+
+.vscode-light.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.40);
+}
+
+.vscode-light.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-dark.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.4);
+}
+
+.vscode-dark.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.60);
+}
+
+.vscode-dark.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-high-contrast.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 160, 0, 0.7);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 160, 0, 1);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+img {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+	outline: 1px solid -webkit-focus-ring-color;
+	outline-offset: -1px;
+}
+
+hr {
+	border: 0;
+	height: 2px;
+	border-bottom: 2px solid;
+}
+
+h1 {
+	padding-bottom: 0.3em;
+	line-height: 1.2;
+	border-bottom-width: 1px;
+	border-bottom-style: solid;
+}
+
+h1, h2, h3 {
+	font-weight: normal;
+}
+
+table {
+	border-collapse: collapse;
+}
+
+table > thead > tr > th {
+	text-align: left;
+	border-bottom: 1px solid;
+}
+
+table > thead > tr > th,
+table > thead > tr > td,
+table > tbody > tr > th,
+table > tbody > tr > td {
+	padding: 5px 10px;
+}
+
+table > tbody > tr + tr > td {
+	border-top: 1px solid;
+}
+
+blockquote {
+	margin: 0 7px 0 5px;
+	padding: 0 16px 0 10px;
+	border-left-width: 5px;
+	border-left-style: solid;
+}
+
+code {
+	font-family: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
+	font-size: 1em;
+	line-height: 1.357em;
+}
+
+body.wordWrap pre {
+	white-space: pre-wrap;
+}
+
+pre:not(.hljs),
+pre.hljs code > div {
+	padding: 16px;
+	border-radius: 3px;
+	overflow: auto;
+}
+
+pre code {
+	color: var(--vscode-editor-foreground);
+	tab-size: 4;
+}
+
+/** Theming */
+
+.vscode-light pre {
+	background-color: rgba(220, 220, 220, 0.4);
+}
+
+.vscode-dark pre {
+	background-color: rgba(10, 10, 10, 0.4);
+}
+
+.vscode-high-contrast pre {
+	background-color: rgb(0, 0, 0);
+}
+
+.vscode-high-contrast h1 {
+	border-color: rgb(0, 0, 0);
+}
+
+.vscode-light table > thead > tr > th {
+	border-color: rgba(0, 0, 0, 0.69);
+}
+
+.vscode-dark table > thead > tr > th {
+	border-color: rgba(255, 255, 255, 0.69);
+}
+
+.vscode-light h1,
+.vscode-light hr,
+.vscode-light table > tbody > tr + tr > td {
+	border-color: rgba(0, 0, 0, 0.18);
+}
+
+.vscode-dark h1,
+.vscode-dark hr,
+.vscode-dark table > tbody > tr + tr > td {
+	border-color: rgba(255, 255, 255, 0.18);
+}
+
+</style>
+
+<style>
+/* Tomorrow Theme */
+/* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+/* Original theme - https://github.com/chriskempson/tomorrow-theme */
+
+/* Tomorrow Comment */
+.hljs-comment,
+.hljs-quote {
+	color: #8e908c;
+}
+
+/* Tomorrow Red */
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-regexp,
+.hljs-deletion {
+	color: #c82829;
+}
+
+/* Tomorrow Orange */
+.hljs-number,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-literal,
+.hljs-type,
+.hljs-params,
+.hljs-meta,
+.hljs-link {
+	color: #f5871f;
+}
+
+/* Tomorrow Yellow */
+.hljs-attribute {
+	color: #eab700;
+}
+
+/* Tomorrow Green */
+.hljs-string,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
+	color: #718c00;
+}
+
+/* Tomorrow Blue */
+.hljs-title,
+.hljs-section {
+	color: #4271ae;
+}
+
+/* Tomorrow Purple */
+.hljs-keyword,
+.hljs-selector-tag {
+	color: #8959a8;
+}
+
+.hljs {
+	display: block;
+	overflow-x: auto;
+	color: #4d4d4c;
+	padding: 0.5em;
+}
+
+.hljs-emphasis {
+	font-style: italic;
+}
+
+.hljs-strong {
+	font-weight: bold;
+}
+</style>
+
+<style>
+/*
+ * Markdown PDF CSS
+ */
+
+ body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
+	padding: 0 12px;
+}
+
+pre {
+	background-color: #f8f8f8;
+	border: 1px solid #cccccc;
+	border-radius: 3px;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+}
+
+pre:not(.hljs) {
+	padding: 23px;
+	line-height: 19px;
+}
+
+blockquote {
+	background: rgba(127, 127, 127, 0.1);
+	border-color: rgba(0, 122, 204, 0.5);
+}
+
+.emoji {
+	height: 1.4em;
+}
+
+code {
+	font-size: 14px;
+	line-height: 19px;
+}
+
+/* for inline code */
+:not(pre):not(.hljs) > code {
+	color: #C9AE75; /* Change the old color so it seems less like an error */
+	font-size: inherit;
+}
+
+/* Page Break : use <div class="page"/> to insert page break
+-------------------------------------------------------- */
+.page {
+	page-break-after: always;
+}
+
+</style>
+
+<script src="https://unpkg.com/mermaid/dist/mermaid.min.js"></script>
+</head>
+<body>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: document.body.classList.contains('vscode-dark') || document.body.classList.contains('vscode-high-contrast')
+          ? 'dark'
+          : 'default'
+    });
+  </script>
+<h2 id="day4">day4</h2>
+<p>day5と言っていますがこれは書籍の4日目ではなく筆者がOS作りを初めて4日目がということを指します。煩わしくて申し訳ありません。<br>
+今回は色をカラフルにしてあげるところからスタートします。C言語をゴリゴリ実装していくのでとても楽しみです。<br>
+bootpack.c</p>
+<pre class="hljs"><code><div>void io_hlt(void);
+void io_cli(void);
+void io_out8(int port, int data);
+int io_load_eflags(void);
+void io_store_eflags(int eflags);
+
+void init_palette(void);
+void set_palette(int start, int end, unsigned char *rgd);
+
+void HariMain(void)
+{
+    int i;
+    char *p;
+
+    init_palette();
+
+    p = (char *) 0xa0000;
+
+    for (i = 0; i &lt;= 0xffff; i++) {
+        p[i] = i &amp; 0x0f;
+    }
+
+    for (;;) {
+        io_hlt();
+    }
+    
+}
+
+void init_palette(void)
+{
+    static unsigned char table_rgb[16 * 3] = {
+        0x00, 0x00, 0x00,   /* 0:black */
+        0xff, 0x00, 0x00,   /* 1:light red */
+        0x00, 0xff, 0x00,   /* 2:light green */
+        0xff, 0xff, 0x00,   /* 3:light yellow */
+        0x00, 0x00, 0xff,   /* 4:light blue */
+        0xff, 0x00, 0xff,   /* 5:light puple */
+        0x00, 0xff, 0xff,   /* 6:light sky blue */
+        0xff, 0xff, 0xff,   /* 7:white */
+        0xc6, 0xc6, 0xc6,   /* 8:light grey */
+        0x84, 0x00, 0x00,   /* 9:dark green */
+        0x00, 0x84, 0x00,   /* 10:dark green */
+        0x84, 0x84, 0x00,   /* 11:dark yellow */
+        0x00, 0x00, 0x84,   /* 12:dark blue */
+        0x84, 0x00, 0x84,   /* 13:dark puple */
+        0x00, 0x84, 0x84,   /* 14:dark sky blue */
+        0x84, 0x84, 0x84    /* 15:dark grey */
+    };
+    set_palette(0, 15, table_rgb);
+    return;
+}
+
+void set_palette(int start, int end, unsigned char *rgb)
+{
+    int i, eflags;
+    eflags = io_load_eflags();
+    io_cli();
+    io_out8(0x03c8, start);
+    for (i = start; i &lt;= end; i++) {
+        io_out8(0x03c9, rgb[0] / 4);
+        io_out8(0x03c9, rgb[1] / 4);
+        io_out8(0x03c9, rgb[2] / 4);
+        rgb += 3;
+    }
+    io_store_eflags(eflags);
+    return;
+}
+</div></code></pre>
+<p>続いては、<br>
+void io_cli(void)<br>
+void io_out8(int port, int data)<br>
+int io_load_eflags(void)<br>
+void io_store_eflags(int eflags)<br>
+の4つを実装していくためにnaskfunc.nasを修正します。<br>
+naskfunc.nas</p>
+<pre class="hljs"><code><div>; naskfunc
+; TAB=4
+
+[FORMAT &quot;WCOFF&quot;]
+[INSTRSET &quot;i486p&quot;]
+[BITS 32]
+[FILE &quot;naskfunc.nas&quot;]
+
+        GLOBAL  _io_hlt, _io_cli, _io_sci, _io_stihlt
+        GLOBAL  _io_in8, _io_in16, _io_in32
+        GLOBAL  _io_out8, _io_out16, _io_out32
+        GLOBAL  _io_load_eflags, _io_store_eflags
+
+; object file
+
+[FILE &quot;naskfunc.nas&quot;]
+
+; function
+
+[SECTION .text]
+
+_io_hlt:
+        HLT
+        RET
+
+_io_cli:
+        CLI
+        RET
+
+_io_sti:
+        STI
+        HLT
+        RET
+
+_io_in8:
+        MOV     EDX,[ESP+4]
+        MOV     EAX,0
+        IN      AL,DX
+        RET
+
+_io_in16:
+        MOV     EDX,[ESP+4]
+        MOV     EAX,0
+        IN      AX,DX
+        RET
+
+_io_in32:
+        MOV     EDX,[ESP+4]
+        IN      EAX,DX
+        RET
+        
+_io_out8:
+        MOV     EDX,[ESP+4]
+        MOV     AL,[ESP+8]
+        OUT     DX,AL
+        RET
+
+_io_out16:
+        MOV     EDX,[ESP+4]
+        MOV     EAX,[ESP+8]
+        OUT     DX,AX
+        RET
+
+_io_out32:
+        MOV     EDX,[ESP+4]
+        MOV     EAX,[ESP+8]
+        OUT     DX,EAX
+        RET
+
+_io_load_eflags:
+        PUSHFD
+        POP     EAX
+        RET
+
+_io_store_eflags:
+        MOV     EAX,[ESP+4]
+        PUSH    EAX
+        POPFD
+        RET
+</div></code></pre>
+<p>これで画面のしましまのいろが変わりました。<br>
+続いて四角形を描画していきます。ここではdefineでvramの番地をあらかじめ決めています。<br>
+bootpack.c</p>
+<pre class="hljs"><code><div>void io_hlt(void);
+void io_cli(void);
+void io_out8(int port, int data);
+int io_load_eflags(void);
+void io_store_eflags(int eflags);
+
+void init_palette(void);
+void set_palette(int start, int end, unsigned char *rgd);
+void boxfill8(unsigned char *vram, int xsize, unsigned char c, int x0, int y0, int x1, int y1);
+
+#define COL8_000000  0
+#define COL8_FF0000  1
+#define COL8_00FF00  2
+#define COL8_FFFF00  3
+#define COL8_0000FF  4
+#define COL8_FF00FF  5
+#define COL8_00FFFF  6
+#define COL8_FFFFFF  7
+#define COL8_C6C6C6  8
+#define COL8_840000  9
+#define COL8_008400  10
+#define COL8_848400  11
+#define COL8_000084  12
+#define COL8_840084  13
+#define COL8_008484  14
+#define COL8_848484  15
+
+
+void HariMain(void)
+{
+    int i;
+    char *p;
+
+    init_palette();
+
+    p = (char *) 0xa0000;
+
+    boxfill8(p, 320, COL8_FF0000, 20, 20, 120, 120);
+    boxfill8(p, 320, COL8_00FF00, 70, 50, 170, 150);
+    boxfill8(p, 320, COL8_0000FF, 120, 80, 220, 180);
+
+    for (;;) {
+        io_hlt();
+    }
+    
+}
+
+void init_palette(void)
+{
+    static unsigned char table_rgb[16 * 3] = {
+        0x00, 0x00, 0x00,   /* 0:black */
+        0xff, 0x00, 0x00,   /* 1:light red */
+        0x00, 0xff, 0x00,   /* 2:light green */
+        0xff, 0xff, 0x00,   /* 3:light yellow */
+        0x00, 0x00, 0xff,   /* 4:light blue */
+        0xff, 0x00, 0xff,   /* 5:light puple */
+        0x00, 0xff, 0xff,   /* 6:light sky blue */
+        0xff, 0xff, 0xff,   /* 7:white */
+        0xc6, 0xc6, 0xc6,   /* 8:light grey */
+        0x84, 0x00, 0x00,   /* 9:dark green */
+        0x00, 0x84, 0x00,   /* 10:dark green */
+        0x84, 0x84, 0x00,   /* 11:dark yellow */
+        0x00, 0x00, 0x84,   /* 12:dark blue */
+        0x84, 0x00, 0x84,   /* 13:dark puple */
+        0x00, 0x84, 0x84,   /* 14:dark sky blue */
+        0x84, 0x84, 0x84    /* 15:dark grey */
+    };
+    set_palette(0, 15, table_rgb);
+    return;
+}
+
+void set_palette(int start, int end, unsigned char *rgb)
+{
+    int i, eflags;
+    eflags = io_load_eflags();
+    io_cli();
+    io_out8(0x03c8, start);
+    for (i = start; i &lt;= end; i++) {
+        io_out8(0x03c9, rgb[0] / 4);
+        io_out8(0x03c9, rgb[1] / 4);
+        io_out8(0x03c9, rgb[2] / 4);
+        rgb += 3;
+    }
+    io_store_eflags(eflags);
+    return;
+}
+
+void boxfill8(unsigned char *vram, int xsize, unsigned char c, int x0, int y0, int x1, int y1)
+{
+    int x, y;
+    for (y= y0; y &lt;= y1; y++) {
+        for (x = x0; x &lt;= x1; x++)
+            vram[y * xsize + x] = c;
+    }
+    return;
+}
+</div></code></pre>
+<p>これで四角形が出てきました。<br>
+つぎはタスクバーを表示させるところです。<br>
+四角形を出すところで定義したbpxfill8関数を使っていきます。</p>
+<p>bootpack.c</p>
+<pre class="hljs"><code><div>void HariMain(void)
+{
+    char *vram;
+    int xsize, ysize;
+
+    init_palette();
+    vram = (char *) 0xa0000;
+    xsize = 320;
+    ysize = 200;
+
+    boxfill8(vram, xsize, COL8_008484,  0,          0,           xsize - 1,   ysize - 29);
+    boxfill8(vram, xsize, COL8_C6C6C6,  0,          ysize - 28,  xsize - 1,   ysize - 28);
+    boxfill8(vram, xsize, COL8_FFFFFF,  0,          ysize - 27,  xsize - 1,   ysize - 27);
+    boxfill8(vram, xsize, COL8_C6C6C6,  0,          ysize - 26,  xsize - 1,   ysize -  1);
+
+    boxfill8(vram, xsize, COL8_FFFFFF,  3,          ysize - 24,  59,          ysize - 24);
+    boxfill8(vram, xsize, COL8_FFFFFF,  2,          ysize - 24,   2,          ysize -  4);
+    boxfill8(vram, xsize, COL8_848484,  3,          ysize -  4,  59,          ysize -  4);
+    boxfill8(vram, xsize, COL8_848484, 59,          ysize - 23,  59,          ysize -  5);
+    boxfill8(vram, xsize, COL8_000000,  2,          ysize -  3,  59,          ysize -  3);
+    boxfill8(vram, xsize, COL8_000000, 60,          ysize - 24,  60,          ysize -  3);
+
+    boxfill8(vram, xsize, COL8_848484, xsize - 47,  ysize - 24,  xsize -  4,   ysize - 24);
+    boxfill8(vram, xsize, COL8_848484, xsize - 47,  ysize - 23,  xsize - 47,   ysize -  4);
+    boxfill8(vram, xsize, COL8_FFFFFF, xsize - 47,  ysize -  3,  xsize -  4,   ysize -  3);
+    boxfill8(vram, xsize, COL8_FFFFFF, xsize -  3,  ysize - 24,  xsize -  3,   ysize -  3);
+
+    for (;;) {
+        io_hlt();
+    }
+    
+}
+</div></code></pre>
+<p>これでOSっぽくなりました。<br>
+達成感半端ないです！</p>
+<p>本では五日目に突入しました。<br>
+asmhead.nasの値を取得するために少しbootpack.cを改造します。<br>
+bootpack.c</p>
+<pre class="hljs"><code><div>void HariMain(void)
+{
+    char *vram;
+    int xsize, ysize;
+    short *binfo_scrnx, *binfo_scrny;
+    int *binfo_vram;
+
+    init_palette();
+    binfo_scrnx = (short *) 0x0ff4;
+    binfo_scrny = (short *) 0x0ff6;
+    binfo_vram = (int *) 0x0ff8;
+    xsize = *binfo_scrnx;
+    ysize = *binfo_scrny;
+    vram = (char *) *binfo_vram;
+</div></code></pre>
+<p>次は構造体を使用してHariMain関数の行数を削りました。</p>
+<pre class="hljs"><code><div>struct BOOTINFO {
+    char cyls, leds, vmode, reserve;
+    short scrnx, scrny;
+    char *vram;
+};
+
+void HariMain(void)
+{
+    char *vram;
+    int xsize, ysize;
+    struct BOOTINFO *binfo;
+
+    init_palette();
+    binfo = (struct BOOTINFO *) 0x0ff0;
+    xsize = (*binfo).scrnx;
+    ysize = (*binfo).scrny;
+    vram = (*binfo).vram;
+</div></code></pre>
+<p>あまり削れてないような。
+さら削るためにアロー演算子を使ってみます</p>
+<pre class="hljs"><code><div>void HariMain(void)
+{
+    struct BOOTINFO *binfo = (struct BOOTINFO *) 0x0ff0;
+ 
+    init_palette();
+    init_screen(binfo-&gt;vram, binfo-&gt;scrnx, binfo-&gt;scrny);
+
+    for (;;) {
+        io_hlt();
+    }
+    
+}
+</div></code></pre>
+<p>またinit_screen関数を定義してboxfill8(vram, x, COL8_008484,  0,          0,       x - 1,    y - 29);の文を小分けにしました。</p>
+<pre class="hljs"><code><div>void init_screen(char *vram, int x, int y)
+{
+    boxfill8(vram, x, COL8_008484,  0,          0,       x - 1,    y - 29);
+    boxfill8(vram, x, COL8_C6C6C6,  0,          y - 28,  x - 1,    y - 28);
+    boxfill8(vram, x, COL8_FFFFFF,  0,          y - 27,  x - 1,    y - 27);
+    boxfill8(vram, x, COL8_C6C6C6,  0,          y - 26,  x - 1,    y -  1);
+
+    boxfill8(vram, x, COL8_FFFFFF,  3,          y - 24,  59,       y - 24);
+    boxfill8(vram, x, COL8_FFFFFF,  2,          y - 24,   2,       y -  4);
+    boxfill8(vram, x, COL8_848484,  3,          y -  4,  59,       y -  4);
+    boxfill8(vram, x, COL8_848484, 59,          y - 23,  59,       y -  5);
+    boxfill8(vram, x, COL8_000000,  2,          y -  3,  59,       y -  3);
+    boxfill8(vram, x, COL8_000000, 60,          y - 24,  60,       y -  3);
+
+    boxfill8(vram, x, COL8_848484, x - 47,      y - 24,  x -  4,   y - 24);
+    boxfill8(vram, x, COL8_848484, x - 47,      y - 23,  x - 47,   y -  4);
+    boxfill8(vram, x, COL8_FFFFFF, x - 47,      y -  3,  x -  4,   y -  3);
+    boxfill8(vram, x, COL8_FFFFFF, x -  3,      y - 24,  x -  3,   y -  3);
+    return;
+}
+</div></code></pre>
+<p>プロト関数も忘れずにつけましょう。</p>
+<pre class="hljs"><code><div>void init_palette(void);
+void set_palette(int start, int end, unsigned char *rgd);
+void boxfill8(unsigned char *vram, int xsize, unsigned char c, int x0, int y0, int x1, int y1);
+void init_screen(char *vram, int x, int y);
+</div></code></pre>
+<p><strong>実装過程</strong><br>
+・　<a href="57a54599e9dedb9733ffbfdcb8a75f72732b31c7">57a54599e9dedb9733ffbfdcb8a75f72732b31c7</a></p>
+
+</body>
+</html>

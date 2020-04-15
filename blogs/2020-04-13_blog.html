@@ -1304,6 +1304,131 @@ bootpack.bim : bootpack.obj naskfunc.obj Makefile
 </div></code></pre>
 <p>これにて本日は終了です。<br>
 凄くハードでしたがお疲れさまでした。</p>
+<p><strong>実装過程</strong><br>
+・　<a href="f19327e0cd072bdbc70833d803d423437a7c9823">f19327e0cd072bdbc70833d803d423437a7c9823</a></p>
+<p>VRAMに何か書き込みたいのでnaskfunc.nasをいじります。
+naskfunc.nas</p>
+<pre class="hljs"><code><div>; naskfunc
+; TAB=4
+
+[FORMAT &quot;WCOFF&quot;]
+[INSTRSET &quot;i486p&quot;]
+[BITS 32]
+
+; object file
+
+[FILE &quot;naskfunc.nas&quot;]
+
+        GLOBAL  _io_hlt,_write_mem8
+
+; function
+
+[SECTION .test]
+
+_io_hlt:
+        HLT
+        RET
+
+_write_mem8:    ; void write_mem8(int addr, int data);
+        MOV     ECX,[ESP+4]     ; [ESP+4] in addr read ECX
+        MOV     AL,[ESP+8]      ; [ESP+8] in data read AL
+        MOV     [ECX],AL
+        RET
+</div></code></pre>
+<p>_write_mem8を呼び出すためにbootpack.cも改造します。
+bootpack.c</p>
+<pre class="hljs"><code><div>void io_hlt(void);
+void write_mem8(int addr, int data);
+
+void HariMain(void)
+{
+    int i;
+
+    for (i = 0xa0000; i &lt;= 0xaffff; i++) {
+        write_mem8(i, 15);
+    }
+
+    for (;;) {
+        io_hlt();
+    }
+    
+}
+</div></code></pre>
+<p>次はしましまに改造するためにbootpack.cに少し手を加えます。<br>
+bootpack.c</p>
+<pre class="hljs"><code><div>void HariMain(void)
+{
+    int i;
+
+    for (i = 0xa0000; i &lt;= 0xaffff; i++) {
+        write_mem8(i, i &amp; 0x0f);
+    }
+
+    for (;;) {
+        io_hlt();
+    }
+    
+}
+</div></code></pre>
+<p>ここからはポインタについて見ていく回なのでざっと書いていきます。<br>
+青い画面が表示されます。<br>
+bootpack.c</p>
+<pre class="hljs"><code><div>void HariMain(void)
+{
+    int i;
+    char *p;
+
+    for (i = 0xa0000; i &lt;= 0xaffff; i++) {
+        p =i;
+        *p = 1 &amp; 0x0f;
+    }
+
+    for (;;) {
+        io_hlt();
+    }
+    
+}
+</div></code></pre>
+<p>次はしましまの画面が表示されます。<br>
+bootpack.c</p>
+<pre class="hljs"><code><div>void HariMain(void)
+{
+    int i;
+    char *p;
+
+    p = (char *) 0xa0000;
+
+    for (i = 0; i &lt;= 0xffff; i++) {
+        *(p + i) = i &amp; 0x0f;
+    }
+
+    for (;;) {
+        io_hlt();
+    }
+    
+}
+</div></code></pre>
+<p>次も企保的に瓦井ですが*(p + i)の部分がp[i]になっています。<br>
+bootpack.c</p>
+<pre class="hljs"><code><div>void HariMain(void)
+{
+    int i;
+    char *p;
+
+    p = (char *) 0xa0000;
+
+    for (i = 0; i &lt;= 0xffff; i++) {
+        p[i] = i &amp; 0x0f;
+    }
+
+    for (;;) {
+        io_hlt();
+    }
+    
+}
+</div></code></pre>
+<p><strong>実装過程</strong><br>
+・　<a href="cb092449d4b3f7dee5bd09004a736b6905d3a889">cb092449d4b3f7dee5bd09004a736b6905d3a889</a></p>
 
 </body>
 </html>
