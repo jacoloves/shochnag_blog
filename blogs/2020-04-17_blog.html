@@ -1,0 +1,1346 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>20200417.md</title>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+
+<style>
+/* https://github.com/microsoft/vscode/blob/master/extensions/markdown-language-features/media/markdown.css */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+body {
+	font-family: var(--vscode-markdown-font-family, -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif);
+	font-size: var(--vscode-markdown-font-size, 14px);
+	padding: 0 26px;
+	line-height: var(--vscode-markdown-line-height, 22px);
+	word-wrap: break-word;
+}
+
+#code-csp-warning {
+	position: fixed;
+	top: 0;
+	right: 0;
+	color: white;
+	margin: 16px;
+	text-align: center;
+	font-size: 12px;
+	font-family: sans-serif;
+	background-color:#444444;
+	cursor: pointer;
+	padding: 6px;
+	box-shadow: 1px 1px 1px rgba(0,0,0,.25);
+}
+
+#code-csp-warning:hover {
+	text-decoration: none;
+	background-color:#007acc;
+	box-shadow: 2px 2px 2px rgba(0,0,0,.25);
+}
+
+body.scrollBeyondLastLine {
+	margin-bottom: calc(100vh - 22px);
+}
+
+body.showEditorSelection .code-line {
+	position: relative;
+}
+
+body.showEditorSelection .code-active-line:before,
+body.showEditorSelection .code-line:hover:before {
+	content: "";
+	display: block;
+	position: absolute;
+	top: 0;
+	left: -12px;
+	height: 100%;
+}
+
+body.showEditorSelection li.code-active-line:before,
+body.showEditorSelection li.code-line:hover:before {
+	left: -30px;
+}
+
+.vscode-light.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.15);
+}
+
+.vscode-light.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.40);
+}
+
+.vscode-light.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-dark.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.4);
+}
+
+.vscode-dark.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.60);
+}
+
+.vscode-dark.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-high-contrast.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 160, 0, 0.7);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 160, 0, 1);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+img {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+	outline: 1px solid -webkit-focus-ring-color;
+	outline-offset: -1px;
+}
+
+hr {
+	border: 0;
+	height: 2px;
+	border-bottom: 2px solid;
+}
+
+h1 {
+	padding-bottom: 0.3em;
+	line-height: 1.2;
+	border-bottom-width: 1px;
+	border-bottom-style: solid;
+}
+
+h1, h2, h3 {
+	font-weight: normal;
+}
+
+table {
+	border-collapse: collapse;
+}
+
+table > thead > tr > th {
+	text-align: left;
+	border-bottom: 1px solid;
+}
+
+table > thead > tr > th,
+table > thead > tr > td,
+table > tbody > tr > th,
+table > tbody > tr > td {
+	padding: 5px 10px;
+}
+
+table > tbody > tr + tr > td {
+	border-top: 1px solid;
+}
+
+blockquote {
+	margin: 0 7px 0 5px;
+	padding: 0 16px 0 10px;
+	border-left-width: 5px;
+	border-left-style: solid;
+}
+
+code {
+	font-family: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
+	font-size: 1em;
+	line-height: 1.357em;
+}
+
+body.wordWrap pre {
+	white-space: pre-wrap;
+}
+
+pre:not(.hljs),
+pre.hljs code > div {
+	padding: 16px;
+	border-radius: 3px;
+	overflow: auto;
+}
+
+pre code {
+	color: var(--vscode-editor-foreground);
+	tab-size: 4;
+}
+
+/** Theming */
+
+.vscode-light pre {
+	background-color: rgba(220, 220, 220, 0.4);
+}
+
+.vscode-dark pre {
+	background-color: rgba(10, 10, 10, 0.4);
+}
+
+.vscode-high-contrast pre {
+	background-color: rgb(0, 0, 0);
+}
+
+.vscode-high-contrast h1 {
+	border-color: rgb(0, 0, 0);
+}
+
+.vscode-light table > thead > tr > th {
+	border-color: rgba(0, 0, 0, 0.69);
+}
+
+.vscode-dark table > thead > tr > th {
+	border-color: rgba(255, 255, 255, 0.69);
+}
+
+.vscode-light h1,
+.vscode-light hr,
+.vscode-light table > tbody > tr + tr > td {
+	border-color: rgba(0, 0, 0, 0.18);
+}
+
+.vscode-dark h1,
+.vscode-dark hr,
+.vscode-dark table > tbody > tr + tr > td {
+	border-color: rgba(255, 255, 255, 0.18);
+}
+
+</style>
+
+<style>
+/* Tomorrow Theme */
+/* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+/* Original theme - https://github.com/chriskempson/tomorrow-theme */
+
+/* Tomorrow Comment */
+.hljs-comment,
+.hljs-quote {
+	color: #8e908c;
+}
+
+/* Tomorrow Red */
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-regexp,
+.hljs-deletion {
+	color: #c82829;
+}
+
+/* Tomorrow Orange */
+.hljs-number,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-literal,
+.hljs-type,
+.hljs-params,
+.hljs-meta,
+.hljs-link {
+	color: #f5871f;
+}
+
+/* Tomorrow Yellow */
+.hljs-attribute {
+	color: #eab700;
+}
+
+/* Tomorrow Green */
+.hljs-string,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
+	color: #718c00;
+}
+
+/* Tomorrow Blue */
+.hljs-title,
+.hljs-section {
+	color: #4271ae;
+}
+
+/* Tomorrow Purple */
+.hljs-keyword,
+.hljs-selector-tag {
+	color: #8959a8;
+}
+
+.hljs {
+	display: block;
+	overflow-x: auto;
+	color: #4d4d4c;
+	padding: 0.5em;
+}
+
+.hljs-emphasis {
+	font-style: italic;
+}
+
+.hljs-strong {
+	font-weight: bold;
+}
+</style>
+
+<style>
+/*
+ * Markdown PDF CSS
+ */
+
+ body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
+	padding: 0 12px;
+}
+
+pre {
+	background-color: #f8f8f8;
+	border: 1px solid #cccccc;
+	border-radius: 3px;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+}
+
+pre:not(.hljs) {
+	padding: 23px;
+	line-height: 19px;
+}
+
+blockquote {
+	background: rgba(127, 127, 127, 0.1);
+	border-color: rgba(0, 122, 204, 0.5);
+}
+
+.emoji {
+	height: 1.4em;
+}
+
+code {
+	font-size: 14px;
+	line-height: 19px;
+}
+
+/* for inline code */
+:not(pre):not(.hljs) > code {
+	color: #C9AE75; /* Change the old color so it seems less like an error */
+	font-size: inherit;
+}
+
+/* Page Break : use <div class="page"/> to insert page break
+-------------------------------------------------------- */
+.page {
+	page-break-after: always;
+}
+
+</style>
+
+<script src="https://unpkg.com/mermaid/dist/mermaid.min.js"></script>
+</head>
+<body>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: document.body.classList.contains('vscode-dark') || document.body.classList.contains('vscode-high-contrast')
+          ? 'dark'
+          : 'default'
+    });
+  </script>
+<h2 id="day6">day6</h2>
+<p>割り込み命令を作るために、GDT/IDTから作成していきます。<br>
+bootpack.c</p>
+<pre class="hljs"><code><div><span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">SEGMENT_DESCRIPTOR</span> {</span>
+    short limit_low, base_low;
+    <span class="hljs-keyword">char</span> base_mid, access_right;
+    <span class="hljs-keyword">char</span> limit_high, base_high;
+};
+
+<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">GATE_DESCRIPTOR</span> {</span>
+    short offset_low, selector;
+    <span class="hljs-keyword">char</span> dw_count, access_right;
+    short offset_high;
+};
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">init_gdtidt</span><span class="hljs-params">(<span class="hljs-keyword">void</span>)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">set_segmdesc</span><span class="hljs-params">(struct SEGMENT_DESCRIPTOR *sd, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> limit, <span class="hljs-keyword">int</span> base, <span class="hljs-keyword">int</span> ar)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">set_gatedesc</span><span class="hljs-params">(struct GATE_DESCRIPTOR *gd, <span class="hljs-keyword">int</span> offset, <span class="hljs-keyword">int</span> selector, <span class="hljs-keyword">int</span> ar)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">load_gdtr</span><span class="hljs-params">(<span class="hljs-keyword">int</span> limit, <span class="hljs-keyword">int</span> addr)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">load_idtr</span><span class="hljs-params">(<span class="hljs-keyword">int</span> limit, <span class="hljs-keyword">int</span> addr)</span></span>;
+</div></code></pre>
+<pre class="hljs"><code><div><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">init_gdtidt</span><span class="hljs-params">(<span class="hljs-keyword">void</span>)</span> </span>{
+    <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">SEGMENT_DESCRIPTOR</span> *<span class="hljs-title">gdt</span> = (<span class="hljs-title">struct</span> <span class="hljs-title">SEGMENT_DESCRIPTOR</span> *) 0<span class="hljs-title">x00270000</span>;</span>
+    <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">GATE_DESCRIPTOR</span> *<span class="hljs-title">idt</span> = (<span class="hljs-title">struct</span> <span class="hljs-title">GATE_DESCRIPTOR</span> *) 0<span class="hljs-title">x0026f800</span>;</span>
+    <span class="hljs-keyword">int</span> i;
+
+    <span class="hljs-keyword">for</span> (i = <span class="hljs-number">0</span>; i &lt; <span class="hljs-number">8192</span>; i++) {
+        set_segmdesc(gdt + i, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>);
+    }
+
+    set_segmdesc(gdt + <span class="hljs-number">1</span>, <span class="hljs-number">0xffffffff</span>, <span class="hljs-number">0x00000000</span>, <span class="hljs-number">0x4092</span>);
+    set_segmdesc(gdt + <span class="hljs-number">2</span>, <span class="hljs-number">0x0007ffff</span>, <span class="hljs-number">0x00280000</span>, <span class="hljs-number">0x409a</span>);
+    load_gdtr(<span class="hljs-number">0xffff</span>, <span class="hljs-number">0x00270000</span>);
+
+    <span class="hljs-keyword">for</span> (i = <span class="hljs-number">0</span>; i &lt; <span class="hljs-number">256</span>; i++) {
+        set_gatedesc(idt + i, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>);
+    }
+
+    load_idtr(<span class="hljs-number">0x7ff</span>, <span class="hljs-number">0x0026f800</span>);
+
+    <span class="hljs-keyword">return</span>;
+}
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">set_segmdesc</span><span class="hljs-params">(struct SEGMENT_DESCRIPTOR *sd, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> limit, <span class="hljs-keyword">int</span> base, <span class="hljs-keyword">int</span> ar)</span>
+</span>{
+    <span class="hljs-keyword">if</span> (limit &gt; <span class="hljs-number">0xffff</span>) {
+        ar |= <span class="hljs-number">0x8000</span>;
+        limit /= <span class="hljs-number">0x1000</span>;
+    }
+
+    sd-&gt;limit_low = limit &amp; <span class="hljs-number">0xffff</span>;
+    sd-&gt;base_low = base &amp; <span class="hljs-number">0xffff</span>;
+    sd-&gt;base_mid = (base &gt;&gt; <span class="hljs-number">16</span>) &amp; <span class="hljs-number">0xff</span>;
+    sd-&gt;access_right = ar &amp; <span class="hljs-number">0xff</span>;
+    sd-&gt;limit_high = ((limit &gt;&gt; <span class="hljs-number">16</span>) &amp; <span class="hljs-number">0x0f</span>) |  ((ar &gt;&gt; <span class="hljs-number">8</span>) &amp; <span class="hljs-number">0xf0</span>);
+    sd-&gt;base_high = (base &gt;&gt; <span class="hljs-number">24</span>) &amp; <span class="hljs-number">0xff</span>;
+    <span class="hljs-keyword">return</span>;
+}
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">set_gatedesc</span><span class="hljs-params">(struct GATE_DESCRIPTOR *gd, <span class="hljs-keyword">int</span> offset, <span class="hljs-keyword">int</span> selector, <span class="hljs-keyword">int</span> ar)</span>
+</span>{
+    gd-&gt;offset_low = offset &amp; <span class="hljs-number">0xffff</span>;
+    gd-&gt;selector = selector;
+    gd-&gt;dw_count = (ar &gt;&gt; <span class="hljs-number">8</span>) &amp; <span class="hljs-number">0xff</span>;
+    gd-&gt;access_right = ar &amp; <span class="hljs-number">0xff</span>;
+    gd-&gt;offset_high = (offset &gt;&gt; <span class="hljs-number">16</span>) &amp; <span class="hljs-number">0xffff</span>;
+    <span class="hljs-keyword">return</span>;
+}
+</div></code></pre>
+<p>nasfunc.nas</p>
+<pre class="hljs"><code><div>GLOBAL  _load_gdtr, _load_idtr
+
+_load_gdtr:
+        MOV     AX,[ESP+4]
+        MOV     [ESP+6],AX
+        LGDT    [ESP+6]
+        RET
+
+_load_idtr:
+        MOV     AX,[ESP+4]
+        MOV     [ESP+6],AX
+        LIDT    [ESP+6]
+        RET
+</div></code></pre>
+<p>make runをしても前回と何も変わらないですが、これが6日目の布石になるみたいです。</p>
+<p>ここからは6日目の内容になります。<br>
+まずはbootpack.cが長すぎるのでファイルを分割しました。<br>
+ついでにMakefileも改造しています。</p>
+<p>bootpack.c</p>
+<pre class="hljs"><code><div>TOOLPATH = ..\..\z_tools\\
+
+INCPATH  = ..\..\z_tools\haribote\\
+
+MAKE     = $(TOOLPATH)make.exe -r
+NASK     = $(TOOLPATH)nask.exe
+CC1		 = $(TOOLPATH)cc1.exe -I$(INCPATH) -Os -Wall -quiet
+GAS2NASK = $(TOOLPATH)gas2nask.exe -a
+OBJ2BIM  = $(TOOLPATH)obj2bim.exe
+MAKEFONT = $(TOOLPATH)makefont.exe
+BIN2OBJ  = $(TOOLPATH)bin2obj
+BIM2HRB  = $(TOOLPATH)bim2hrb.exe
+RULEFILE = $(TOOLPATH)haribote\haribote.rul
+EDIMG    = $(TOOLPATH)edimg.exe
+IMGTOL   = $(TOOLPATH)imgtol.com
+COPY     = cmd.exe /C copy
+DEL      = rm -f
+
+
+# <span class="hljs-keyword">default</span> operation
+<span class="hljs-keyword">default</span>:
+	$(MAKE) img
+
+# file making rule
+
+ipl10.bin : ipl10.nas Makefile
+	$(NASK) ipl10.nas ipl10.bin ipl10.lst
+
+asmhead.bin : asmhead.nas Makefile
+	$(NASK) asmhead.nas asmhead.bin asmhead.lst
+
+bootpack.gas : bootpack.c Makefile
+	$(CC1) -o bootpack.gas bootpack.c
+
+bootpack.nas : bootpack.gas Makefile
+	$(GAS2NASK) bootpack.gas  bootpack.nas 
+
+bootpack.obj : bootpack.nas Makefile
+	$(NASK) bootpack.nas bootpack.obj bootpack.lst
+
+naskfunc.obj : naskfunc.nas Makefile
+	$(NASK) naskfunc.nas naskfunc.obj naskfunc.lst
+
+hankaku.bin : hankaku.txt Makefile
+	$(MAKEFONT) hankaku.txt hankaku.bin
+
+hankaku.obj : hankaku.bin Makefile
+	$(BIN2OBJ) hankaku.bin hankaku.obj _hankaku
+
+graphic.gas : graphic.c Makefile
+	$(CC1) -o graphic.gas graphic.c
+
+graphic.nas : graphic.gas Makefile
+	$(GAS2NASK) graphic.gas graphic.nas
+
+graphic.obj : graphic.nas Makefile
+	$(NASK) graphic.nas graphic.obj graphic.lst
+
+dsctbl.gas : dsctbl.c Makefile
+	$(CC1) -o dsctbl.gas dsctbl.c
+
+dsctbl.nas : dsctbl.gas Makefile
+	$(GAS2NASK) dsctbl.gas dsctbl.nas
+
+dsctbl.obj : dsctbl.nas Makefile
+	$(NASK) dsctbl.nas dsctbl.obj dsctbl.lst
+
+bootpack.bim : bootpack.obj naskfunc.obj hankaku.obj graphic.obj dsctbl.obj Makefile
+	$(OBJ2BIM) @$(RULEFILE) out:bootpack.bim <span class="hljs-built_in">stack</span>:<span class="hljs-number">3136</span>k <span class="hljs-built_in">map</span>:bootpack.<span class="hljs-built_in">map</span> \
+		bootpack.obj naskfunc.obj hankaku.obj graphic.obj dsctbl.obj
+# <span class="hljs-number">3</span>MB+<span class="hljs-number">64</span>KB=<span class="hljs-number">3136</span>KB
+
+bootpack.hrb : bootpack.bim Makefile
+	$(BIM2HRB) bootpack.bim bootpack.hrb <span class="hljs-number">0</span>
+
+haribote.sys : asmhead.bin bootpack.hrb Makefile
+	cat asmhead.bin &gt;  haribote.sys
+	cat bootpack.hrb &gt;&gt; haribote.sys
+
+haribote.img : ipl10.bin haribote.sys Makefile
+	$(EDIMG)   imgin:..\..\z_tools\fdimg0at.tek \
+		wbinimg src:ipl10.bin len:<span class="hljs-number">512</span> from:<span class="hljs-number">0</span> to:<span class="hljs-number">0</span> \
+		copy from:haribote.sys to:@: \
+		imgout:haribote.img
+
+# command
+
+img :
+	$(MAKE) haribote.img
+
+<span class="hljs-built_in">run</span> :
+	$(MAKE) img
+	$(COPY) haribote.img ..\..\z_tools\qemu\fdimage0.bin
+	$(MAKE) -C ..\..\z_tools\qemu
+
+install :
+	$(MAKE) img
+	$(IMGTOL) w a: haribote.img
+
+clean :
+	-$(DEL) *.bin
+	-$(DEL) *.lst
+	-$(DEL) *.gas
+	-$(DEL) *.obj
+	-$(DEL) bootpack.nas
+	-$(DEL) bootpack.<span class="hljs-built_in">map</span>
+	-$(DEL) bootpack.bim
+	-$(DEL) bootpack.hrb
+	-$(DEL) haribote.sys
+
+src_only :
+	$(MAKE) clean
+	-$(DEL) haribote.img
+</div></code></pre>
+<p>graphic.c</p>
+<pre class="hljs"><code><div><span class="hljs-comment">/* graphic process */</span>
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">io_hlt</span><span class="hljs-params">(<span class="hljs-keyword">void</span>)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">io_cli</span><span class="hljs-params">(<span class="hljs-keyword">void</span>)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">io_out8</span><span class="hljs-params">(<span class="hljs-keyword">int</span> port, <span class="hljs-keyword">int</span> data)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">io_load_eflags</span><span class="hljs-params">(<span class="hljs-keyword">void</span>)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">io_store_eflags</span><span class="hljs-params">(<span class="hljs-keyword">int</span> eflags)</span></span>;
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">init_palette</span><span class="hljs-params">(<span class="hljs-keyword">void</span>)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">set_palette</span><span class="hljs-params">(<span class="hljs-keyword">int</span> start, <span class="hljs-keyword">int</span> <span class="hljs-built_in">end</span>, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">char</span> *rgd)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">boxfill8</span><span class="hljs-params">(<span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">char</span> *vram, <span class="hljs-keyword">int</span> xsize, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">char</span> c, <span class="hljs-keyword">int</span> x0, <span class="hljs-keyword">int</span> y0, <span class="hljs-keyword">int</span> x1, <span class="hljs-keyword">int</span> y1)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">init_screen</span><span class="hljs-params">(<span class="hljs-keyword">char</span> *vram, <span class="hljs-keyword">int</span> x, <span class="hljs-keyword">int</span> y)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">putfont8</span><span class="hljs-params">(<span class="hljs-keyword">char</span> *vram, <span class="hljs-keyword">int</span> xsize, <span class="hljs-keyword">int</span> x, <span class="hljs-keyword">int</span> y, <span class="hljs-keyword">char</span> c, <span class="hljs-keyword">char</span> *font)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">putfonts8_asc</span><span class="hljs-params">(<span class="hljs-keyword">char</span> *vram, <span class="hljs-keyword">int</span> xsize, <span class="hljs-keyword">int</span> x, <span class="hljs-keyword">int</span> y, <span class="hljs-keyword">char</span> c, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">char</span> *s)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">init_mouse_cursor8</span><span class="hljs-params">(<span class="hljs-keyword">char</span> *mouse, <span class="hljs-keyword">char</span> bc)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">putblock8_8</span><span class="hljs-params">(<span class="hljs-keyword">char</span> *vram, <span class="hljs-keyword">int</span> vxsize, <span class="hljs-keyword">int</span> pxsize,
+    <span class="hljs-keyword">int</span> pysize, <span class="hljs-keyword">int</span> px0, <span class="hljs-keyword">int</span> py0, <span class="hljs-keyword">char</span> *buf, <span class="hljs-keyword">int</span> bxsize)</span></span>;
+
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> COL8_000000  0</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> COL8_FF0000  1</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> COL8_00FF00  2</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> COL8_FFFF00  3</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> COL8_0000FF  4</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> COL8_FF00FF  5</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> COL8_00FFFF  6</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> COL8_FFFFFF  7</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> COL8_C6C6C6  8</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> COL8_840000  9</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> COL8_008400  10</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> COL8_848400  11</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> COL8_000084  12</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> COL8_840084  13</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> COL8_008484  14</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> COL8_848484  15</span>
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">init_palette</span><span class="hljs-params">(<span class="hljs-keyword">void</span>)</span>
+</span>{
+    <span class="hljs-keyword">static</span> <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">char</span> table_rgb[<span class="hljs-number">16</span> * <span class="hljs-number">3</span>] = {
+        <span class="hljs-number">0x00</span>, <span class="hljs-number">0x00</span>, <span class="hljs-number">0x00</span>,   <span class="hljs-comment">/* 0:black */</span>
+        <span class="hljs-number">0xff</span>, <span class="hljs-number">0x00</span>, <span class="hljs-number">0x00</span>,   <span class="hljs-comment">/* 1:light red */</span>
+        <span class="hljs-number">0x00</span>, <span class="hljs-number">0xff</span>, <span class="hljs-number">0x00</span>,   <span class="hljs-comment">/* 2:light green */</span>
+        <span class="hljs-number">0xff</span>, <span class="hljs-number">0xff</span>, <span class="hljs-number">0x00</span>,   <span class="hljs-comment">/* 3:light yellow */</span>
+        <span class="hljs-number">0x00</span>, <span class="hljs-number">0x00</span>, <span class="hljs-number">0xff</span>,   <span class="hljs-comment">/* 4:light blue */</span>
+        <span class="hljs-number">0xff</span>, <span class="hljs-number">0x00</span>, <span class="hljs-number">0xff</span>,   <span class="hljs-comment">/* 5:light puple */</span>
+        <span class="hljs-number">0x00</span>, <span class="hljs-number">0xff</span>, <span class="hljs-number">0xff</span>,   <span class="hljs-comment">/* 6:light sky blue */</span>
+        <span class="hljs-number">0xff</span>, <span class="hljs-number">0xff</span>, <span class="hljs-number">0xff</span>,   <span class="hljs-comment">/* 7:white */</span>
+        <span class="hljs-number">0xc6</span>, <span class="hljs-number">0xc6</span>, <span class="hljs-number">0xc6</span>,   <span class="hljs-comment">/* 8:light grey */</span>
+        <span class="hljs-number">0x84</span>, <span class="hljs-number">0x00</span>, <span class="hljs-number">0x00</span>,   <span class="hljs-comment">/* 9:dark green */</span>
+        <span class="hljs-number">0x00</span>, <span class="hljs-number">0x84</span>, <span class="hljs-number">0x00</span>,   <span class="hljs-comment">/* 10:dark green */</span>
+        <span class="hljs-number">0x84</span>, <span class="hljs-number">0x84</span>, <span class="hljs-number">0x00</span>,   <span class="hljs-comment">/* 11:dark yellow */</span>
+        <span class="hljs-number">0x00</span>, <span class="hljs-number">0x00</span>, <span class="hljs-number">0x84</span>,   <span class="hljs-comment">/* 12:dark blue */</span>
+        <span class="hljs-number">0x84</span>, <span class="hljs-number">0x00</span>, <span class="hljs-number">0x84</span>,   <span class="hljs-comment">/* 13:dark puple */</span>
+        <span class="hljs-number">0x00</span>, <span class="hljs-number">0x84</span>, <span class="hljs-number">0x84</span>,   <span class="hljs-comment">/* 14:dark sky blue */</span>
+        <span class="hljs-number">0x84</span>, <span class="hljs-number">0x84</span>, <span class="hljs-number">0x84</span>    <span class="hljs-comment">/* 15:dark grey */</span>
+    };
+    set_palette(<span class="hljs-number">0</span>, <span class="hljs-number">15</span>, table_rgb);
+    <span class="hljs-keyword">return</span>;
+}
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">set_palette</span><span class="hljs-params">(<span class="hljs-keyword">int</span> start, <span class="hljs-keyword">int</span> <span class="hljs-built_in">end</span>, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">char</span> *rgb)</span>
+</span>{
+    <span class="hljs-keyword">int</span> i, eflags;
+    eflags = io_load_eflags();
+    io_cli();
+    io_out8(<span class="hljs-number">0x03c8</span>, start);
+    <span class="hljs-keyword">for</span> (i = start; i &lt;= <span class="hljs-built_in">end</span>; i++) {
+        io_out8(<span class="hljs-number">0x03c9</span>, rgb[<span class="hljs-number">0</span>] / <span class="hljs-number">4</span>);
+        io_out8(<span class="hljs-number">0x03c9</span>, rgb[<span class="hljs-number">1</span>] / <span class="hljs-number">4</span>);
+        io_out8(<span class="hljs-number">0x03c9</span>, rgb[<span class="hljs-number">2</span>] / <span class="hljs-number">4</span>);
+        rgb += <span class="hljs-number">3</span>;
+    }
+    io_store_eflags(eflags);
+    <span class="hljs-keyword">return</span>;
+} 
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">boxfill8</span><span class="hljs-params">(<span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">char</span> *vram, <span class="hljs-keyword">int</span> xsize, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">char</span> c, <span class="hljs-keyword">int</span> x0, <span class="hljs-keyword">int</span> y0, <span class="hljs-keyword">int</span> x1, <span class="hljs-keyword">int</span> y1)</span>
+</span>{
+    <span class="hljs-keyword">int</span> x, y;
+    <span class="hljs-keyword">for</span> (y= y0; y &lt;= y1; y++) {
+        <span class="hljs-keyword">for</span> (x = x0; x &lt;= x1; x++)
+            vram[y * xsize + x] = c;
+    }
+    <span class="hljs-keyword">return</span>;
+}
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">init_screen</span><span class="hljs-params">(<span class="hljs-keyword">char</span> *vram, <span class="hljs-keyword">int</span> x, <span class="hljs-keyword">int</span> y)</span>
+</span>{
+    boxfill8(vram, x, COL8_008484,  <span class="hljs-number">0</span>,          <span class="hljs-number">0</span>,       x - <span class="hljs-number">1</span>,    y - <span class="hljs-number">29</span>);
+    boxfill8(vram, x, COL8_C6C6C6,  <span class="hljs-number">0</span>,          y - <span class="hljs-number">28</span>,  x - <span class="hljs-number">1</span>,    y - <span class="hljs-number">28</span>);
+    boxfill8(vram, x, COL8_FFFFFF,  <span class="hljs-number">0</span>,          y - <span class="hljs-number">27</span>,  x - <span class="hljs-number">1</span>,    y - <span class="hljs-number">27</span>);
+    boxfill8(vram, x, COL8_C6C6C6,  <span class="hljs-number">0</span>,          y - <span class="hljs-number">26</span>,  x - <span class="hljs-number">1</span>,    y -  <span class="hljs-number">1</span>);
+
+    boxfill8(vram, x, COL8_FFFFFF,  <span class="hljs-number">3</span>,          y - <span class="hljs-number">24</span>,  <span class="hljs-number">59</span>,       y - <span class="hljs-number">24</span>);
+    boxfill8(vram, x, COL8_FFFFFF,  <span class="hljs-number">2</span>,          y - <span class="hljs-number">24</span>,   <span class="hljs-number">2</span>,       y -  <span class="hljs-number">4</span>);
+    boxfill8(vram, x, COL8_848484,  <span class="hljs-number">3</span>,          y -  <span class="hljs-number">4</span>,  <span class="hljs-number">59</span>,       y -  <span class="hljs-number">4</span>);
+    boxfill8(vram, x, COL8_848484, <span class="hljs-number">59</span>,          y - <span class="hljs-number">23</span>,  <span class="hljs-number">59</span>,       y -  <span class="hljs-number">5</span>);
+    boxfill8(vram, x, COL8_000000,  <span class="hljs-number">2</span>,          y -  <span class="hljs-number">3</span>,  <span class="hljs-number">59</span>,       y -  <span class="hljs-number">3</span>);
+    boxfill8(vram, x, COL8_000000, <span class="hljs-number">60</span>,          y - <span class="hljs-number">24</span>,  <span class="hljs-number">60</span>,       y -  <span class="hljs-number">3</span>);
+
+    boxfill8(vram, x, COL8_848484, x - <span class="hljs-number">47</span>,      y - <span class="hljs-number">24</span>,  x -  <span class="hljs-number">4</span>,   y - <span class="hljs-number">24</span>);
+    boxfill8(vram, x, COL8_848484, x - <span class="hljs-number">47</span>,      y - <span class="hljs-number">23</span>,  x - <span class="hljs-number">47</span>,   y -  <span class="hljs-number">4</span>);
+    boxfill8(vram, x, COL8_FFFFFF, x - <span class="hljs-number">47</span>,      y -  <span class="hljs-number">3</span>,  x -  <span class="hljs-number">4</span>,   y -  <span class="hljs-number">3</span>);
+    boxfill8(vram, x, COL8_FFFFFF, x -  <span class="hljs-number">3</span>,      y - <span class="hljs-number">24</span>,  x -  <span class="hljs-number">3</span>,   y -  <span class="hljs-number">3</span>);
+    <span class="hljs-keyword">return</span>;
+}
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">putfont8</span><span class="hljs-params">(<span class="hljs-keyword">char</span> *vram, <span class="hljs-keyword">int</span> xsize, <span class="hljs-keyword">int</span> x, <span class="hljs-keyword">int</span> y, <span class="hljs-keyword">char</span> c, <span class="hljs-keyword">char</span> *font)</span>
+</span>{
+    <span class="hljs-keyword">int</span> i;
+    <span class="hljs-keyword">char</span> *p, d;
+    <span class="hljs-keyword">for</span> (i = <span class="hljs-number">0</span>; i &lt; <span class="hljs-number">16</span>; i++) {
+        p = vram + (y + i) * xsize + x;
+        d = font[i];
+        <span class="hljs-keyword">if</span> ((d &amp; <span class="hljs-number">0x80</span>) != <span class="hljs-number">0</span>) { p[<span class="hljs-number">0</span>] = c; }
+        <span class="hljs-keyword">if</span> ((d &amp; <span class="hljs-number">0x40</span>) != <span class="hljs-number">0</span>) { p[<span class="hljs-number">1</span>] = c; }
+        <span class="hljs-keyword">if</span> ((d &amp; <span class="hljs-number">0x20</span>) != <span class="hljs-number">0</span>) { p[<span class="hljs-number">2</span>] = c; }
+        <span class="hljs-keyword">if</span> ((d &amp; <span class="hljs-number">0x10</span>) != <span class="hljs-number">0</span>) { p[<span class="hljs-number">3</span>] = c; }
+        <span class="hljs-keyword">if</span> ((d &amp; <span class="hljs-number">0x08</span>) != <span class="hljs-number">0</span>) { p[<span class="hljs-number">4</span>] = c; }
+        <span class="hljs-keyword">if</span> ((d &amp; <span class="hljs-number">0x04</span>) != <span class="hljs-number">0</span>) { p[<span class="hljs-number">5</span>] = c; }
+        <span class="hljs-keyword">if</span> ((d &amp; <span class="hljs-number">0x02</span>) != <span class="hljs-number">0</span>) { p[<span class="hljs-number">6</span>] = c; }
+        <span class="hljs-keyword">if</span> ((d &amp; <span class="hljs-number">0x01</span>) != <span class="hljs-number">0</span>) { p[<span class="hljs-number">7</span>] = c; }
+    }
+    <span class="hljs-keyword">return</span> ;
+}
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">putfonts8_asc</span><span class="hljs-params">(<span class="hljs-keyword">char</span> *vram, <span class="hljs-keyword">int</span> xsize, <span class="hljs-keyword">int</span> x, <span class="hljs-keyword">int</span> y, <span class="hljs-keyword">char</span> c, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">char</span> *s)</span>
+</span>{
+    <span class="hljs-keyword">extern</span> <span class="hljs-keyword">char</span> hankaku[<span class="hljs-number">4096</span>];
+    <span class="hljs-keyword">for</span> (; *s != <span class="hljs-number">0x00</span>; s++) {
+        putfont8(vram, xsize, x, y, c, hankaku + *s * <span class="hljs-number">16</span>);
+        x += <span class="hljs-number">8</span>;
+    }
+    <span class="hljs-keyword">return</span>;
+}
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">init_mouse_cursor8</span><span class="hljs-params">(<span class="hljs-keyword">char</span> *mouse, <span class="hljs-keyword">char</span> bc)</span>
+</span>{
+    <span class="hljs-keyword">static</span> <span class="hljs-keyword">char</span> <span class="hljs-built_in">cursor</span>[<span class="hljs-number">16</span>][<span class="hljs-number">16</span>] = {
+        <span class="hljs-string">"**************.."</span>,
+		<span class="hljs-string">"*OOOOOOOOOOO*..."</span>,
+		<span class="hljs-string">"*OOOOOOOOOO*...."</span>,
+		<span class="hljs-string">"*OOOOOOOOO*....."</span>,
+		<span class="hljs-string">"*OOOOOOOO*......"</span>,
+		<span class="hljs-string">"*OOOOOOO*......."</span>,
+		<span class="hljs-string">"*OOOOOOO*......."</span>,
+		<span class="hljs-string">"*OOOOOOOO*......"</span>,
+		<span class="hljs-string">"*OOOO**OOO*....."</span>,
+		<span class="hljs-string">"*OOO*..*OOO*...."</span>,
+		<span class="hljs-string">"*OO*....*OOO*..."</span>,
+		<span class="hljs-string">"*O*......*OOO*.."</span>,
+		<span class="hljs-string">"**........*OOO*."</span>,
+		<span class="hljs-string">"*..........*OOO*"</span>,
+		<span class="hljs-string">"............*OO*"</span>,
+		<span class="hljs-string">".............***"</span>
+    };
+    <span class="hljs-keyword">int</span> x, y;
+
+    <span class="hljs-keyword">for</span> (y = <span class="hljs-number">0</span>; y &lt; <span class="hljs-number">16</span>; y++) {
+        <span class="hljs-keyword">for</span> (x = <span class="hljs-number">0</span>; x &lt; <span class="hljs-number">16</span>; x++) {
+            <span class="hljs-keyword">if</span> (<span class="hljs-built_in">cursor</span>[y][x] == <span class="hljs-string">'*'</span>) {
+                mouse[y * <span class="hljs-number">16</span> + x] = COL8_000000;
+            }
+            <span class="hljs-keyword">if</span> (<span class="hljs-built_in">cursor</span>[y][x] == <span class="hljs-string">'O'</span>) {
+                mouse[y + <span class="hljs-number">16</span> + x] = COL8_FFFFFF;
+            }
+            <span class="hljs-keyword">if</span> (<span class="hljs-built_in">cursor</span>[y][x] == <span class="hljs-string">'.'</span>) {
+                mouse[y * <span class="hljs-number">16</span> + x] = bc;
+            }
+        }
+    }
+    <span class="hljs-keyword">return</span>;
+}
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">putblock8_8</span><span class="hljs-params">(<span class="hljs-keyword">char</span> *vram, <span class="hljs-keyword">int</span> vxsize, <span class="hljs-keyword">int</span> pxsize,
+    <span class="hljs-keyword">int</span> pysize, <span class="hljs-keyword">int</span> px0, <span class="hljs-keyword">int</span> py0, <span class="hljs-keyword">char</span> *buf, <span class="hljs-keyword">int</span> bxsize)</span>
+</span>{
+    <span class="hljs-keyword">int</span> x, y;
+    <span class="hljs-keyword">for</span> (y = <span class="hljs-number">0</span>; y &lt; pysize; y++) {
+        <span class="hljs-keyword">for</span> (x = <span class="hljs-number">0</span>; x &lt; pxsize; x++) {
+            vram[(py0 + y) * vxsize + (px0 + x)] = buf[y * bxsize + x];
+        }
+    }
+    <span class="hljs-keyword">return</span>; 
+}
+</div></code></pre>
+<p>dsctbl.c</p>
+<pre class="hljs"><code><div><span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">SEGMENT_DESCRIPTOR</span> {</span>
+    short limit_low, base_low;
+    <span class="hljs-keyword">char</span> base_mid, access_right;
+    <span class="hljs-keyword">char</span> limit_high, base_high;
+};
+
+<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">GATE_DESCRIPTOR</span> {</span>
+    short offset_low, selector;
+    <span class="hljs-keyword">char</span> dw_count, access_right;
+    short offset_high;
+};
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">init_gdtidt</span><span class="hljs-params">(<span class="hljs-keyword">void</span>)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">set_segmdesc</span><span class="hljs-params">(struct SEGMENT_DESCRIPTOR *sd, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> limit, <span class="hljs-keyword">int</span> base, <span class="hljs-keyword">int</span> ar)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">set_gatedesc</span><span class="hljs-params">(struct GATE_DESCRIPTOR *gd, <span class="hljs-keyword">int</span> offset, <span class="hljs-keyword">int</span> selector, <span class="hljs-keyword">int</span> ar)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">load_gdtr</span><span class="hljs-params">(<span class="hljs-keyword">int</span> limit, <span class="hljs-keyword">int</span> addr)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">load_idtr</span><span class="hljs-params">(<span class="hljs-keyword">int</span> limit, <span class="hljs-keyword">int</span> addr)</span></span>;
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">init_gdtidt</span><span class="hljs-params">(<span class="hljs-keyword">void</span>)</span> </span>{
+    <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">SEGMENT_DESCRIPTOR</span> *<span class="hljs-title">gdt</span> = (<span class="hljs-title">struct</span> <span class="hljs-title">SEGMENT_DESCRIPTOR</span> *) 0<span class="hljs-title">x00270000</span>;</span>
+    <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">GATE_DESCRIPTOR</span> *<span class="hljs-title">idt</span> = (<span class="hljs-title">struct</span> <span class="hljs-title">GATE_DESCRIPTOR</span> *) 0<span class="hljs-title">x0026f800</span>;</span>
+    <span class="hljs-keyword">int</span> i;
+
+    <span class="hljs-keyword">for</span> (i = <span class="hljs-number">0</span>; i &lt; <span class="hljs-number">8192</span>; i++) {
+        set_segmdesc(gdt + i, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>);
+    }
+
+    set_segmdesc(gdt + <span class="hljs-number">1</span>, <span class="hljs-number">0xffffffff</span>, <span class="hljs-number">0x00000000</span>, <span class="hljs-number">0x4092</span>);
+    set_segmdesc(gdt + <span class="hljs-number">2</span>, <span class="hljs-number">0x0007ffff</span>, <span class="hljs-number">0x00280000</span>, <span class="hljs-number">0x409a</span>);
+    load_gdtr(<span class="hljs-number">0xffff</span>, <span class="hljs-number">0x00270000</span>);
+
+    <span class="hljs-keyword">for</span> (i = <span class="hljs-number">0</span>; i &lt; <span class="hljs-number">256</span>; i++) {
+        set_gatedesc(idt + i, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>);
+    }
+
+    load_idtr(<span class="hljs-number">0x7ff</span>, <span class="hljs-number">0x0026f800</span>);
+
+    <span class="hljs-keyword">return</span>;
+}
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">set_segmdesc</span><span class="hljs-params">(struct SEGMENT_DESCRIPTOR *sd, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> limit, <span class="hljs-keyword">int</span> base, <span class="hljs-keyword">int</span> ar)</span>
+</span>{
+    <span class="hljs-keyword">if</span> (limit &gt; <span class="hljs-number">0xffff</span>) {
+        ar |= <span class="hljs-number">0x8000</span>;
+        limit /= <span class="hljs-number">0x1000</span>;
+    }
+
+    sd-&gt;limit_low = limit &amp; <span class="hljs-number">0xffff</span>;
+    sd-&gt;base_low = base &amp; <span class="hljs-number">0xffff</span>;
+    sd-&gt;base_mid = (base &gt;&gt; <span class="hljs-number">16</span>) &amp; <span class="hljs-number">0xff</span>;
+    sd-&gt;access_right = ar &amp; <span class="hljs-number">0xff</span>;
+    sd-&gt;limit_high = ((limit &gt;&gt; <span class="hljs-number">16</span>) &amp; <span class="hljs-number">0x0f</span>) |  ((ar &gt;&gt; <span class="hljs-number">8</span>) &amp; <span class="hljs-number">0xf0</span>);
+    sd-&gt;base_high = (base &gt;&gt; <span class="hljs-number">24</span>) &amp; <span class="hljs-number">0xff</span>;
+    <span class="hljs-keyword">return</span>;
+}
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">set_gatedesc</span><span class="hljs-params">(struct GATE_DESCRIPTOR *gd, <span class="hljs-keyword">int</span> offset, <span class="hljs-keyword">int</span> selector, <span class="hljs-keyword">int</span> ar)</span>
+</span>{
+    gd-&gt;offset_low = offset &amp; <span class="hljs-number">0xffff</span>;
+    gd-&gt;selector = selector;
+    gd-&gt;dw_count = (ar &gt;&gt; <span class="hljs-number">8</span>) &amp; <span class="hljs-number">0xff</span>;
+    gd-&gt;access_right = ar &amp; <span class="hljs-number">0xff</span>;
+    gd-&gt;offset_high = (offset &gt;&gt; <span class="hljs-number">16</span>) &amp; <span class="hljs-number">0xffff</span>;
+    <span class="hljs-keyword">return</span>;
+}
+</div></code></pre>
+<p>Makefile</p>
+<pre class="hljs"><code><div>TOOLPATH = ..\..\z_tools\\
+
+INCPATH  = ..\..\z_tools\haribote\\
+
+MAKE     = <span class="hljs-variable">$(TOOLPATH)</span>make.exe -r
+NASK     = <span class="hljs-variable">$(TOOLPATH)</span>nask.exe
+CC1		 = <span class="hljs-variable">$(TOOLPATH)</span>cc1.exe -I<span class="hljs-variable">$(INCPATH)</span> -Os -Wall -quiet
+GAS2NASK = <span class="hljs-variable">$(TOOLPATH)</span>gas2nask.exe -a
+OBJ2BIM  = <span class="hljs-variable">$(TOOLPATH)</span>obj2bim.exe
+MAKEFONT = <span class="hljs-variable">$(TOOLPATH)</span>makefont.exe
+BIN2OBJ  = <span class="hljs-variable">$(TOOLPATH)</span>bin2obj
+BIM2HRB  = <span class="hljs-variable">$(TOOLPATH)</span>bim2hrb.exe
+RULEFILE = <span class="hljs-variable">$(TOOLPATH)</span>haribote\haribote.rul
+EDIMG    = <span class="hljs-variable">$(TOOLPATH)</span>edimg.exe
+IMGTOL   = <span class="hljs-variable">$(TOOLPATH)</span>imgtol.com
+COPY     = cmd.exe /C copy
+DEL      = rm -f
+
+
+<span class="hljs-comment"># default operation</span>
+<span class="hljs-section">default:</span>
+	<span class="hljs-variable">$(MAKE)</span> img
+
+<span class="hljs-comment"># file making rule</span>
+
+ipl10.bin : ipl10.nas Makefile
+	<span class="hljs-variable">$(NASK)</span> ipl10.nas ipl10.bin ipl10.lst
+
+asmhead.bin : asmhead.nas Makefile
+	<span class="hljs-variable">$(NASK)</span> asmhead.nas asmhead.bin asmhead.lst
+
+bootpack.gas : bootpack.c Makefile
+	<span class="hljs-variable">$(CC1)</span> -o bootpack.gas bootpack.c
+
+bootpack.nas : bootpack.gas Makefile
+	<span class="hljs-variable">$(GAS2NASK)</span> bootpack.gas  bootpack.nas 
+
+bootpack.obj : bootpack.nas Makefile
+	<span class="hljs-variable">$(NASK)</span> bootpack.nas bootpack.obj bootpack.lst
+
+naskfunc.obj : naskfunc.nas Makefile
+	<span class="hljs-variable">$(NASK)</span> naskfunc.nas naskfunc.obj naskfunc.lst
+
+hankaku.bin : hankaku.txt Makefile
+	<span class="hljs-variable">$(MAKEFONT)</span> hankaku.txt hankaku.bin
+
+hankaku.obj : hankaku.bin Makefile
+	<span class="hljs-variable">$(BIN2OBJ)</span> hankaku.bin hankaku.obj _hankaku
+
+graphic.gas : graphic.c Makefile
+	<span class="hljs-variable">$(CC1)</span> -o graphic.gas graphic.c
+
+graphic.nas : graphic.gas Makefile
+	<span class="hljs-variable">$(GAS2NASK)</span> graphic.gas graphic.nas
+
+graphic.obj : graphic.nas Makefile
+	<span class="hljs-variable">$(NASK)</span> graphic.nas graphic.obj graphic.lst
+
+dsctbl.gas : dsctbl.c Makefile
+	<span class="hljs-variable">$(CC1)</span> -o dsctbl.gas dsctbl.c
+
+dsctbl.nas : dsctbl.gas Makefile
+	<span class="hljs-variable">$(GAS2NASK)</span> dsctbl.gas dsctbl.nas
+
+dsctbl.obj : dsctbl.nas Makefile
+	<span class="hljs-variable">$(NASK)</span> dsctbl.nas dsctbl.obj dsctbl.lst
+
+bootpack.bim : bootpack.obj naskfunc.obj hankaku.obj graphic.obj dsctbl.obj Makefile
+	<span class="hljs-variable">$(OBJ2BIM)</span> @<span class="hljs-variable">$(RULEFILE)</span> out:bootpack.bim stack:3136k map:bootpack.map \
+		bootpack.obj naskfunc.obj hankaku.obj graphic.obj dsctbl.obj
+<span class="hljs-comment"># 3MB+64KB=3136KB</span>
+
+bootpack.hrb : bootpack.bim Makefile
+	<span class="hljs-variable">$(BIM2HRB)</span> bootpack.bim bootpack.hrb 0
+
+haribote.sys : asmhead.bin bootpack.hrb Makefile
+	cat asmhead.bin &gt;  haribote.sys
+	cat bootpack.hrb &gt;&gt; haribote.sys
+
+haribote.img : ipl10.bin haribote.sys Makefile
+	<span class="hljs-variable">$(EDIMG)</span>   imgin:..\..\z_tools\fdimg0at.tek \
+		wbinimg src:ipl10.bin len:512 from:0 to:0 \
+		copy from:haribote.sys to:@: \
+		imgout:haribote.img
+
+<span class="hljs-comment"># command</span>
+
+img :
+	<span class="hljs-variable">$(MAKE)</span> haribote.img
+
+run :
+	<span class="hljs-variable">$(MAKE)</span> img
+	<span class="hljs-variable">$(COPY)</span> haribote.img ..\..\z_tools\qemu\fdimage0.bin
+	<span class="hljs-variable">$(MAKE)</span> -C ..\..\z_tools\qemu
+
+install :
+	<span class="hljs-variable">$(MAKE)</span> img
+	<span class="hljs-variable">$(IMGTOL)</span> w a: haribote.img
+
+clean :
+	-<span class="hljs-variable">$(DEL)</span> *.bin
+	-<span class="hljs-variable">$(DEL)</span> *.lst
+	-<span class="hljs-variable">$(DEL)</span> *.gas
+	-<span class="hljs-variable">$(DEL)</span> *.obj
+	-<span class="hljs-variable">$(DEL)</span> bootpack.nas
+	-<span class="hljs-variable">$(DEL)</span> bootpack.map
+	-<span class="hljs-variable">$(DEL)</span> bootpack.bim
+	-<span class="hljs-variable">$(DEL)</span> bootpack.hrb
+	-<span class="hljs-variable">$(DEL)</span> haribote.sys
+
+src_only :
+	<span class="hljs-variable">$(MAKE)</span> clean
+	-<span class="hljs-variable">$(DEL)</span> haribote.img
+</div></code></pre>
+<p>Makefileが長くなりすぎたので短くします。</p>
+<p>Makefile</p>
+<pre class="hljs"><code><div>OBJS_BOOTPACK = bootpack.obj naskfunc.obj hankaku.obj graphic.obj dsctbl.obj
+
+TOOLPATH = ..\..\z_tools\\
+
+INCPATH  = ..\..\z_tools\haribote\\
+
+MAKE     = <span class="hljs-variable">$(TOOLPATH)</span>make.exe -r
+NASK     = <span class="hljs-variable">$(TOOLPATH)</span>nask.exe
+CC1		 = <span class="hljs-variable">$(TOOLPATH)</span>cc1.exe -I<span class="hljs-variable">$(INCPATH)</span> -Os -Wall -quiet
+GAS2NASK = <span class="hljs-variable">$(TOOLPATH)</span>gas2nask.exe -a
+OBJ2BIM  = <span class="hljs-variable">$(TOOLPATH)</span>obj2bim.exe
+MAKEFONT = <span class="hljs-variable">$(TOOLPATH)</span>makefont.exe
+BIN2OBJ  = <span class="hljs-variable">$(TOOLPATH)</span>bin2obj
+BIM2HRB  = <span class="hljs-variable">$(TOOLPATH)</span>bim2hrb.exe
+RULEFILE = <span class="hljs-variable">$(TOOLPATH)</span>haribote\haribote.rul
+EDIMG    = <span class="hljs-variable">$(TOOLPATH)</span>edimg.exe
+IMGTOL   = <span class="hljs-variable">$(TOOLPATH)</span>imgtol.com
+COPY     = cmd.exe /C copy
+DEL      = rm -f
+
+
+<span class="hljs-comment"># default operation</span>
+<span class="hljs-section">default:</span>
+	<span class="hljs-variable">$(MAKE)</span> img
+
+<span class="hljs-comment"># file making rule</span>
+
+ipl10.bin : ipl10.nas Makefile
+	<span class="hljs-variable">$(NASK)</span> ipl10.nas ipl10.bin ipl10.lst
+
+asmhead.bin : asmhead.nas Makefile
+	<span class="hljs-variable">$(NASK)</span> asmhead.nas asmhead.bin asmhead.lst
+
+hankaku.bin : hankaku.txt Makefile
+	<span class="hljs-variable">$(MAKEFONT)</span> hankaku.txt hankaku.bin
+
+hankaku.obj : hankaku.bin Makefile
+	<span class="hljs-variable">$(BIN2OBJ)</span> hankaku.bin hankaku.obj _hankaku
+
+bootpack.bim : <span class="hljs-variable">$(OBJS_BOOTPACK)</span> Makefile
+	<span class="hljs-variable">$(OBJ2BIM)</span> @<span class="hljs-variable">$(RULEFILE)</span> out:bootpack.bim stack:3136k map:bootpack.map \
+		<span class="hljs-variable">$(OBJS_BOOTPACK)</span>
+<span class="hljs-comment"># 3MB+64KB=3136KB</span>
+
+bootpack.hrb : bootpack.bim Makefile
+	<span class="hljs-variable">$(BIM2HRB)</span> bootpack.bim bootpack.hrb 0
+
+haribote.sys : asmhead.bin bootpack.hrb Makefile
+	cat asmhead.bin &gt;  haribote.sys
+	cat bootpack.hrb &gt;&gt; haribote.sys
+
+haribote.img : ipl10.bin haribote.sys Makefile
+	<span class="hljs-variable">$(EDIMG)</span>   imgin:..\..\z_tools\fdimg0at.tek \
+		wbinimg src:ipl10.bin len:512 from:0 to:0 \
+		copy from:haribote.sys to:@: \
+		imgout:haribote.img
+
+<span class="hljs-comment"># rules</span>
+%.gas : %.c Makefile
+	<span class="hljs-variable">$(CC1)</span> -o <span class="hljs-variable">$*</span>.gas <span class="hljs-variable">$*</span>.c
+
+%.nas : %.gas Makefile
+	<span class="hljs-variable">$(GAS2NASK)</span> <span class="hljs-variable">$*</span>.gas <span class="hljs-variable">$*</span>.nas
+
+%.obj :%.nas Makefile
+	<span class="hljs-variable">$(NASK)</span> <span class="hljs-variable">$*</span>.nas <span class="hljs-variable">$*</span>.obj <span class="hljs-variable">$*</span>.lst
+
+<span class="hljs-comment"># command</span>
+
+img :
+	<span class="hljs-variable">$(MAKE)</span> haribote.img
+
+run :
+	<span class="hljs-variable">$(MAKE)</span> img
+	<span class="hljs-variable">$(COPY)</span> haribote.img ..\..\z_tools\qemu\fdimage0.bin
+	<span class="hljs-variable">$(MAKE)</span> -C ..\..\z_tools\qemu
+
+install :
+	<span class="hljs-variable">$(MAKE)</span> img
+	<span class="hljs-variable">$(IMGTOL)</span> w a: haribote.img
+
+clean :
+	-<span class="hljs-variable">$(DEL)</span> *.bin
+	-<span class="hljs-variable">$(DEL)</span> *.lst
+	-<span class="hljs-variable">$(DEL)</span> *.gas
+	-<span class="hljs-variable">$(DEL)</span> *.obj
+	-<span class="hljs-variable">$(DEL)</span> bootpack.nas
+	-<span class="hljs-variable">$(DEL)</span> bootpack.map
+	-<span class="hljs-variable">$(DEL)</span> bootpack.bim
+	-<span class="hljs-variable">$(DEL)</span> bootpack.hrb
+	-<span class="hljs-variable">$(DEL)</span> haribote.sys
+
+src_only :
+	<span class="hljs-variable">$(MAKE)</span> clean
+	-<span class="hljs-variable">$(DEL)</span> haribote.img
+</div></code></pre>
+<p>これでだいぶ短くなりました。</p>
+<p>さらにヘッダーファイルを記載していきます。<br>
+bootpack.h</p>
+<pre class="hljs"><code><div><span class="hljs-comment">/* asmhead.nad */</span>
+<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">BOOTINFO</span> {</span>
+    <span class="hljs-keyword">char</span> cyls, leds, vmode, reserve;
+    short scrnx, scrny;
+    <span class="hljs-keyword">char</span> *vram;
+};
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> ADR_BOOTINFO</span>
+
+<span class="hljs-comment">/* naskfunc.nas */</span>
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">io_hlt</span><span class="hljs-params">(<span class="hljs-keyword">void</span>)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">io_cli</span><span class="hljs-params">(<span class="hljs-keyword">void</span>)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">io_out8</span><span class="hljs-params">(<span class="hljs-keyword">int</span> port, <span class="hljs-keyword">int</span> data)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">io_load_eflags</span><span class="hljs-params">(<span class="hljs-keyword">void</span>)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">io_store_eflags</span><span class="hljs-params">(<span class="hljs-keyword">int</span> eflags)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">load_gdtr</span><span class="hljs-params">(<span class="hljs-keyword">int</span> limit, <span class="hljs-keyword">int</span> addr)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">load_idtr</span><span class="hljs-params">(<span class="hljs-keyword">int</span> limit, <span class="hljs-keyword">int</span> addr)</span></span>;
+
+<span class="hljs-comment">/* graphic.c */</span>
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">init_palette</span><span class="hljs-params">(<span class="hljs-keyword">void</span>)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">set_palette</span><span class="hljs-params">(<span class="hljs-keyword">int</span> start, <span class="hljs-keyword">int</span> <span class="hljs-built_in">end</span>, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">char</span> *rgd)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">boxfill8</span><span class="hljs-params">(<span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">char</span> *vram, <span class="hljs-keyword">int</span> xsize, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">char</span> c, <span class="hljs-keyword">int</span> x0, <span class="hljs-keyword">int</span> y0, <span class="hljs-keyword">int</span> x1, <span class="hljs-keyword">int</span> y1)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">init_screen</span><span class="hljs-params">(<span class="hljs-keyword">char</span> *vram, <span class="hljs-keyword">int</span> x, <span class="hljs-keyword">int</span> y)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">putfont8</span><span class="hljs-params">(<span class="hljs-keyword">char</span> *vram, <span class="hljs-keyword">int</span> xsize, <span class="hljs-keyword">int</span> x, <span class="hljs-keyword">int</span> y, <span class="hljs-keyword">char</span> c, <span class="hljs-keyword">char</span> *font)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">putfonts8_asc</span><span class="hljs-params">(<span class="hljs-keyword">char</span> *vram, <span class="hljs-keyword">int</span> xsize, <span class="hljs-keyword">int</span> x, <span class="hljs-keyword">int</span> y, <span class="hljs-keyword">char</span> c, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">char</span> *s)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">init_mouse_cursor8</span><span class="hljs-params">(<span class="hljs-keyword">char</span> *mouse, <span class="hljs-keyword">char</span> bc)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">putblock8_8</span><span class="hljs-params">(<span class="hljs-keyword">char</span> *vram, <span class="hljs-keyword">int</span> vxsize, <span class="hljs-keyword">int</span> pxsize,
+    <span class="hljs-keyword">int</span> pysize, <span class="hljs-keyword">int</span> px0, <span class="hljs-keyword">int</span> py0, <span class="hljs-keyword">char</span> *buf, <span class="hljs-keyword">int</span> bxsize)</span></span>;
+
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> COL8_000000  0</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> COL8_FF0000  1</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> COL8_00FF00  2</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> COL8_FFFF00  3</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> COL8_0000FF  4</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> COL8_FF00FF  5</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> COL8_00FFFF  6</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> COL8_FFFFFF  7</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> COL8_C6C6C6  8</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> COL8_840000  9</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> COL8_008400  10</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> COL8_848400  11</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> COL8_000084  12</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> COL8_840084  13</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> COL8_008484  14</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> COL8_848484  15</span>
+
+<span class="hljs-comment">/* dsctbl.c */</span>
+<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">SEGMENT_DESCRIPTOR</span> {</span>
+    short limit_low, base_low;
+    <span class="hljs-keyword">char</span> base_mid, access_right;
+    <span class="hljs-keyword">char</span> limit_high, base_high;
+};
+
+<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">GATE_DESCRIPTOR</span> {</span>
+    short offset_low, selector;
+    <span class="hljs-keyword">char</span> dw_count, access_right;
+    short offset_high;
+};
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">init_gdtidt</span><span class="hljs-params">(<span class="hljs-keyword">void</span>)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">set_segmdesc</span><span class="hljs-params">(struct SEGMENT_DESCRIPTOR *sd, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> limit, <span class="hljs-keyword">int</span> base, <span class="hljs-keyword">int</span> ar)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">set_gatedesc</span><span class="hljs-params">(struct GATE_DESCRIPTOR *gd, <span class="hljs-keyword">int</span> offset, <span class="hljs-keyword">int</span> selector, <span class="hljs-keyword">int</span> ar)</span></span>;
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> ADR_IDT         0x0026f800</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> LIMIT_IDT       0x000007ff</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> ADR_GDT         0x00270000</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> LIMIT_GDT       0x0000ffff</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> ADR_BOTPAK      0x00280000</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> LIMIT_BOTPAK    0x0007ffff</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> AR_DATA32_RW    0x4092</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> AR_CODE32_ER    0x409a</span>
+</div></code></pre>
+<p>ヘッダーファイルを作ったことでCのソースファイルも短縮することができるようになりました。<br>
+bootpack.c</p>
+<pre class="hljs"><code><div><span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">"bootpack.h"</span></span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;stdio.h&gt;</span></span>
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">HariMain</span><span class="hljs-params">(<span class="hljs-keyword">void</span>)</span>
+</span>{
+    <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">BOOTINFO</span> *<span class="hljs-title">binfo</span> = (<span class="hljs-title">struct</span> <span class="hljs-title">BOOTINFO</span> *) 0<span class="hljs-title">x0ff0</span>;</span>
+    <span class="hljs-keyword">char</span> s[<span class="hljs-number">40</span>], mcursor[<span class="hljs-number">256</span>];
+    <span class="hljs-keyword">int</span> mx, my;
+ 
+    init_palette();
+    init_screen(binfo-&gt;vram, binfo-&gt;scrnx, binfo-&gt;scrny);
+    mx = (binfo-&gt;scrnx - <span class="hljs-number">16</span>) / <span class="hljs-number">2</span>;
+    my = (binfo-&gt;scrny - <span class="hljs-number">28</span> - <span class="hljs-number">16</span>) / <span class="hljs-number">2</span>;
+    init_mouse_cursor8(mcursor, COL8_008484);
+    putblock8_8(binfo-&gt;vram, binfo-&gt;scrnx, <span class="hljs-number">16</span>, <span class="hljs-number">16</span>, mx, my, mcursor, <span class="hljs-number">16</span>);
+    <span class="hljs-built_in">sprintf</span>(s, <span class="hljs-string">"(%d, %d)"</span>, mx, my);
+    putfonts8_asc(binfo-&gt;vram, binfo-&gt;scrnx, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, COL8_FFFFFF, s);
+
+    <span class="hljs-keyword">for</span> (;;) {
+        io_hlt();
+    }
+    
+}
+</div></code></pre>
+<p>graphic.c</p>
+<pre class="hljs"><code><div><span class="hljs-comment">/* graphic process */</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">"bootpack.h"</span></span>
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">init_palette</span><span class="hljs-params">(<span class="hljs-keyword">void</span>)</span>
+</span>{
+    <span class="hljs-keyword">static</span> <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">char</span> table_rgb[<span class="hljs-number">16</span> * <span class="hljs-number">3</span>] = {
+        <span class="hljs-number">0x00</span>, <span class="hljs-number">0x00</span>, <span class="hljs-number">0x00</span>,   <span class="hljs-comment">/* 0:black */</span>
+        <span class="hljs-number">0xff</span>, <span class="hljs-number">0x00</span>, <span class="hljs-number">0x00</span>,   <span class="hljs-comment">/* 1:light red */</span>
+        <span class="hljs-number">0x00</span>, <span class="hljs-number">0xff</span>, <span class="hljs-number">0x00</span>,   <span class="hljs-comment">/* 2:light green */</span>
+        <span class="hljs-number">0xff</span>, <span class="hljs-number">0xff</span>, <span class="hljs-number">0x00</span>,   <span class="hljs-comment">/* 3:light yellow */</span>
+        <span class="hljs-number">0x00</span>, <span class="hljs-number">0x00</span>, <span class="hljs-number">0xff</span>,   <span class="hljs-comment">/* 4:light blue */</span>
+        <span class="hljs-number">0xff</span>, <span class="hljs-number">0x00</span>, <span class="hljs-number">0xff</span>,   <span class="hljs-comment">/* 5:light puple */</span>
+        <span class="hljs-number">0x00</span>, <span class="hljs-number">0xff</span>, <span class="hljs-number">0xff</span>,   <span class="hljs-comment">/* 6:light sky blue */</span>
+        <span class="hljs-number">0xff</span>, <span class="hljs-number">0xff</span>, <span class="hljs-number">0xff</span>,   <span class="hljs-comment">/* 7:white */</span>
+        <span class="hljs-number">0xc6</span>, <span class="hljs-number">0xc6</span>, <span class="hljs-number">0xc6</span>,   <span class="hljs-comment">/* 8:light grey */</span>
+        <span class="hljs-number">0x84</span>, <span class="hljs-number">0x00</span>, <span class="hljs-number">0x00</span>,   <span class="hljs-comment">/* 9:dark green */</span>
+        <span class="hljs-number">0x00</span>, <span class="hljs-number">0x84</span>, <span class="hljs-number">0x00</span>,   <span class="hljs-comment">/* 10:dark green */</span>
+        <span class="hljs-number">0x84</span>, <span class="hljs-number">0x84</span>, <span class="hljs-number">0x00</span>,   <span class="hljs-comment">/* 11:dark yellow */</span>
+        <span class="hljs-number">0x00</span>, <span class="hljs-number">0x00</span>, <span class="hljs-number">0x84</span>,   <span class="hljs-comment">/* 12:dark blue */</span>
+        <span class="hljs-number">0x84</span>, <span class="hljs-number">0x00</span>, <span class="hljs-number">0x84</span>,   <span class="hljs-comment">/* 13:dark puple */</span>
+        <span class="hljs-number">0x00</span>, <span class="hljs-number">0x84</span>, <span class="hljs-number">0x84</span>,   <span class="hljs-comment">/* 14:dark sky blue */</span>
+        <span class="hljs-number">0x84</span>, <span class="hljs-number">0x84</span>, <span class="hljs-number">0x84</span>    <span class="hljs-comment">/* 15:dark grey */</span>
+    };
+    set_palette(<span class="hljs-number">0</span>, <span class="hljs-number">15</span>, table_rgb);
+    <span class="hljs-keyword">return</span>;
+}
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">set_palette</span><span class="hljs-params">(<span class="hljs-keyword">int</span> start, <span class="hljs-keyword">int</span> <span class="hljs-built_in">end</span>, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">char</span> *rgb)</span>
+</span>{
+    <span class="hljs-keyword">int</span> i, eflags;
+    eflags = io_load_eflags();
+    io_cli();
+    io_out8(<span class="hljs-number">0x03c8</span>, start);
+    <span class="hljs-keyword">for</span> (i = start; i &lt;= <span class="hljs-built_in">end</span>; i++) {
+        io_out8(<span class="hljs-number">0x03c9</span>, rgb[<span class="hljs-number">0</span>] / <span class="hljs-number">4</span>);
+        io_out8(<span class="hljs-number">0x03c9</span>, rgb[<span class="hljs-number">1</span>] / <span class="hljs-number">4</span>);
+        io_out8(<span class="hljs-number">0x03c9</span>, rgb[<span class="hljs-number">2</span>] / <span class="hljs-number">4</span>);
+        rgb += <span class="hljs-number">3</span>;
+    }
+    io_store_eflags(eflags);
+    <span class="hljs-keyword">return</span>;
+} 
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">boxfill8</span><span class="hljs-params">(<span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">char</span> *vram, <span class="hljs-keyword">int</span> xsize, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">char</span> c, <span class="hljs-keyword">int</span> x0, <span class="hljs-keyword">int</span> y0, <span class="hljs-keyword">int</span> x1, <span class="hljs-keyword">int</span> y1)</span>
+</span>{
+    <span class="hljs-keyword">int</span> x, y;
+    <span class="hljs-keyword">for</span> (y= y0; y &lt;= y1; y++) {
+        <span class="hljs-keyword">for</span> (x = x0; x &lt;= x1; x++)
+            vram[y * xsize + x] = c;
+    }
+    <span class="hljs-keyword">return</span>;
+}
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">init_screen</span><span class="hljs-params">(<span class="hljs-keyword">char</span> *vram, <span class="hljs-keyword">int</span> x, <span class="hljs-keyword">int</span> y)</span>
+</span>{
+    boxfill8(vram, x, COL8_008484,  <span class="hljs-number">0</span>,          <span class="hljs-number">0</span>,       x - <span class="hljs-number">1</span>,    y - <span class="hljs-number">29</span>);
+    boxfill8(vram, x, COL8_C6C6C6,  <span class="hljs-number">0</span>,          y - <span class="hljs-number">28</span>,  x - <span class="hljs-number">1</span>,    y - <span class="hljs-number">28</span>);
+    boxfill8(vram, x, COL8_FFFFFF,  <span class="hljs-number">0</span>,          y - <span class="hljs-number">27</span>,  x - <span class="hljs-number">1</span>,    y - <span class="hljs-number">27</span>);
+    boxfill8(vram, x, COL8_C6C6C6,  <span class="hljs-number">0</span>,          y - <span class="hljs-number">26</span>,  x - <span class="hljs-number">1</span>,    y -  <span class="hljs-number">1</span>);
+
+    boxfill8(vram, x, COL8_FFFFFF,  <span class="hljs-number">3</span>,          y - <span class="hljs-number">24</span>,  <span class="hljs-number">59</span>,       y - <span class="hljs-number">24</span>);
+    boxfill8(vram, x, COL8_FFFFFF,  <span class="hljs-number">2</span>,          y - <span class="hljs-number">24</span>,   <span class="hljs-number">2</span>,       y -  <span class="hljs-number">4</span>);
+    boxfill8(vram, x, COL8_848484,  <span class="hljs-number">3</span>,          y -  <span class="hljs-number">4</span>,  <span class="hljs-number">59</span>,       y -  <span class="hljs-number">4</span>);
+    boxfill8(vram, x, COL8_848484, <span class="hljs-number">59</span>,          y - <span class="hljs-number">23</span>,  <span class="hljs-number">59</span>,       y -  <span class="hljs-number">5</span>);
+    boxfill8(vram, x, COL8_000000,  <span class="hljs-number">2</span>,          y -  <span class="hljs-number">3</span>,  <span class="hljs-number">59</span>,       y -  <span class="hljs-number">3</span>);
+    boxfill8(vram, x, COL8_000000, <span class="hljs-number">60</span>,          y - <span class="hljs-number">24</span>,  <span class="hljs-number">60</span>,       y -  <span class="hljs-number">3</span>);
+
+    boxfill8(vram, x, COL8_848484, x - <span class="hljs-number">47</span>,      y - <span class="hljs-number">24</span>,  x -  <span class="hljs-number">4</span>,   y - <span class="hljs-number">24</span>);
+    boxfill8(vram, x, COL8_848484, x - <span class="hljs-number">47</span>,      y - <span class="hljs-number">23</span>,  x - <span class="hljs-number">47</span>,   y -  <span class="hljs-number">4</span>);
+    boxfill8(vram, x, COL8_FFFFFF, x - <span class="hljs-number">47</span>,      y -  <span class="hljs-number">3</span>,  x -  <span class="hljs-number">4</span>,   y -  <span class="hljs-number">3</span>);
+    boxfill8(vram, x, COL8_FFFFFF, x -  <span class="hljs-number">3</span>,      y - <span class="hljs-number">24</span>,  x -  <span class="hljs-number">3</span>,   y -  <span class="hljs-number">3</span>);
+    <span class="hljs-keyword">return</span>;
+}
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">putfont8</span><span class="hljs-params">(<span class="hljs-keyword">char</span> *vram, <span class="hljs-keyword">int</span> xsize, <span class="hljs-keyword">int</span> x, <span class="hljs-keyword">int</span> y, <span class="hljs-keyword">char</span> c, <span class="hljs-keyword">char</span> *font)</span>
+</span>{
+    <span class="hljs-keyword">int</span> i;
+    <span class="hljs-keyword">char</span> *p, d;
+    <span class="hljs-keyword">for</span> (i = <span class="hljs-number">0</span>; i &lt; <span class="hljs-number">16</span>; i++) {
+        p = vram + (y + i) * xsize + x;
+        d = font[i];
+        <span class="hljs-keyword">if</span> ((d &amp; <span class="hljs-number">0x80</span>) != <span class="hljs-number">0</span>) { p[<span class="hljs-number">0</span>] = c; }
+        <span class="hljs-keyword">if</span> ((d &amp; <span class="hljs-number">0x40</span>) != <span class="hljs-number">0</span>) { p[<span class="hljs-number">1</span>] = c; }
+        <span class="hljs-keyword">if</span> ((d &amp; <span class="hljs-number">0x20</span>) != <span class="hljs-number">0</span>) { p[<span class="hljs-number">2</span>] = c; }
+        <span class="hljs-keyword">if</span> ((d &amp; <span class="hljs-number">0x10</span>) != <span class="hljs-number">0</span>) { p[<span class="hljs-number">3</span>] = c; }
+        <span class="hljs-keyword">if</span> ((d &amp; <span class="hljs-number">0x08</span>) != <span class="hljs-number">0</span>) { p[<span class="hljs-number">4</span>] = c; }
+        <span class="hljs-keyword">if</span> ((d &amp; <span class="hljs-number">0x04</span>) != <span class="hljs-number">0</span>) { p[<span class="hljs-number">5</span>] = c; }
+        <span class="hljs-keyword">if</span> ((d &amp; <span class="hljs-number">0x02</span>) != <span class="hljs-number">0</span>) { p[<span class="hljs-number">6</span>] = c; }
+        <span class="hljs-keyword">if</span> ((d &amp; <span class="hljs-number">0x01</span>) != <span class="hljs-number">0</span>) { p[<span class="hljs-number">7</span>] = c; }
+    }
+    <span class="hljs-keyword">return</span> ;
+}
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">putfonts8_asc</span><span class="hljs-params">(<span class="hljs-keyword">char</span> *vram, <span class="hljs-keyword">int</span> xsize, <span class="hljs-keyword">int</span> x, <span class="hljs-keyword">int</span> y, <span class="hljs-keyword">char</span> c, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">char</span> *s)</span>
+</span>{
+    <span class="hljs-keyword">extern</span> <span class="hljs-keyword">char</span> hankaku[<span class="hljs-number">4096</span>];
+    <span class="hljs-keyword">for</span> (; *s != <span class="hljs-number">0x00</span>; s++) {
+        putfont8(vram, xsize, x, y, c, hankaku + *s * <span class="hljs-number">16</span>);
+        x += <span class="hljs-number">8</span>;
+    }
+    <span class="hljs-keyword">return</span>;
+}
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">init_mouse_cursor8</span><span class="hljs-params">(<span class="hljs-keyword">char</span> *mouse, <span class="hljs-keyword">char</span> bc)</span>
+</span>{
+    <span class="hljs-keyword">static</span> <span class="hljs-keyword">char</span> <span class="hljs-built_in">cursor</span>[<span class="hljs-number">16</span>][<span class="hljs-number">16</span>] = {
+        <span class="hljs-string">"**************.."</span>,
+		<span class="hljs-string">"*OOOOOOOOOOO*..."</span>,
+		<span class="hljs-string">"*OOOOOOOOOO*...."</span>,
+		<span class="hljs-string">"*OOOOOOOOO*....."</span>,
+		<span class="hljs-string">"*OOOOOOOO*......"</span>,
+		<span class="hljs-string">"*OOOOOOO*......."</span>,
+		<span class="hljs-string">"*OOOOOOO*......."</span>,
+		<span class="hljs-string">"*OOOOOOOO*......"</span>,
+		<span class="hljs-string">"*OOOO**OOO*....."</span>,
+		<span class="hljs-string">"*OOO*..*OOO*...."</span>,
+		<span class="hljs-string">"*OO*....*OOO*..."</span>,
+		<span class="hljs-string">"*O*......*OOO*.."</span>,
+		<span class="hljs-string">"**........*OOO*."</span>,
+		<span class="hljs-string">"*..........*OOO*"</span>,
+		<span class="hljs-string">"............*OO*"</span>,
+		<span class="hljs-string">".............***"</span>
+    };
+    <span class="hljs-keyword">int</span> x, y;
+
+    <span class="hljs-keyword">for</span> (y = <span class="hljs-number">0</span>; y &lt; <span class="hljs-number">16</span>; y++) {
+        <span class="hljs-keyword">for</span> (x = <span class="hljs-number">0</span>; x &lt; <span class="hljs-number">16</span>; x++) {
+            <span class="hljs-keyword">if</span> (<span class="hljs-built_in">cursor</span>[y][x] == <span class="hljs-string">'*'</span>) {
+                mouse[y * <span class="hljs-number">16</span> + x] = COL8_000000;
+            }
+            <span class="hljs-keyword">if</span> (<span class="hljs-built_in">cursor</span>[y][x] == <span class="hljs-string">'O'</span>) {
+                mouse[y + <span class="hljs-number">16</span> + x] = COL8_FFFFFF;
+            }
+            <span class="hljs-keyword">if</span> (<span class="hljs-built_in">cursor</span>[y][x] == <span class="hljs-string">'.'</span>) {
+                mouse[y * <span class="hljs-number">16</span> + x] = bc;
+            }
+        }
+    }
+    <span class="hljs-keyword">return</span>;
+}
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">putblock8_8</span><span class="hljs-params">(<span class="hljs-keyword">char</span> *vram, <span class="hljs-keyword">int</span> vxsize, <span class="hljs-keyword">int</span> pxsize,
+    <span class="hljs-keyword">int</span> pysize, <span class="hljs-keyword">int</span> px0, <span class="hljs-keyword">int</span> py0, <span class="hljs-keyword">char</span> *buf, <span class="hljs-keyword">int</span> bxsize)</span>
+</span>{
+    <span class="hljs-keyword">int</span> x, y;
+    <span class="hljs-keyword">for</span> (y = <span class="hljs-number">0</span>; y &lt; pysize; y++) {
+        <span class="hljs-keyword">for</span> (x = <span class="hljs-number">0</span>; x &lt; pxsize; x++) {
+            vram[(py0 + y) * vxsize + (px0 + x)] = buf[y * bxsize + x];
+        }
+    }
+    <span class="hljs-keyword">return</span>; 
+}
+</div></code></pre>
+<p>dsctbl.c</p>
+<pre class="hljs"><code><div><span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">"bootpack.h"</span></span>
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">init_gdtidt</span><span class="hljs-params">(<span class="hljs-keyword">void</span>)</span> </span>{
+    <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">SEGMENT_DESCRIPTOR</span> *<span class="hljs-title">gdt</span> = (<span class="hljs-title">struct</span> <span class="hljs-title">SEGMENT_DESCRIPTOR</span> *) 0<span class="hljs-title">x00270000</span>;</span>
+    <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">GATE_DESCRIPTOR</span> *<span class="hljs-title">idt</span> = (<span class="hljs-title">struct</span> <span class="hljs-title">GATE_DESCRIPTOR</span> *) 0<span class="hljs-title">x0026f800</span>;</span>
+    <span class="hljs-keyword">int</span> i;
+
+    <span class="hljs-keyword">for</span> (i = <span class="hljs-number">0</span>; i &lt; <span class="hljs-number">8192</span>; i++) {
+        set_segmdesc(gdt + i, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>);
+    }
+
+    set_segmdesc(gdt + <span class="hljs-number">1</span>, <span class="hljs-number">0xffffffff</span>, <span class="hljs-number">0x00000000</span>, <span class="hljs-number">0x4092</span>);
+    set_segmdesc(gdt + <span class="hljs-number">2</span>, <span class="hljs-number">0x0007ffff</span>, <span class="hljs-number">0x00280000</span>, <span class="hljs-number">0x409a</span>);
+    load_gdtr(<span class="hljs-number">0xffff</span>, <span class="hljs-number">0x00270000</span>);
+
+    <span class="hljs-keyword">for</span> (i = <span class="hljs-number">0</span>; i &lt; <span class="hljs-number">256</span>; i++) {
+        set_gatedesc(idt + i, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>);
+    }
+
+    load_idtr(<span class="hljs-number">0x7ff</span>, <span class="hljs-number">0x0026f800</span>);
+
+    <span class="hljs-keyword">return</span>;
+}
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">set_segmdesc</span><span class="hljs-params">(struct SEGMENT_DESCRIPTOR *sd, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> limit, <span class="hljs-keyword">int</span> base, <span class="hljs-keyword">int</span> ar)</span>
+</span>{
+    <span class="hljs-keyword">if</span> (limit &gt; <span class="hljs-number">0xffff</span>) {
+        ar |= <span class="hljs-number">0x8000</span>;
+        limit /= <span class="hljs-number">0x1000</span>;
+    }
+
+    sd-&gt;limit_low = limit &amp; <span class="hljs-number">0xffff</span>;
+    sd-&gt;base_low = base &amp; <span class="hljs-number">0xffff</span>;
+    sd-&gt;base_mid = (base &gt;&gt; <span class="hljs-number">16</span>) &amp; <span class="hljs-number">0xff</span>;
+    sd-&gt;access_right = ar &amp; <span class="hljs-number">0xff</span>;
+    sd-&gt;limit_high = ((limit &gt;&gt; <span class="hljs-number">16</span>) &amp; <span class="hljs-number">0x0f</span>) |  ((ar &gt;&gt; <span class="hljs-number">8</span>) &amp; <span class="hljs-number">0xf0</span>);
+    sd-&gt;base_high = (base &gt;&gt; <span class="hljs-number">24</span>) &amp; <span class="hljs-number">0xff</span>;
+    <span class="hljs-keyword">return</span>;
+}
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">set_gatedesc</span><span class="hljs-params">(struct GATE_DESCRIPTOR *gd, <span class="hljs-keyword">int</span> offset, <span class="hljs-keyword">int</span> selector, <span class="hljs-keyword">int</span> ar)</span>
+</span>{
+    gd-&gt;offset_low = offset &amp; <span class="hljs-number">0xffff</span>;
+    gd-&gt;selector = selector;
+    gd-&gt;dw_count = (ar &gt;&gt; <span class="hljs-number">8</span>) &amp; <span class="hljs-number">0xff</span>;
+    gd-&gt;access_right = ar &amp; <span class="hljs-number">0xff</span>;
+    gd-&gt;offset_high = (offset &gt;&gt; <span class="hljs-number">16</span>) &amp; <span class="hljs-number">0xffff</span>;
+    <span class="hljs-keyword">return</span>;
+}
+</div></code></pre>
+<p>ヘッダーファイルを分割したことでさらに見やすくなりました。</p>
+<p><strong>実装過程</strong><br>
+・　<a href="6bf8c9f4729c76f7ab788aef9405847f1c7eb1cd">6bf8c9f4729c76f7ab788aef9405847f1c7eb1cd</a></p>
+
+</body>
+</html>
