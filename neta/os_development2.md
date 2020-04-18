@@ -3470,3 +3470,1189 @@ void set_gatedesc(struct GATE_DESCRIPTOR *gd, int offset, int selector, int ar)
 
 **実装過程**   
 ・　[6bf8c9f4729c76f7ab788aef9405847f1c7eb1cd](6bf8c9f4729c76f7ab788aef9405847f1c7eb1cd)
+
+## day7
+さらにマウスカーソルを動かす準備をしていきます。   
+PICの初期化を実施します。   
+int.c
+```c
+#include "bootpack.h"
+
+void init_pic(void)
+/* Initialize pic */
+{
+    io_out8(PIC0_IMR, 0xff );
+    io_out8(PIC1_IMR, 0xff );
+
+    io_out8(PIC0_ICW1, 0x11 );
+    io_out8(PIC0_ICW2, 0x20 );
+    io_out8(PIC0_ICW3, 1 << 2);
+    io_out8(PIC0_ICW4, 0x01 );
+
+    io_out8(PIC1_ICW1, 0x11 );
+    io_out8(PIC1_ICW2, 0x28 );
+    io_out8(PIC1_ICW3, 2 );
+    io_out8(PIC1_ICW4, 0x01 );
+
+    io_out8(PIC0_IMR, 0x0fb );
+    io_out8(PIC1_IMR, 0xff );
+
+    return;
+}
+```
+
+bootpack.h
+```h
+/* int.c */
+void ont_pic(void);
+#define PIC0_ICW1       0x0020
+#define PIC0_OCW2       0x0020
+#define PIC0_IMR        0x0021
+#define PIC0_ICW2       0x0021
+#define PIC0_ICW3       0x0021
+#define PIC0_ICW4       0x0021
+#define PIC1_ICW1       0x00a0
+#define PIC1_OCW2       0x00a0
+#define PIC1_IMR        0x00a1
+#define PIC1_ICW2       0x00a1
+#define PIC1_ICW3       0x00a1
+#define PIC1_ICW4       0x00a1
+```
+
+Makefile
+```Makefile
+OBJS_BOOTPACK = bootpack.obj naskfunc.obj hankaku.obj graphic.obj dsctbl.obj \
+				int.obj
+```
+
+動作させてみても何も変わりませんがこれでまた一つ下地ができました。   
+
+次は割り込みハンドラを作成しました。   
+正直一番苦労したかもしれません^^;   
+色々と変更したので載せていきます。
+
+int.c
+```c
+void inthandler21(int *esp)
+/* PS/2 keybord interrupt */
+{
+    struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
+    boxfill8(binfo->vram, binfo->scrnx, COL8_000000, 0, 0, 32 * 8 - 1, 15);
+    putfonts8_asc(binfo->vram, binfo->scrnx, 0, 0, COL8_FFFFFF, "INT 21 (IRQ-1) : PS/2 keyboard");
+    for (;;) {
+        io_hlt();
+    }
+}
+
+void inthandler2c(int *esp)
+/* PS/2 mouse interrupt */
+{
+    struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
+    boxfill8(binfo->vram, binfo->scrnx, COL8_000000, 0, 0, 32 * 8 - 1, 15);
+    putfonts8_asc(binfo->vram, binfo->scrnx, 0, 0, COL8_FFFFFF, "INT 2C (IRQ-12) : PS/2 mouse");
+    for (;;) {
+        io_hlt();
+    }
+}
+
+void inthandler27(int *esp)
+/* PIC0からの不完全割り込み対策 */
+/* Athlon64X2機などではチップセットの都合によりPICの初期化時にこの割り込みが1度だけおこる */
+/* この割り込み処理関数は、その割り込みに対して何もしないでやり過ごす */
+/* なぜ何もしなくていいの？
+	→  この割り込みはPIC初期化時の電気的なノイズによって発生したものなので、
+		まじめに何か処理してやる必要がない。									*/
+{
+    io_out8(PIC0_OCW2, 0x67);
+    return;
+}
+```
+
+dsctbl.c
+```c
+void init_gdtidt(void) {
+    struct SEGMENT_DESCRIPTOR *gdt = (struct SEGMENT_DESCRIPTOR *) ADR_GDT;
+    struct GATE_DESCRIPTOR *idt = (struct GATE_DESCRIPTOR *) ADR_IDT;
+    int i;
+
+    for (i = 0; i <= LIMIT_GDT / 8; i++) {
+        set_segmdesc(gdt + i, 0, 0, 0);
+    }
+
+    set_segmdesc(gdt + 1, 0xffffffff, 0x00000000, AR_DATA32_RW);
+    set_segmdesc(gdt + 2, LIMIT_BOTPAK, ADR_BOTPAK, AR_CODE32_ER);
+    load_gdtr(LIMIT_GDT, ADR_GDT);
+
+    for (i = 0; i <= LIMIT_IDT / 8; i++) {
+        set_gatedesc(idt + i, 0, 0, 0);
+    }
+    load_idtr(LIMIT_IDT, ADR_IDT);
+
+    /* setting IDT */
+    set_gatedesc(idt + 0x21, (int) asm_inthandler21, 2 * 8, AR_INTGATE32);
+    set_gatedesc(idt + 0x27, (int) asm_inthandler27, 2 * 8, AR_INTGATE32);
+    set_gatedesc(idt + 0x2c, (int) asm_inthandler2c, 2 * 8, AR_INTGATE32);
+
+    return;
+}
+```
+
+naskfunc.nas
+```asm
+GLOBAL	_asm_inthandler21, _asm_inthandler27, _asm_inthandler2c
+EXTERN	_inthandler21, _inthandler27, _inthandler2c
+```
+
+```asm
+_asm_inthandler21:
+		PUSH	ES
+		PUSH	DS
+		PUSHAD
+		MOV		EAX,ESP
+		PUSH	EAX
+		MOV		AX,SS
+		MOV		DS,AX
+		MOV		ES,AX
+		CALL	_inthandler21
+		POP		EAX
+		POPAD
+		POP		DS
+		POP		ES
+		IRETD
+
+_asm_inthandler27:
+		PUSH	ES
+		PUSH	DS
+		PUSHAD
+		MOV		EAX,ESP
+		PUSH	EAX
+		MOV		AX,SS
+		MOV		DS,AX
+		MOV		ES,AX
+		CALL	_inthandler27
+		POP		EAX
+		POPAD
+		POP		DS
+		POP		ES
+		IRETD   
+
+_asm_inthandler2c:
+		PUSH	ES
+		PUSH	DS
+		PUSHAD
+		MOV		EAX,ESP
+		PUSH	EAX
+		MOV		AX,SS
+		MOV		DS,AX
+		MOV		ES,AX
+		CALL	_inthandler2c
+		POP		EAX
+		POPAD
+		POP		DS
+		POP		ES
+		IRETD
+```
+
+bootpack.h
+```h
+#define ADR_BOOTINFO    0x00000ff0
+```
+
+```h
+/* naskfunc.nas */
+void asm_inthandler21(void);
+void asm_inthandler27(void);
+void asm_inthandler2c(void);
+```
+
+```h
+/* graphic.c */
+void init_mouse_cursor8(char *mouse, char bc);
+```
+
+```h
+/* int.c */
+void inthandler21(int *esp);
+void inthandler27(int *esp);
+void inthandler2c(int *esp);
+```
+
+bootpack.c
+
+```c
+void HariMain(void)
+{
+    struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
+    char s[40], mcursor[256];
+    int mx, my;
+
+    init_gdtidt();
+    init_pic();
+    io_sti();
+ 
+    init_palette();
+    init_screen8(binfo->vram, binfo->scrnx, binfo->scrny);
+    mx = (binfo->scrnx - 16) / 2;
+    my = (binfo->scrny - 28 - 16) / 2;
+    init_mouse_cursor8(mcursor, COL8_008484);
+    putblock8_8(binfo->vram, binfo->scrnx, 16, 16, mx, my, mcursor, 16);
+    sprintf(s, "(%d, %d)", mx, my);
+    putfonts8_asc(binfo->vram, binfo->scrnx, 0, 0, COL8_FFFFFF, s);
+
+    io_out8(PIC0_IMR, 0xf9);
+    io_out8(PIC1_IMR, 0xef);
+
+    for (;;) {
+        io_hlt();
+    }
+    
+}
+```
+
+これでカーソルからの読み込みに対してメッセージを出すことができました。   
+
+本では7日目に突入しました。   
+キーコードを取得してみます。   
+int.c
+```c
+#define PORT_KEYDAT  0x0060
+```
+
+```c
+void inthandler21(int *esp)
+/* PS/2 keybord interrupt */
+{
+    struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
+    unsigned char data, s[4];
+    io_out8(PIC0_OCW2, 0x61);
+    data = io_in8(PORT_KEYDAT);
+    
+    sprintf(s, "%02x", data);
+    boxfill8(binfo->vram, binfo->scrnx, COL8_008484, 0, 16, 15, 31);
+    putfonts8_asc(binfo->vram, binfo->scrnx, 0, 16, COL8_FFFFFF, s);
+    
+    return;
+}
+```
+
+これで押したり話したりすると16進数でキーコードが返ってくるようになりました。   
+
+次は割り込み処理を手早くするためにさらにそーそコードに改良を加えていきます。
+
+bootpack.c
+```c
+extern struct KEYBUF keybuf;
+
+void HariMain(void)
+{
+    struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
+    char s[40], mcursor[256];
+    int mx, my, i;
+
+    init_gdtidt();
+    init_pic();
+    io_sti();
+
+    io_out8(PIC0_IMR, 0xf9);
+    io_out8(PIC1_IMR, 0xef);
+ 
+    init_palette();
+    init_screen8(binfo->vram, binfo->scrnx, binfo->scrny);
+    mx = (binfo->scrnx - 16) / 2;
+    my = (binfo->scrny - 28 - 16) / 2;
+    init_mouse_cursor8(mcursor, COL8_008484);
+    putblock8_8(binfo->vram, binfo->scrnx, 16, 16, mx, my, mcursor, 16);
+    sprintf(s, "(%d, %d)", mx, my);
+    putfonts8_asc(binfo->vram, binfo->scrnx, 0, 0, COL8_FFFFFF, s);
+
+    for (;;) {
+        io_cli();
+        if (keybuf.flag == 0) {
+            io_stihlt();
+        } else {
+            i = keybuf.data;
+            keybuf.flag = 0;
+            io_sti();
+            sprintf(s, "%02X", i);
+            boxfill8(binfo->vram, binfo->scrnx, COL8_008484, 0, 16, 15, 31);
+            putfonts8_asc(binfo->vram, binfo->scrnx, 0, 16, COL8_FFFFFF, s);
+        }
+    }
+    
+}
+```
+
+int.c
+```c
+struct KEYBUF keybuf;
+```
+
+```c
+void inthandler21(int *esp)
+/* PS/2 keybord interrupt */
+{
+    unsigned char data;
+    io_out8(PIC0_OCW2, 0x61);
+    data = io_in8(PORT_KEYDAT);
+    if (keybuf.flag == 0) {
+        keybuf.data = data;
+        keybuf.flag = 1;
+    }
+    return;
+}
+```
+
+bootpack.h
+```h
+/* int.c */
+struct KEYBUF {
+    unsigned char data, flag;
+};
+```
+
+これで少しは早くなりました。（最近のpcは性能がいいためほとんど体感的にはかわりませんが笑）
+
+FIFOバッファを作成します。   
+int.c
+```c
+void inthandler21(int *esp)
+/* PS/2 keybord interrupt */
+{
+    unsigned char data;
+    io_out8(PIC0_OCW2, 0x61);
+    data = io_in8(PORT_KEYDAT);
+    if (keybuf.next < 32) {
+        keybuf.data[keybuf.next] = data;
+        keybuf.next++;
+    }
+    return;
+}
+```
+
+bootpack.h
+```h
+/* int.c */
+struct KEYBUF {
+    unsigned char data[32];
+    int next;
+};
+```
+
+bootpack.c
+```c
+void HariMain(void)
+{
+    struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
+    char s[40], mcursor[256];
+    int mx, my, i, j;
+
+    init_gdtidt();
+    init_pic();
+    io_sti();
+
+    io_out8(PIC0_IMR, 0xf9);
+    io_out8(PIC1_IMR, 0xef);
+ 
+    init_palette();
+    init_screen8(binfo->vram, binfo->scrnx, binfo->scrny);
+    mx = (binfo->scrnx - 16) / 2;
+    my = (binfo->scrny - 28 - 16) / 2;
+    init_mouse_cursor8(mcursor, COL8_008484);
+    putblock8_8(binfo->vram, binfo->scrnx, 16, 16, mx, my, mcursor, 16);
+    sprintf(s, "(%d, %d)", mx, my);
+    putfonts8_asc(binfo->vram, binfo->scrnx, 0, 0, COL8_FFFFFF, s);
+
+    for (;;) {
+        io_cli();
+        if (keybuf.next == 0) {
+            io_stihlt();
+        } else {
+            i = keybuf.data[0];
+            keybuf.next--;
+            for (j = 0; j < keybuf.next; j++) {
+                keybuf.data[j] = keybuf.data[j + 1];
+            }
+            io_sti();
+            sprintf(s, "%02X", i);
+            boxfill8(binfo->vram, binfo->scrnx, COL8_008484, 0, 16, 15, 31);
+            putfonts8_asc(binfo->vram, binfo->scrnx, 0, 16, COL8_FFFFFF, s);
+        }
+    }
+    
+}
+```
+
+挙動は変わりませんがこれでバッファが完成しました。  
+バッファを改良していきたいと思います。   
+これをやればさらに文字を早く入力できます。   
+bootpack.h
+```h
+/* int.c */
+struct KEYBUF {
+    unsigned char data[32];
+    int next_r, next_w, len;
+};
+```
+
+int.c
+```c
+void inthandler21(int *esp)
+/* PS/2 keybord interrupt */
+{
+    unsigned char data;
+    io_out8(PIC0_OCW2, 0x61);
+    data = io_in8(PORT_KEYDAT);
+    if (keybuf.len < 32) {
+        keybuf.data[keybuf.next_w] = data;
+        keybuf.len++;
+        keybuf.next_w++;
+        if (keybuf.next_w == 32) {
+            keybuf.next_w = 0;
+        }
+    }
+    return;
+}
+```
+
+bootpack.c
+```c
+void HariMain(void)
+{
+    struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
+    char s[40], mcursor[256];
+    int mx, my, i, j;
+
+    init_gdtidt();
+    init_pic();
+    io_sti();
+
+    io_out8(PIC0_IMR, 0xf9);
+    io_out8(PIC1_IMR, 0xef);
+ 
+    init_palette();
+    init_screen8(binfo->vram, binfo->scrnx, binfo->scrny);
+    mx = (binfo->scrnx - 16) / 2;
+    my = (binfo->scrny - 28 - 16) / 2;
+    init_mouse_cursor8(mcursor, COL8_008484);
+    putblock8_8(binfo->vram, binfo->scrnx, 16, 16, mx, my, mcursor, 16);
+    sprintf(s, "(%d, %d)", mx, my);
+    putfonts8_asc(binfo->vram, binfo->scrnx, 0, 0, COL8_FFFFFF, s);
+
+    for (;;) {
+        io_cli();
+        if (keybuf.len == 0) {
+            io_stihlt();
+        } else {
+            i = keybuf.data[keybuf.next_r];
+            keybuf.len--;
+            keybuf.next_r++;
+            if (keybuf.next_r == 32) {
+                keybuf.next_r = 0;
+            }
+            io_sti();
+            sprintf(s, "%02X", i);
+            boxfill8(binfo->vram, binfo->scrnx, COL8_008484, 0, 16, 15, 31);
+            putfonts8_asc(binfo->vram, binfo->scrnx, 0, 16, COL8_FFFFFF, s);
+        }
+    }
+    
+}
+```
+
+さらに改良してfifoを別のソースコードに分けてあげます。   
+fifo.c
+```c
+/* FIFOライブラリ */
+
+#include "bootpack.h"
+
+#define FLAGS_OVERRUN		0x0001
+
+void fifo8_init(struct FIFO8 *fifo, int size, unsigned char *buf)
+/* FIFOバッファの初期化 */
+{
+	fifo->size = size;
+	fifo->buf = buf;
+	fifo->free = size; /* 空き */
+	fifo->flags = 0;
+	fifo->p = 0; /* 書き込み位置 */
+	fifo->q = 0; /* 読み込み位置 */
+	return;
+}
+
+int fifo8_put(struct FIFO8 *fifo, unsigned char data)
+/* FIFOへデータを送り込んで蓄える */
+{
+	if (fifo->free == 0) {
+		/* 空きがなくてあふれた */
+		fifo->flags |= FLAGS_OVERRUN;
+		return -1;
+	}
+	fifo->buf[fifo->p] = data;
+	fifo->p++;
+	if (fifo->p == fifo->size) {
+		fifo->p = 0;
+	}
+	fifo->free--;
+	return 0;
+}
+
+int fifo8_get(struct FIFO8 *fifo)
+/* FIFOからデータを一つとってくる */
+{
+	int data;
+	if (fifo->free == fifo->size) {
+		/* バッファが空っぽのときは、とりあえず-1が返される */
+		return -1;
+	}
+	data = fifo->buf[fifo->q];
+	fifo->q++;
+	if (fifo->q == fifo->size) {
+		fifo->q = 0;
+	}
+	fifo->free++;
+	return data;
+}
+
+int fifo8_status(struct FIFO8 *fifo)
+/* どのくらいデータが溜まっているかを報告する */
+{
+	return fifo->size - fifo->free;
+}
+```
+
+bootpack.c
+```h
+/* fifo.c */
+struct FIFO8 {
+	unsigned char *buf;
+	int p, q, size, free, flags;
+};
+void fifo8_init(struct FIFO8 *fifo, int size, unsigned char *buf);
+int fifo8_put(struct FIFO8 *fifo, unsigned char data);
+int fifo8_get(struct FIFO8 *fifo);
+int fifo8_status(struct FIFO8 *fifo);
+```
+
+int.c
+```c
+struct FIFO8 keyfifo;
+```
+
+```c
+void inthandler21(int *esp)
+{
+	unsigned char data;
+	io_out8(PIC0_OCW2, 0x61);	/* IRQ-01受付完了をPICに通知 */
+	data = io_in8(PORT_KEYDAT);
+	fifo8_put(&keyfifo, data);
+	return;
+}
+```
+
+bootpack.c
+```C
+extern struct FIFO8 keyfifo;
+
+void HariMain(void)
+{
+    struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
+	char s[40], mcursor[256], keybuf[32];
+	int mx, my, i;
+
+	init_gdtidt();
+	init_pic();
+	io_sti(); /* IDT/PICの初期化が終わったのでCPUの割り込み禁止を解除 */
+
+	fifo8_init(&keyfifo, 32, keybuf);
+	io_out8(PIC0_IMR, 0xf9); /* PIC1とキーボードを許可(11111001) */
+	io_out8(PIC1_IMR, 0xef); /* マウスを許可(11101111) */
+
+	init_palette();
+	init_screen8(binfo->vram, binfo->scrnx, binfo->scrny);
+	mx = (binfo->scrnx - 16) / 2; /* 画面中央になるように座標計算 */
+	my = (binfo->scrny - 28 - 16) / 2;
+	init_mouse_cursor8(mcursor, COL8_008484);
+	putblock8_8(binfo->vram, binfo->scrnx, 16, 16, mx, my, mcursor, 16);
+	sprintf(s, "(%d, %d)", mx, my);
+	putfonts8_asc(binfo->vram, binfo->scrnx, 0, 0, COL8_FFFFFF, s);
+
+	for (;;) {
+		io_cli();
+		if (fifo8_status(&keyfifo) == 0) {
+			io_stihlt();
+		} else {
+			i = fifo8_get(&keyfifo);
+			io_sti();
+			sprintf(s, "%02X", i);
+			boxfill8(binfo->vram, binfo->scrnx, COL8_008484, 0, 16, 15, 31);
+			putfonts8_asc(binfo->vram, binfo->scrnx, 0, 16, COL8_FFFFFF, s);
+		}
+	}
+}
+
+```
+
+Makefile
+```Makefile
+OBJS_BOOTPACK = bootpack.obj naskfunc.obj hankaku.obj graphic.obj dsctbl.obj \
+				int.obj fifo.obj
+```
+
+次にマウスの割り込みを感知させるようにしました。。   
+bootpack.c
+```c
+#include "bootpack.h"
+#include <stdio.h>
+
+extern struct FIFO8 keyfifo;
+void enable_mouse(void);
+void init_keyboard(void);
+
+void HariMain(void)
+{
+    struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
+	char s[40], mcursor[256], keybuf[32];
+	int mx, my, i;
+
+	init_gdtidt();
+	init_pic();
+	io_sti(); /* IDT/PICの初期化が終わったのでCPUの割り込み禁止を解除 */
+	fifo8_init(&keyfifo, 32, keybuf);
+	io_out8(PIC0_IMR, 0xf9); /* PIC1とキーボードを許可(11111001) */
+	io_out8(PIC1_IMR, 0xef); /* マウスを許可(11101111) */
+
+	init_keyboard();
+
+	init_palette();
+	init_screen8(binfo->vram, binfo->scrnx, binfo->scrny);
+	mx = (binfo->scrnx - 16) / 2; /* 画面中央になるように座標計算 */
+	my = (binfo->scrny - 28 - 16) / 2;
+	init_mouse_cursor8(mcursor, COL8_008484);
+	putblock8_8(binfo->vram, binfo->scrnx, 16, 16, mx, my, mcursor, 16);
+	sprintf(s, "(%d, %d)", mx, my);
+	putfonts8_asc(binfo->vram, binfo->scrnx, 0, 0, COL8_FFFFFF, s);
+
+	enable_mouse();
+
+	for (;;) {
+		io_cli();
+		if (fifo8_status(&keyfifo) == 0) {
+			io_stihlt();
+		} else {
+			i = fifo8_get(&keyfifo);
+			io_sti();
+			sprintf(s, "%02X", i);
+			boxfill8(binfo->vram, binfo->scrnx, COL8_008484, 0, 16, 15, 31);
+			putfonts8_asc(binfo->vram, binfo->scrnx, 0, 16, COL8_FFFFFF, s);
+		}
+	}
+}
+
+#define PORT_KEYDAT			0x0060
+#define PORT_KEYSTA			0x0064
+#define PORAT_KEYCMD		0x0064
+#define PORT_KEYCMD			0x0064
+#define	KEYSTA_SEND_NOTREDY	0x02
+#define KEYCMD_WRITE_MODE	0x60
+#define KBC_MODE			0x47
+
+void wait_KBC_sendready(void)
+{
+	/* キーボードコントローラーがデータ送信可能になるのを待つ */
+	for (;;) {
+		if ((io_in8(PORT_KEYSTA) & KEYSTA_SEND_NOTREDY) == 0) {
+			break;
+		}
+	}
+	return;
+}
+
+
+void init_keyboard(void)
+{
+	/* キーボードコントローラの初期化 */
+	wait_KBC_sendready();
+	io_out8(PORT_KEYCMD, KEYCMD_WRITE_MODE);
+	wait_KBC_sendready();
+	io_out8(PORT_KEYDAT, KBC_MODE);
+	return;
+}
+
+#define KEYCMD_SENDTO_MOUSE	0xd4
+#define MOUSECMD_ENABLE		0xf4
+
+void enable_mouse(void)
+{
+	/* マウス有効 */
+	wait_KBC_sendready();
+	io_out8(PORT_KEYCMD, KEYCMD_SENDTO_MOUSE);
+	wait_KBC_sendready();
+	io_out8(PORT_KEYDAT, MOUSECMD_ENABLE);
+	return; /* うまくいくとACK(0xfa)が送信されてくる */
+}
+```
+
+マウスを感知したら次はデータを受信させてみます。   
+int.c
+```c
+struct FIFO8 mousefifo;
+```
+
+```c
+void inthandler2c(int *esp)
+/* PS/2 mouse interrupt */
+{
+    unsigned char data;
+    io_out8(PIC1_OCW2, 0x64);
+    io_out8(PIC0_OCW2, 0x62);
+    data = io_in8(PORT_KEYDAT);
+    fifo8_put(&mousefifo, data);
+    return;
+}
+```
+
+bootpack.c
+```c
+extern struct FIFO8 keyfifo, mousefifo;
+void enable_mouse(void);
+void init_keyboard(void);
+
+void HariMain(void)
+{
+    struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
+	char s[40], mcursor[256], keybuf[32], mousebuf[128];
+	int mx, my, i;
+
+	init_gdtidt();
+	init_pic();
+	io_sti(); /* IDT/PICの初期化が終わったのでCPUの割り込み禁止を解除 */
+	fifo8_init(&keyfifo, 32, keybuf);
+	fifo8_init(&mousefifo, 128, mousebuf);
+	io_out8(PIC0_IMR, 0xf9); /* PIC1とキーボードを許可(11111001) */
+	io_out8(PIC1_IMR, 0xef); /* マウスを許可(11101111) */
+
+	init_keyboard();
+
+	init_palette();
+	init_screen8(binfo->vram, binfo->scrnx, binfo->scrny);
+	mx = (binfo->scrnx - 16) / 2; /* 画面中央になるように座標計算 */
+	my = (binfo->scrny - 28 - 16) / 2;
+	init_mouse_cursor8(mcursor, COL8_008484);
+	putblock8_8(binfo->vram, binfo->scrnx, 16, 16, mx, my, mcursor, 16);
+	sprintf(s, "(%d, %d)", mx, my);
+	putfonts8_asc(binfo->vram, binfo->scrnx, 0, 0, COL8_FFFFFF, s);
+
+	enable_mouse();
+
+	for (;;) {
+		io_cli();
+		if (fifo8_status(&keyfifo) + fifo8_status(&mousefifo) == 0) {
+			io_stihlt();
+		} else {
+			if (fifo8_status(&keyfifo) != 0) {
+				i = fifo8_get(&keyfifo);
+				io_sti();
+				sprintf(s, "%02X", i);
+				boxfill8(binfo->vram, binfo->scrnx, COL8_008484, 0, 16, 15, 31);
+				putfonts8_asc(binfo->vram, binfo->scrnx, 0, 16, COL8_FFFFFF, s);
+			} else if (fifo8_status(&mousefifo) != 0) {
+				i = fifo8_get(&mousefifo);
+				io_sti();
+				sprintf(s, "%02X", i);
+				boxfill8(binfo->vram, binfo->scrnx, COL8_008484, 32, 16, 47, 31);
+				putfonts8_asc(binfo->vram, binfo->scrnx, 32, 16, COL8_FFFFFF, s);
+			}
+		}
+	}
+}
+```
+
+これでデータを受信しました。   
+
+ここからは本の8日目に突入です。   
+初めはマウスを解読するために入力された3バイトを表示されます。    
+bootpack.c
+```c
+void HariMain(void)
+{
+    struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
+	char s[40], mcursor[256], keybuf[32], mousebuf[128];
+	int mx, my, i;
+	unsigned char mouse_dbuf[3], mouse_phase;
+
+	init_gdtidt();
+	init_pic();
+	io_sti(); /* IDT/PICの初期化が終わったのでCPUの割り込み禁止を解除 */
+	fifo8_init(&keyfifo, 32, keybuf);
+	fifo8_init(&mousefifo, 128, mousebuf);
+	io_out8(PIC0_IMR, 0xf9); /* PIC1とキーボードを許可(11111001) */
+	io_out8(PIC1_IMR, 0xef); /* マウスを許可(11101111) */
+
+	init_keyboard();
+
+	init_palette();
+	init_screen8(binfo->vram, binfo->scrnx, binfo->scrny);
+	mx = (binfo->scrnx - 16) / 2; /* 画面中央になるように座標計算 */
+	my = (binfo->scrny - 28 - 16) / 2;
+	init_mouse_cursor8(mcursor, COL8_008484);
+	putblock8_8(binfo->vram, binfo->scrnx, 16, 16, mx, my, mcursor, 16);
+	sprintf(s, "(%d, %d)", mx, my);
+	putfonts8_asc(binfo->vram, binfo->scrnx, 0, 0, COL8_FFFFFF, s);
+
+	enable_mouse();
+	mouse_phase = 0; 
+
+	for (;;) {
+		io_cli();
+		if (fifo8_status(&keyfifo) + fifo8_status(&mousefifo) == 0) {
+			io_stihlt();
+		} else {
+			if (fifo8_status(&keyfifo) != 0) {
+				i = fifo8_get(&keyfifo);
+				io_sti();
+				sprintf(s, "%02X", i);
+				boxfill8(binfo->vram, binfo->scrnx, COL8_008484, 0, 16, 15, 31);
+				putfonts8_asc(binfo->vram, binfo->scrnx, 0, 16, COL8_FFFFFF, s);
+			} else if (fifo8_status(&mousefifo) != 0) {
+				i = fifo8_get(&mousefifo);
+				io_sti();
+				if (mouse_phase == 0) {
+					/* マウスの0xfaを待っている段階 */
+					if (i == 0xfa) {
+						mouse_phase = 1;
+					}
+				} else if (mouse_phase == 1) {
+					/* マウスの1バイト目を待っている段階 */
+					mouse_dbuf[0] = i;
+					mouse_phase = 2;
+				} else if (mouse_phase == 2) {
+					mouse_dbuf[1] = i;
+					mouse_phase = 3;
+				} else if (mouse_phase == 3) {
+					/* マウスの3バイト目を待っている段階 */
+					mouse_dbuf[2] = i;
+					mouse_phase = 1;
+					/* データが3バイト揃ったので表示 */
+					sprintf(s, "%02X %02X %02X", mouse_dbuf[0], mouse_dbuf[1], mouse_dbuf[2]);
+					boxfill8(binfo->vram, binfo->scrnx, COL8_008484, 32, 16, 32 + 8 * 8 - 1, 31);
+					putfonts8_asc(binfo->vram, binfo->scrnx, 32, 16, COL8_FFFFFF, s);
+				}
+			}
+		}
+	}
+}
+```
+
+bootpack.cの中身のソースコードが多くなってみにくくなってきたので少し整理をしました。   
+bootpack.c
+```c
+#include "bootpack.h"
+#include <stdio.h>
+
+struct MOUSE_DEC {
+	unsigned char buf[3], phase;
+};
+
+extern struct FIFO8 keyfifo, mousefifo;
+void enable_mouse(struct MOUSE_DEC *mdec);
+void init_keyboard(void);
+int mouse_decode(struct MOUSE_DEC *mdec, unsigned char dat);
+
+void HariMain(void)
+{
+    struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
+	char s[40], mcursor[256], keybuf[32], mousebuf[128];
+	int mx, my, i;
+	struct MOUSE_DEC mdec;
+
+	init_gdtidt();
+	init_pic();
+	io_sti(); /* IDT/PICの初期化が終わったのでCPUの割り込み禁止を解除 */
+	fifo8_init(&keyfifo, 32, keybuf);
+	fifo8_init(&mousefifo, 128, mousebuf);
+	io_out8(PIC0_IMR, 0xf9); /* PIC1とキーボードを許可(11111001) */
+	io_out8(PIC1_IMR, 0xef); /* マウスを許可(11101111) */
+
+	init_keyboard();
+
+	init_palette();
+	init_screen8(binfo->vram, binfo->scrnx, binfo->scrny);
+	mx = (binfo->scrnx - 16) / 2; /* 画面中央になるように座標計算 */
+	my = (binfo->scrny - 28 - 16) / 2;
+	init_mouse_cursor8(mcursor, COL8_008484);
+	putblock8_8(binfo->vram, binfo->scrnx, 16, 16, mx, my, mcursor, 16);
+	sprintf(s, "(%d, %d)", mx, my);
+	putfonts8_asc(binfo->vram, binfo->scrnx, 0, 0, COL8_FFFFFF, s);
+
+	enable_mouse(&mdec);
+
+	for (;;) {
+		io_cli();
+		if (fifo8_status(&keyfifo) + fifo8_status(&mousefifo) == 0) {
+			io_stihlt();
+		} else {
+			if (fifo8_status(&keyfifo) != 0) {
+				i = fifo8_get(&keyfifo);
+				io_sti();
+				sprintf(s, "%02X", i);
+				boxfill8(binfo->vram, binfo->scrnx, COL8_008484, 0, 16, 15, 31);
+				putfonts8_asc(binfo->vram, binfo->scrnx, 0, 16, COL8_FFFFFF, s);
+			} else if (fifo8_status(&mousefifo) != 0) {
+				i = fifo8_get(&mousefifo);
+				io_sti();
+				if (mouse_decode(&mdec, i) != 0) {
+					/* データが3バイト揃ったので表示 */
+					sprintf(s, "%02X %02X %02X", mdec.buf[0], mdec.buf[1], mdec.buf[2]);
+					boxfill8(binfo->vram, binfo->scrnx, COL8_008484, 32, 16, 32 + 8 * 8 - 1, 31);
+					putfonts8_asc(binfo->vram, binfo->scrnx, 32, 16, COL8_FFFFFF, s);
+				}
+			}
+		}
+	}
+}
+
+#define PORT_KEYDAT			0x0060
+#define PORT_KEYSTA			0x0064
+#define PORAT_KEYCMD		0x0064
+#define PORT_KEYCMD			0x0064
+#define	KEYSTA_SEND_NOTREDY	0x02
+#define KEYCMD_WRITE_MODE	0x60
+#define KBC_MODE			0x47
+
+void wait_KBC_sendready(void)
+{
+	/* キーボードコントローラーがデータ送信可能になるのを待つ */
+	for (;;) {
+		if ((io_in8(PORT_KEYSTA) & KEYSTA_SEND_NOTREDY) == 0) {
+			break;
+		}
+	}
+	return;
+}
+
+
+void init_keyboard(void)
+{
+	/* キーボードコントローラの初期化 */
+	wait_KBC_sendready();
+	io_out8(PORT_KEYCMD, KEYCMD_WRITE_MODE);
+	wait_KBC_sendready();
+	io_out8(PORT_KEYDAT, KBC_MODE);
+	return;
+}
+
+#define KEYCMD_SENDTO_MOUSE	0xd4
+#define MOUSECMD_ENABLE		0xf4
+
+void enable_mouse(struct MOUSE_DEC *mdec)
+{
+	/* マウス有効 */
+	wait_KBC_sendready();
+	io_out8(PORT_KEYCMD, KEYCMD_SENDTO_MOUSE);
+	wait_KBC_sendready();
+	io_out8(PORT_KEYDAT, MOUSECMD_ENABLE);
+	/* うまくいくとACK(0xfa)が送信されてくる */
+	mdec->phase = 0; /* マウスの0xfaを待っている段階 */
+	return; 
+}
+
+int mouse_decode(struct MOUSE_DEC *mdec, unsigned char dat)
+{
+	 if (mdec->phase == 0) {
+		 /* マウスの0xfaを待っている段階 */
+		 if (dat == 0xfa) {
+			 mdec->phase = 1;
+		 }
+		 return 0;
+	 }
+	 if (mdec->phase == 1) {
+		 /* マウスの1バイト目を待っている段階 */
+		 mdec->buf[0] = dat;
+		 mdec->phase = 2;
+		 return 0;
+	 }
+	 if (mdec->phase == 2) {
+		 /* マウスの2バイト目を待っている段階 */
+		 mdec->buf[1] = dat;
+		 mdec->phase = 3;
+		 return 0;
+	 }
+	 if (mdec->phase == 3) {
+		 /* マウスの3バイト目を待っている段階 */
+		 mdec->buf[2] = dat;
+		 mdec->phase = 1;
+		 return 1;
+	 }
+	 return -1; /* ここに来ることはないはず */
+}
+```
+
+これで少しはコードが見やすくなりました。   
+さらにコードを解析するためにbootpack.cのソースコードをいじりました。   
+移動情報とボタン状態を表示するようにしています。   
+bootpack.c
+```c
+#include "bootpack.h"
+#include <stdio.h>
+
+struct MOUSE_DEC {
+	unsigned char buf[3], phase;
+	int x, y, btn;
+};
+
+extern struct FIFO8 keyfifo, mousefifo;
+void enable_mouse(struct MOUSE_DEC *mdec);
+void init_keyboard(void);
+int mouse_decode(struct MOUSE_DEC *mdec, unsigned char dat);
+
+void HariMain(void)
+{
+    struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
+	char s[40], mcursor[256], keybuf[32], mousebuf[128];
+	int mx, my, i;
+	struct MOUSE_DEC mdec;
+
+	init_gdtidt();
+	init_pic();
+	io_sti(); /* IDT/PICの初期化が終わったのでCPUの割り込み禁止を解除 */
+	fifo8_init(&keyfifo, 32, keybuf);
+	fifo8_init(&mousefifo, 128, mousebuf);
+	io_out8(PIC0_IMR, 0xf9); /* PIC1とキーボードを許可(11111001) */
+	io_out8(PIC1_IMR, 0xef); /* マウスを許可(11101111) */
+
+	init_keyboard();
+
+	init_palette();
+	init_screen8(binfo->vram, binfo->scrnx, binfo->scrny);
+	mx = (binfo->scrnx - 16) / 2; /* 画面中央になるように座標計算 */
+	my = (binfo->scrny - 28 - 16) / 2;
+	init_mouse_cursor8(mcursor, COL8_008484);
+	putblock8_8(binfo->vram, binfo->scrnx, 16, 16, mx, my, mcursor, 16);
+	sprintf(s, "(%d, %d)", mx, my);
+	putfonts8_asc(binfo->vram, binfo->scrnx, 0, 0, COL8_FFFFFF, s);
+
+	enable_mouse(&mdec);
+
+	for (;;) {
+		io_cli();
+		if (fifo8_status(&keyfifo) + fifo8_status(&mousefifo) == 0) {
+			io_stihlt();
+		} else {
+			if (fifo8_status(&keyfifo) != 0) {
+				i = fifo8_get(&keyfifo);
+				io_sti();
+				sprintf(s, "%02X", i);
+				boxfill8(binfo->vram, binfo->scrnx, COL8_008484, 0, 16, 15, 31);
+				putfonts8_asc(binfo->vram, binfo->scrnx, 0, 16, COL8_FFFFFF, s);
+			} else if (fifo8_status(&mousefifo) != 0) {
+				i = fifo8_get(&mousefifo);
+				io_sti();
+				if (mouse_decode(&mdec, i) != 0) {
+					/* データが3バイト揃ったので表示 */
+					sprintf(s, "[lcr %4d%4d]", mdec.x, mdec.y);
+					if ((mdec.btn & 0x01) != 0) {
+						s[1] = 'L';
+					}
+					if ((mdec.btn & 0x02) != 0) {
+						s[3] = 'R';
+					}
+					if ((mdec.btn & 0x04) != 0) {
+						s[2]= 'c';
+					}
+					boxfill8(binfo->vram, binfo->scrnx, COL8_008484, 32, 16, 32 + 15 * 8 - 1, 31);
+					putfonts8_asc(binfo->vram, binfo->scrnx, 32, 16, COL8_FFFFFF, s);
+				}
+			}
+		}
+	}
+}
+
+#define PORT_KEYDAT			0x0060
+#define PORT_KEYSTA			0x0064
+#define PORAT_KEYCMD		0x0064
+#define PORT_KEYCMD			0x0064
+#define	KEYSTA_SEND_NOTREDY	0x02
+#define KEYCMD_WRITE_MODE	0x60
+#define KBC_MODE			0x47
+
+void wait_KBC_sendready(void)
+{
+	/* キーボードコントローラーがデータ送信可能になるのを待つ */
+	for (;;) {
+		if ((io_in8(PORT_KEYSTA) & KEYSTA_SEND_NOTREDY) == 0) {
+			break;
+		}
+	}
+	return;
+}
+
+
+void init_keyboard(void)
+{
+	/* キーボードコントローラの初期化 */
+	wait_KBC_sendready();
+	io_out8(PORT_KEYCMD, KEYCMD_WRITE_MODE);
+	wait_KBC_sendready();
+	io_out8(PORT_KEYDAT, KBC_MODE);
+	return;
+}
+
+#define KEYCMD_SENDTO_MOUSE	0xd4
+#define MOUSECMD_ENABLE		0xf4
+
+void enable_mouse(struct MOUSE_DEC *mdec)
+{
+	/* マウス有効 */
+	wait_KBC_sendready();
+	io_out8(PORT_KEYCMD, KEYCMD_SENDTO_MOUSE);
+	wait_KBC_sendready();
+	io_out8(PORT_KEYDAT, MOUSECMD_ENABLE);
+	/* うまくいくとACK(0xfa)が送信されてくる */
+	mdec->phase = 0; /* マウスの0xfaを待っている段階 */
+	return; 
+}
+
+int mouse_decode(struct MOUSE_DEC *mdec, unsigned char dat)
+{
+	 if (mdec->phase == 0) {
+		 /* マウスの0xfaを待っている段階 */
+		 if (dat == 0xfa) {
+			 mdec->phase = 1;
+		 }
+		 return 0;
+	 }
+	 if (mdec->phase == 1) {
+		 /* マウスの1バイト目を待っている段階 */
+		 if ((dat & 0xc8) == 0x08) {
+			/* 正しい1バイト目だった */
+			mdec->buf[0] = dat;
+		 	mdec->phase = 2;
+		 }
+		 return 0;
+	 }
+	 if (mdec->phase == 2) {
+		 /* マウスの2バイト目を待っている段階 */
+		 mdec->buf[1] = dat;
+		 mdec->phase = 3;
+		 return 0;
+	 }
+	 if (mdec->phase == 3) {
+		 /* マウスの3バイト目を待っている段階 */
+		 mdec->buf[2] = dat;
+		 mdec->phase = 1;
+		 mdec->btn = mdec->buf[0] & 0x07;
+		 mdec->x = mdec->buf[1];
+		 mdec->y = mdec->buf[2];
+		 if ((mdec->buf[0] & 0x10) != 0) {
+			 mdec->x |= 0xffffff00;
+		 }
+		 if ((mdec->buf[0] & 0x20) != 0) {
+			 mdec->y |= 0xffffff00;
+		 }
+		 mdec->y = - mdec->y; /* マウスではy方向の符号が画面と反対 */
+		 return 1;
+	 }
+	 return -1; /* ここに来ることはないはず */
+}
+```
