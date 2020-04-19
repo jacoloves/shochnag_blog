@@ -4659,3 +4659,1534 @@ int mouse_decode(struct MOUSE_DEC *mdec, unsigned char dat)
 
 **実装過程**   
 ・　[2dc2eed40057daaf4aa84bc00f02a949565165fc](2dc2eed40057daaf4aa84bc00f02a949565165fc)
+
+## day8
+開発初めて8日目になりました。   
+1週間立ちましたね。   
+今日はマウスカーソルを動かすところから作っていきたいと思います。   
+
+bootpack.c
+```c
+void HariMain(void)
+{
+    struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
+	char s[40], mcursor[256], keybuf[32], mousebuf[128];
+	int mx, my, i;
+	struct MOUSE_DEC mdec;
+
+	init_gdtidt();
+	init_pic();
+	io_sti(); /* IDT/PICの初期化が終わったのでCPUの割り込み禁止を解除 */
+	fifo8_init(&keyfifo, 32, keybuf);
+	fifo8_init(&mousefifo, 128, mousebuf);
+	io_out8(PIC0_IMR, 0xf9); /* PIC1とキーボードを許可(11111001) */
+	io_out8(PIC1_IMR, 0xef); /* マウスを許可(11101111) */
+
+	init_keyboard();
+
+	init_palette();
+	init_screen8(binfo->vram, binfo->scrnx, binfo->scrny);
+	mx = (binfo->scrnx - 16) / 2; /* 画面中央になるように座標計算 */
+	my = (binfo->scrny - 28 - 16) / 2;
+	init_mouse_cursor8(mcursor, COL8_008484);
+	putblock8_8(binfo->vram, binfo->scrnx, 16, 16, mx, my, mcursor, 16);
+	sprintf(s, "(%d, %d)", mx, my);
+	putfonts8_asc(binfo->vram, binfo->scrnx, 0, 0, COL8_FFFFFF, s);
+
+	enable_mouse(&mdec);
+
+	for (;;) {
+		io_cli();
+		if (fifo8_status(&keyfifo) + fifo8_status(&mousefifo) == 0) {
+			io_stihlt();
+		} else {
+			if (fifo8_status(&keyfifo) != 0) {
+				i = fifo8_get(&keyfifo);
+				io_sti();
+				sprintf(s, "%02X", i);
+				boxfill8(binfo->vram, binfo->scrnx, COL8_008484, 0, 16, 15, 31);
+				putfonts8_asc(binfo->vram, binfo->scrnx, 0, 16, COL8_FFFFFF, s);
+			} else if (fifo8_status(&mousefifo) != 0) {
+				i = fifo8_get(&mousefifo);
+				io_sti();
+				if (mouse_decode(&mdec, i) != 0) {
+					/* データが3バイト揃ったので表示 */
+					sprintf(s, "[lcr %4d%4d]", mdec.x, mdec.y);
+					if ((mdec.btn & 0x01) != 0) {
+						s[1] = 'L';
+					}
+					if ((mdec.btn & 0x02) != 0) {
+						s[3] = 'R';
+					}
+					if ((mdec.btn & 0x04) != 0) {
+						s[2]= 'c';
+					}
+					boxfill8(binfo->vram, binfo->scrnx, COL8_008484, 32, 16, 32 + 15 * 8 - 1, 31);
+					putfonts8_asc(binfo->vram, binfo->scrnx, 32, 16, COL8_FFFFFF, s);
+					/* マウスカーソルの移動 */
+					boxfill8(binfo->vram, binfo->scrnx, COL8_008484, mx, my, mx + 15, my + 15);
+					mx += mdec.x;
+					my += mdec.y;
+					if (mx < 0) {
+						mx = 0;
+					}
+					if (my < 0) {
+						my = 0;
+					}
+					if (mx > binfo->scrnx - 16) {
+						mx = binfo->scrnx - 16;
+					}
+					if (my > binfo->scrny - 16) {
+						my = binfo->scrny - 16;
+					}
+					sprintf(s, "(%3d, %3d)", mx, my);
+					boxfill8(binfo->vram, binfo->scrnx, COL8_008484, 0, 0, 79, 15);
+					putfonts8_asc(binfo->vram, binfo->scrnx, 0, 0, COL8_FFFFFF, s);
+					putblock8_8(binfo->vram, binfo->scrnx, 16, 16, mx, my, mcursor, 16);
+				}
+			}
+		}
+	}
+}
+```
+
+これでマウスが動くようになりました。   
+かっこいいですね！   
+
+書籍の9日目に突入しました。   
+まずはbootpack.cとint.cを整理する所からスタートです。   
+整理することで新しくkeybord.cとmouse.cが出来ました。
+
+keybord.c
+```c
+#include "bootpack.h"
+
+struct FIFO8 keyfifo;
+
+#define PORT_KEYSTA			0x0064
+#define	KEYSTA_SEND_NOTREDY	0x02
+#define KEYCMD_WRITE_MODE	0x60
+#define KBC_MODE			0x47
+
+void wait_KBC_sendready(void)
+{
+	/* キーボードコントローラーがデータ送信可能になるのを待つ */
+	for (;;) {
+		if ((io_in8(PORT_KEYSTA) & KEYSTA_SEND_NOTREDY) == 0) {
+			break;
+		}
+	}
+	return;
+}
+
+
+void init_keyboard(void)
+{
+	/* キーボードコントローラの初期化 */
+	wait_KBC_sendready();
+	io_out8(PORT_KEYCMD, KEYCMD_WRITE_MODE);
+	wait_KBC_sendready();
+	io_out8(PORT_KEYDAT, KBC_MODE);
+	return;
+}
+
+void inthandler21(int *esp)
+{
+	unsigned char data;
+	io_out8(PIC0_OCW2, 0x61);	/* IRQ-01受付完了をPICに通知 */
+	data = io_in8(PORT_KEYDAT);
+	fifo8_put(&keyfifo, data);
+	return;
+}
+```
+
+mouse.c
+```c
+#include "bootpack.h"
+
+struct FIFO8    mousefifo;
+
+#define KEYCMD_SENDTO_MOUSE	0xd4
+#define MOUSECMD_ENABLE		0xf4
+
+void enable_mouse(struct MOUSE_DEC *mdec)
+{
+	/* マウス有効 */
+	wait_KBC_sendready();
+	io_out8(PORT_KEYCMD, KEYCMD_SENDTO_MOUSE);
+	wait_KBC_sendready();
+	io_out8(PORT_KEYDAT, MOUSECMD_ENABLE);
+	/* うまくいくとACK(0xfa)が送信されてくる */
+	mdec->phase = 0; /* マウスの0xfaを待っている段階 */
+	return; 
+}
+
+int mouse_decode(struct MOUSE_DEC *mdec, unsigned char dat)
+{
+	 if (mdec->phase == 0) {
+		 /* マウスの0xfaを待っている段階 */
+		 if (dat == 0xfa) {
+			 mdec->phase = 1;
+		 }
+		 return 0;
+	 }
+	 if (mdec->phase == 1) {
+		 /* マウスの1バイト目を待っている段階 */
+		 if ((dat & 0xc8) == 0x08) {
+			/* 正しい1バイト目だった */
+			mdec->buf[0] = dat;
+		 	mdec->phase = 2;
+		 }
+		 return 0;
+	 }
+	 if (mdec->phase == 2) {
+		 /* マウスの2バイト目を待っている段階 */
+		 mdec->buf[1] = dat;
+		 mdec->phase = 3;
+		 return 0;
+	 }
+	 if (mdec->phase == 3) {
+		 /* マウスの3バイト目を待っている段階 */
+		 mdec->buf[2] = dat;
+		 mdec->phase = 1;
+		 mdec->btn = mdec->buf[0] & 0x07;
+		 mdec->x = mdec->buf[1];
+		 mdec->y = mdec->buf[2];
+		 if ((mdec->buf[0] & 0x10) != 0) {
+			 mdec->x |= 0xffffff00;
+		 }
+		 if ((mdec->buf[0] & 0x20) != 0) {
+			 mdec->y |= 0xffffff00;
+		 }
+		 mdec->y = - mdec->y; /* マウスではy方向の符号が画面と反対 */
+		 return 1;
+	 }
+	 return -1; /* ここに来ることはないはず */
+}
+
+void inthandler2c(int *esp)
+/* PS/2 mouse interrupt */
+{
+    unsigned char data;
+    io_out8(PIC1_OCW2, 0x64);
+    io_out8(PIC0_OCW2, 0x62);
+    data = io_in8(PORT_KEYDAT);
+    fifo8_put(&mousefifo, data);
+    return;
+}
+```
+
+bootpack.c
+```c
+#include "bootpack.h"
+#include <stdio.h>
+
+void HariMain(void)
+{
+    struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
+	char s[40], mcursor[256], keybuf[32], mousebuf[128];
+	int mx, my, i;
+	struct MOUSE_DEC mdec;
+
+	init_gdtidt();
+	init_pic();
+	io_sti(); /* IDT/PICの初期化が終わったのでCPUの割り込み禁止を解除 */
+	fifo8_init(&keyfifo, 32, keybuf);
+	fifo8_init(&mousefifo, 128, mousebuf);
+	io_out8(PIC0_IMR, 0xf9); /* PIC1とキーボードを許可(11111001) */
+	io_out8(PIC1_IMR, 0xef); /* マウスを許可(11101111) */
+
+	init_keyboard();
+
+	init_palette();
+	init_screen8(binfo->vram, binfo->scrnx, binfo->scrny);
+	mx = (binfo->scrnx - 16) / 2; /* 画面中央になるように座標計算 */
+	my = (binfo->scrny - 28 - 16) / 2;
+	init_mouse_cursor8(mcursor, COL8_008484);
+	putblock8_8(binfo->vram, binfo->scrnx, 16, 16, mx, my, mcursor, 16);
+	sprintf(s, "(%d, %d)", mx, my);
+	putfonts8_asc(binfo->vram, binfo->scrnx, 0, 0, COL8_FFFFFF, s);
+
+	enable_mouse(&mdec);
+
+	for (;;) {
+		io_cli();
+		if (fifo8_status(&keyfifo) + fifo8_status(&mousefifo) == 0) {
+			io_stihlt();
+		} else {
+			if (fifo8_status(&keyfifo) != 0) {
+				i = fifo8_get(&keyfifo);
+				io_sti();
+				sprintf(s, "%02X", i);
+				boxfill8(binfo->vram, binfo->scrnx, COL8_008484, 0, 16, 15, 31);
+				putfonts8_asc(binfo->vram, binfo->scrnx, 0, 16, COL8_FFFFFF, s);
+			} else if (fifo8_status(&mousefifo) != 0) {
+				i = fifo8_get(&mousefifo);
+				io_sti();
+				if (mouse_decode(&mdec, i) != 0) {
+					/* データが3バイト揃ったので表示 */
+					sprintf(s, "[lcr %4d%4d]", mdec.x, mdec.y);
+					if ((mdec.btn & 0x01) != 0) {
+						s[1] = 'L';
+					}
+					if ((mdec.btn & 0x02) != 0) {
+						s[3] = 'R';
+					}
+					if ((mdec.btn & 0x04) != 0) {
+						s[2]= 'c';
+					}
+					boxfill8(binfo->vram, binfo->scrnx, COL8_008484, 32, 16, 32 + 15 * 8 - 1, 31);
+					putfonts8_asc(binfo->vram, binfo->scrnx, 32, 16, COL8_FFFFFF, s);
+					/* マウスカーソルの移動 */
+					boxfill8(binfo->vram, binfo->scrnx, COL8_008484, mx, my, mx + 15, my + 15);
+					mx += mdec.x;
+					my += mdec.y;
+					if (mx < 0) {
+						mx = 0;
+					}
+					if (my < 0) {
+						my = 0;
+					}
+					if (mx > binfo->scrnx - 16) {
+						mx = binfo->scrnx - 16;
+					}
+					if (my > binfo->scrny - 16) {
+						my = binfo->scrny - 16;
+					}
+					sprintf(s, "(%3d, %3d)", mx, my);
+					boxfill8(binfo->vram, binfo->scrnx, COL8_008484, 0, 0, 79, 15);
+					putfonts8_asc(binfo->vram, binfo->scrnx, 0, 0, COL8_FFFFFF, s);
+					putblock8_8(binfo->vram, binfo->scrnx, 16, 16, mx, my, mcursor, 16);
+				}
+			}
+		}
+	}
+}
+```
+
+int.c
+```c
+#include "bootpack.h"
+
+void init_pic(void)
+/* Initialize pic */
+{
+    io_out8(PIC0_IMR, 0xff );
+    io_out8(PIC1_IMR, 0xff );
+
+    io_out8(PIC0_ICW1, 0x11 );
+    io_out8(PIC0_ICW2, 0x20 );
+    io_out8(PIC0_ICW3, 1 << 2);
+    io_out8(PIC0_ICW4, 0x01 );
+
+    io_out8(PIC1_ICW1, 0x11 );
+    io_out8(PIC1_ICW2, 0x28 );
+    io_out8(PIC1_ICW3, 2 );
+    io_out8(PIC1_ICW4, 0x01 );
+
+    io_out8(PIC0_IMR, 0x0fb );
+    io_out8(PIC1_IMR, 0xff );
+
+    return;
+}
+
+void inthandler27(int *esp)
+/* PIC0からの不完全割り込み対策 */
+/* Athlon64X2機などではチップセットの都合によりPICの初期化時にこの割り込みが1度だけおこる */
+/* この割り込み処理関数は、その割り込みに対して何もしないでやり過ごす */
+/* なぜ何もしなくていいの？
+	→  この割り込みはPIC初期化時の電気的なノイズによって発生したものなので、
+		まじめに何か処理してやる必要がない。									*/
+{
+    io_out8(PIC0_OCW2, 0x67);
+    return;
+}
+```
+
+bootpack.h
+```h
+/* keybord.c */
+void inthandler21(int *esp);
+void wait_KBC_sendready(void);
+void init_keyboard(void);
+extern struct FIFO8 keyfifo;
+#define PORT_KEYDAT			0x0060
+#define PORT_KEYCMD			0x0064
+
+/* mouse.c */
+struct MOUSE_DEC {
+	unsigned char buf[3], phase;
+	int x, y, btn;
+};
+void inthandler2c(int *esp);
+void enable_mouse(struct MOUSE_DEC *mdec);
+int mouse_decode(struct MOUSE_DEC *mdec, unsigned char dat);
+extern struct FIFO8 mousefifo;
+```
+
+Makefile
+```Makefile
+OBJS_BOOTPACK = bootpack.obj naskfunc.obj hankaku.obj graphic.obj dsctbl.obj \
+				int.obj fifo.obj keybord.obj mouse.obj
+```
+
+メモリ容量をチェックするためにソースコードに加筆していきます。   
+
+bootpack.c
+```c
+#include "bootpack.h"
+#include <stdio.h>
+
+unsigned int memtest(unsigned int start, unsigned int end);
+unsigned int memtest_sub(unsigned int start, unsigned int end);
+
+void HariMain(void)
+{
+    struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
+	char s[40], mcursor[256], keybuf[32], mousebuf[128];
+	int mx, my, i;
+	struct MOUSE_DEC mdec;
+
+	init_gdtidt();
+	init_pic();
+	io_sti(); /* IDT/PICの初期化が終わったのでCPUの割り込み禁止を解除 */
+	fifo8_init(&keyfifo, 32, keybuf);
+	fifo8_init(&mousefifo, 128, mousebuf);
+	io_out8(PIC0_IMR, 0xf9); /* PIC1とキーボードを許可(11111001) */
+	io_out8(PIC1_IMR, 0xef); /* マウスを許可(11101111) */
+
+	init_keyboard();
+	enable_mouse(&mdec);
+
+	init_palette();
+	init_screen8(binfo->vram, binfo->scrnx, binfo->scrny);
+	mx = (binfo->scrnx - 16) / 2; /* 画面中央になるように座標計算 */
+	my = (binfo->scrny - 28 - 16) / 2;
+	init_mouse_cursor8(mcursor, COL8_008484);
+	putblock8_8(binfo->vram, binfo->scrnx, 16, 16, mx, my, mcursor, 16);
+	sprintf(s, "(%d, %d)", mx, my);
+	putfonts8_asc(binfo->vram, binfo->scrnx, 0, 0, COL8_FFFFFF, s);
+
+	i = memtest(0x00400000, 0xbfffffff);
+	sprintf(s, "memory %dMB", i);
+	putfonts8_asc(binfo->vram, binfo->scrnx, 0, 32, COL8_FFFFFF, s);
+
+	for (;;) {
+		io_cli();
+		if (fifo8_status(&keyfifo) + fifo8_status(&mousefifo) == 0) {
+			io_stihlt();
+		} else {
+			if (fifo8_status(&keyfifo) != 0) {
+				i = fifo8_get(&keyfifo);
+				io_sti();
+				sprintf(s, "%02X", i);
+				boxfill8(binfo->vram, binfo->scrnx, COL8_008484, 0, 16, 15, 31);
+				putfonts8_asc(binfo->vram, binfo->scrnx, 0, 16, COL8_FFFFFF, s);
+			} else if (fifo8_status(&mousefifo) != 0) {
+				i = fifo8_get(&mousefifo);
+				io_sti();
+				if (mouse_decode(&mdec, i) != 0) {
+					/* データが3バイト揃ったので表示 */
+					sprintf(s, "[lcr %4d %4d]", mdec.x, mdec.y);
+					if ((mdec.btn & 0x01) != 0) {
+						s[1] = 'L';
+					}
+					if ((mdec.btn & 0x02) != 0) {
+						s[3] = 'R';
+					}
+					if ((mdec.btn & 0x04) != 0) {
+						s[2]= 'c';
+					}
+					boxfill8(binfo->vram, binfo->scrnx, COL8_008484, 32, 16, 32 + 15 * 8 - 1, 31);
+					putfonts8_asc(binfo->vram, binfo->scrnx, 32, 16, COL8_FFFFFF, s);
+					/* マウスカーソルの移動 */
+					boxfill8(binfo->vram, binfo->scrnx, COL8_008484, mx, my, mx + 15, my + 15);
+					mx += mdec.x;
+					my += mdec.y;
+					if (mx < 0) {
+						mx = 0;
+					}
+					if (my < 0) {
+						my = 0;
+					}
+					if (mx > binfo->scrnx - 16) {
+						mx = binfo->scrnx - 16;
+					}
+					if (my > binfo->scrny - 16) {
+						my = binfo->scrny - 16;
+					}
+					sprintf(s, "(%3d, %3d)", mx, my);
+					boxfill8(binfo->vram, binfo->scrnx, COL8_008484, 0, 0, 79, 15);
+					putfonts8_asc(binfo->vram, binfo->scrnx, 0, 0, COL8_FFFFFF, s);
+					putblock8_8(binfo->vram, binfo->scrnx, 16, 16, mx, my, mcursor, 16);
+				}
+			}
+		}
+	}
+}
+
+#define EFLAGS_AC_BIT		0x00040000
+#define CR0_CACHE_DISABLE	0x60000000
+
+unsigned int memtest(unsigned int start, unsigned int end)
+{
+	char flag486 = 0;
+	unsigned int eflg, cr0, i;
+
+	/* 386か、486以降なのかの確認 */
+	eflg = io_load_eflags();
+	eflg |= EFLAGS_AC_BIT; /* AC-bit = 1 */
+	io_store_eflags(eflg);
+	eflg = io_load_eflags();
+	if ((eflg & EFLAGS_AC_BIT) != 0) { /* 386ではAC=1にしても自動で0に戻ってしまう */
+		flag486 = 1;
+	}
+	eflg &= ~EFLAGS_AC_BIT; /* AC-bit = 0 */
+	io_store_eflags(eflg);
+
+	if (flag486 != 0) {
+		cr0 = load_cr0();
+		cr0 |= CR0_CACHE_DISABLE; /* キャッシュ禁止 */
+		store_cr0(cr0);
+	}
+
+	i = memtest_sub(start, end);
+
+	if (flag486 != 0) {
+		cr0 = load_cr0();
+		cr0 &= ~CR0_CACHE_DISABLE; /* キャッシュ許可 */
+		store_cr0(cr0);
+	}
+
+	return i;
+}
+
+unsigned int memtest_sub(unsigned int start, unsigned int end)
+{
+	unsigned int i, *p, old, pat0 = 0xaa55aa55, pat1 = 0x55aa55aa;
+	for (i = start; i <= end; i += 0x1000) {
+		p = (unsigned int *) (i + 0xffc);
+		old = *p;			/* いじる前の値を覚えておく */
+		*p = pat0;			/* ためしに書いてみる */
+		*p ^= 0xffffffff;	/* そしてそれを反転してみる */
+		if (*p != pat1) {	/* 反転結果になったか？ */
+not_memory:	
+			*p = old;
+			break;
+		}
+		*p ^= 0xffffffff;	/* もう一度反転してみる */
+		if (*p != pat0) {	/* 元に戻ったか？ */
+			goto not_memory;
+		}
+		*p = old;			/* いじった値を元に戻す */
+	}
+	return i;
+}
+```
+
+naskfunc
+```
+GLOBAL  _load_cr0, _store_cr0
+```
+
+```
+_load_cr0:		; int load_cr0(void);
+		MOV		EAX,CR0
+		RET
+
+_store_cr0:		; void store_cr0(int cr0);
+		MOV		EAX,[ESP+4]
+		MOV		CR0,EAX
+		RET
+```
+
+bootpack.h
+```h
+/* naskfunc.nas */
+int load_cr0(void);
+void store_cr0(int cr0);
+```
+
+このままだとメモリの部分がバグったままなのでさらに書き換えることにします。   
+
+naskfunc.nas
+```
+GLOBAL  _memtest_sub
+```
+
+```
+_memtest_sub:	; unsigned int memtest_sub(unsigned int start, unsigned int end)
+		PUSH	EDI						; （EBX, ESI, EDI も使いたいので）
+		PUSH	ESI
+		PUSH	EBX
+		MOV		ESI,0xaa55aa55			; pat0 = 0xaa55aa55;
+		MOV		EDI,0x55aa55aa			; pat1 = 0x55aa55aa;
+		MOV		EAX,[ESP+12+4]			; i = start;
+mts_loop:
+		MOV		EBX,EAX
+		ADD		EBX,0xffc				; p = i + 0xffc;
+		MOV		EDX,[EBX]				; old = *p;
+		MOV		[EBX],ESI				; *p = pat0;
+		XOR		DWORD [EBX],0xffffffff	; *p ^= 0xffffffff;
+		CMP		EDI,[EBX]				; if (*p != pat1) goto fin;
+		JNE		mts_fin
+		XOR		DWORD [EBX],0xffffffff	; *p ^= 0xffffffff;
+		CMP		ESI,[EBX]				; if (*p != pat0) goto fin;
+		JNE		mts_fin
+		MOV		[EBX],EDX				; *p = old;
+		ADD		EAX,0x1000				; i += 0x1000;
+		CMP		EAX,[ESP+12+8]			; if (i <= end) goto mts_loop;
+		JBE		mts_loop
+		POP		EBX
+		POP		ESI
+		POP		EDI
+		RET
+mts_fin:
+		MOV		[EBX],EDX				; *p = old;
+		POP		EBX
+		POP		ESI
+		POP		EDI
+		RET
+```
+
+bootpack.c
+```c
+void HariMain(void)
+{
+    struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
+	char s[40], mcursor[256], keybuf[32], mousebuf[128];
+	int mx, my, i;
+	struct MOUSE_DEC mdec;
+
+	init_gdtidt();
+	init_pic();
+	io_sti(); /* IDT/PICの初期化が終わったのでCPUの割り込み禁止を解除 */
+	fifo8_init(&keyfifo, 32, keybuf);
+	fifo8_init(&mousefifo, 128, mousebuf);
+	io_out8(PIC0_IMR, 0xf9); /* PIC1とキーボードを許可(11111001) */
+	io_out8(PIC1_IMR, 0xef); /* マウスを許可(11101111) */
+
+	init_keyboard();
+	enable_mouse(&mdec);
+
+	init_palette();
+	init_screen8(binfo->vram, binfo->scrnx, binfo->scrny);
+	mx = (binfo->scrnx - 16) / 2; /* 画面中央になるように座標計算 */
+	my = (binfo->scrny - 28 - 16) / 2;
+	init_mouse_cursor8(mcursor, COL8_008484);
+	putblock8_8(binfo->vram, binfo->scrnx, 16, 16, mx, my, mcursor, 16);
+	sprintf(s, "(%d, %d)", mx, my);
+	putfonts8_asc(binfo->vram, binfo->scrnx, 0, 0, COL8_FFFFFF, s);
+
+	i = memtest(0x00400000, 0xbfffffff) / (1024 * 1024);
+	sprintf(s, "memory %dMB", i);
+	putfonts8_asc(binfo->vram, binfo->scrnx, 0, 32, COL8_FFFFFF, s);
+
+	for (;;) {
+		io_cli();
+		if (fifo8_status(&keyfifo) + fifo8_status(&mousefifo) == 0) {
+			io_stihlt();
+		} else {
+			if (fifo8_status(&keyfifo) != 0) {
+				i = fifo8_get(&keyfifo);
+				io_sti();
+				sprintf(s, "%02X", i);
+				boxfill8(binfo->vram, binfo->scrnx, COL8_008484, 0, 16, 15, 31);
+				putfonts8_asc(binfo->vram, binfo->scrnx, 0, 16, COL8_FFFFFF, s);
+			} else if (fifo8_status(&mousefifo) != 0) {
+				i = fifo8_get(&mousefifo);
+				io_sti();
+				if (mouse_decode(&mdec, i) != 0) {
+					/* データが3バイト揃ったので表示 */
+					sprintf(s, "[lcr %4d %4d]", mdec.x, mdec.y);
+					if ((mdec.btn & 0x01) != 0) {
+						s[1] = 'L';
+					}
+					if ((mdec.btn & 0x02) != 0) {
+						s[3] = 'R';
+					}
+					if ((mdec.btn & 0x04) != 0) {
+						s[2]= 'c';
+					}
+					boxfill8(binfo->vram, binfo->scrnx, COL8_008484, 32, 16, 32 + 15 * 8 - 1, 31);
+					putfonts8_asc(binfo->vram, binfo->scrnx, 32, 16, COL8_FFFFFF, s);
+					/* マウスカーソルの移動 */
+					boxfill8(binfo->vram, binfo->scrnx, COL8_008484, mx, my, mx + 15, my + 15);
+					mx += mdec.x;
+					my += mdec.y;
+					if (mx < 0) {
+						mx = 0;
+					}
+					if (my < 0) {
+						my = 0;
+					}
+					if (mx > binfo->scrnx - 16) {
+						mx = binfo->scrnx - 16;
+					}
+					if (my > binfo->scrny - 16) {
+						my = binfo->scrny - 16;
+					}
+					sprintf(s, "(%3d, %3d)", mx, my);
+					boxfill8(binfo->vram, binfo->scrnx, COL8_008484, 0, 0, 79, 15);
+					putfonts8_asc(binfo->vram, binfo->scrnx, 0, 0, COL8_FFFFFF, s);
+					putblock8_8(binfo->vram, binfo->scrnx, 16, 16, mx, my, mcursor, 16);
+				}
+			}
+		}
+	}
+}
+```
+
+bootpack.h
+```h
+/* naskfunc.nas */
+unsigned int memtest_sub(unsigned int start, unsigned int end);
+```
+
+naskfunc.nasにmemtest_subを記載したので、bootpack.cのmemtest_subは消してください。   
+これでメモリの値がバグらなくなりました。
+
+メモリの空き量も知りたいので追加することにします。
+
+bootpack.c
+```c
+#include "bootpack.h"
+#include <stdio.h>
+
+#define MEMMAN_FREES		4090
+#define MEMMAN_ADDR			0x003c0000
+
+struct FREEINFO { 	/* あき情報 */
+	unsigned int addr, size;
+};
+
+struct MEMMAN {		/* メモリ管理 */
+	int frees, maxfrees, lostsize, losts;
+	struct FREEINFO free[MEMMAN_FREES];
+};
+
+unsigned int memtest(unsigned int start, unsigned int end);
+void memman_init(struct MEMMAN *man);
+unsigned int memman_total(struct MEMMAN *man);
+unsigned int memman_alloc(struct MEMMAN *man, unsigned int siza);
+int memman_free(struct MEMMAN *man, unsigned int addr, unsigned int size);
+
+void HariMain(void)
+{
+    struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
+	char s[40], mcursor[256], keybuf[32], mousebuf[128];
+	int mx, my, i;
+	unsigned int memtotal;
+	struct MOUSE_DEC mdec;
+	struct MEMMAN *memman = (struct MEMMAN *) MEMMAN_ADDR;
+
+	init_gdtidt();
+	init_pic();
+	io_sti(); /* IDT/PICの初期化が終わったのでCPUの割り込み禁止を解除 */
+	fifo8_init(&keyfifo, 32, keybuf);
+	fifo8_init(&mousefifo, 128, mousebuf);
+	io_out8(PIC0_IMR, 0xf9); /* PIC1とキーボードを許可(11111001) */
+	io_out8(PIC1_IMR, 0xef); /* マウスを許可(11101111) */
+
+	init_keyboard();
+	enable_mouse(&mdec);
+	memtotal = memtest(0x00400000, 0xbfffffff);
+	memman_init(memman);
+	memman_free(memman, 0x000010000, 0x0009e000); /* 0x00001000 - 0x0009efff */
+	memman_free(memman, 0x00400000, memtotal - 0x00400000);
+
+	init_palette();
+	init_screen8(binfo->vram, binfo->scrnx, binfo->scrny);
+	mx = (binfo->scrnx - 16) / 2; /* 画面中央になるように座標計算 */
+	my = (binfo->scrny - 28 - 16) / 2;
+	init_mouse_cursor8(mcursor, COL8_008484);
+	putblock8_8(binfo->vram, binfo->scrnx, 16, 16, mx, my, mcursor, 16);
+	sprintf(s, "(%d, %d)", mx, my);
+	putfonts8_asc(binfo->vram, binfo->scrnx, 0, 0, COL8_FFFFFF, s);
+
+	sprintf(s, "memory %dMB free : %dKB", 
+			memtotal / (1024 * 1024), memman_total(memman) /1024);
+	putfonts8_asc(binfo->vram, binfo->scrnx, 0, 32, COL8_FFFFFF, s);
+
+	for (;;) {
+		io_cli();
+		if (fifo8_status(&keyfifo) + fifo8_status(&mousefifo) == 0) {
+			io_stihlt();
+		} else {
+			if (fifo8_status(&keyfifo) != 0) {
+				i = fifo8_get(&keyfifo);
+				io_sti();
+				sprintf(s, "%02X", i);
+				boxfill8(binfo->vram, binfo->scrnx, COL8_008484, 0, 16, 15, 31);
+				putfonts8_asc(binfo->vram, binfo->scrnx, 0, 16, COL8_FFFFFF, s);
+			} else if (fifo8_status(&mousefifo) != 0) {
+				i = fifo8_get(&mousefifo);
+				io_sti();
+				if (mouse_decode(&mdec, i) != 0) {
+					/* データが3バイト揃ったので表示 */
+					sprintf(s, "[lcr %4d %4d]", mdec.x, mdec.y);
+					if ((mdec.btn & 0x01) != 0) {
+						s[1] = 'L';
+					}
+					if ((mdec.btn & 0x02) != 0) {
+						s[3] = 'R';
+					}
+					if ((mdec.btn & 0x04) != 0) {
+						s[2]= 'c';
+					}
+					boxfill8(binfo->vram, binfo->scrnx, COL8_008484, 32, 16, 32 + 15 * 8 - 1, 31);
+					putfonts8_asc(binfo->vram, binfo->scrnx, 32, 16, COL8_FFFFFF, s);
+					/* マウスカーソルの移動 */
+					boxfill8(binfo->vram, binfo->scrnx, COL8_008484, mx, my, mx + 15, my + 15);
+					mx += mdec.x;
+					my += mdec.y;
+					if (mx < 0) {
+						mx = 0;
+					}
+					if (my < 0) {
+						my = 0;
+					}
+					if (mx > binfo->scrnx - 16) {
+						mx = binfo->scrnx - 16;
+					}
+					if (my > binfo->scrny - 16) {
+						my = binfo->scrny - 16;
+					}
+					sprintf(s, "(%3d, %3d)", mx, my);
+					boxfill8(binfo->vram, binfo->scrnx, COL8_008484, 0, 0, 79, 15);
+					putfonts8_asc(binfo->vram, binfo->scrnx, 0, 0, COL8_FFFFFF, s);
+					putblock8_8(binfo->vram, binfo->scrnx, 16, 16, mx, my, mcursor, 16);
+				}
+			}
+		}
+	}
+}
+
+#define EFLAGS_AC_BIT		0x00040000
+#define CR0_CACHE_DISABLE	0x60000000
+
+unsigned int memtest(unsigned int start, unsigned int end)
+{
+	char flag486 = 0;
+	unsigned int eflg, cr0, i;
+
+	/* 386か、486以降なのかの確認 */
+	eflg = io_load_eflags();
+	eflg |= EFLAGS_AC_BIT; /* AC-bit = 1 */
+	io_store_eflags(eflg);
+	eflg = io_load_eflags();
+	if ((eflg & EFLAGS_AC_BIT) != 0) { /* 386ではAC=1にしても自動で0に戻ってしまう */
+		flag486 = 1;
+	}
+	eflg &= ~EFLAGS_AC_BIT; /* AC-bit = 0 */
+	io_store_eflags(eflg);
+
+	if (flag486 != 0) {
+		cr0 = load_cr0();
+		cr0 |= CR0_CACHE_DISABLE; /* キャッシュ禁止 */
+		store_cr0(cr0);
+	}
+
+	i = memtest_sub(start, end);
+
+	if (flag486 != 0) {
+		cr0 = load_cr0();
+		cr0 &= ~CR0_CACHE_DISABLE; /* キャッシュ許可 */
+		store_cr0(cr0);
+	}
+
+	return i;
+}
+
+void memman_init(struct MEMMAN *man)
+{
+	man->frees = 0;			/* あき情報の個数 */
+	man->maxfrees = 0;		/* 状況観察用：freesの最大値 */
+	man->lostsize = 0;		/* 解放に失敗した合計サイズ */
+	man->losts = 0;			/* 解放に失敗した回数 */
+	return;
+}
+
+
+unsigned int memman_total(struct MEMMAN *man)
+/* あきサイズの合計を報告 */
+{
+	unsigned int i, t = 0;
+	for (i = 0; i < man->frees; i++) {
+		t += man->free[i].size;
+	}
+	return t;
+}
+
+unsigned int memman_alloc(struct MEMMAN *man, unsigned int size)
+/* 確保 */
+{
+	unsigned int i, a;
+	for (i = 0; i< man->frees; i++) {
+		if (man->free[i].size >= size) {
+			/* 十分な広さのあきを発見 */
+			a = man->free[i].addr;
+			man->free[i].addr += size;
+			man->free[i].size -= size;
+			if (man->free[i].size == 0) {
+				/* free[i]がなくなったので前へつめる */
+				man->frees--;
+				for (; i < man->frees; i++) {
+					man->free[i] = man->free[i+1]; /* 構造体の代入 */
+				}
+			}
+			return 0;
+		}
+	}
+	return 0; /* あきがない */
+}
+
+int memman_free(struct MEMMAN *man, unsigned int addr, unsigned int size) 
+/* 解放 */
+{
+	int i, j;
+	/* まとめやすさを考えると、free[]がaddr順に並んでいるほうがいい */
+	/* だからまず、どこに入れるべきかを決める */
+	for (i = 0; i < man->frees; i++) {
+		if (man->free[i].addr > addr) {
+			break;
+		}
+	}
+	/* free[i - 1].addr < addr < free[i].addr */
+	if (i > 0) {
+		/* 前がある */
+		if (man->free[i - 1].addr + man->free[i - i].size == addr) {
+			/* 前のあき領域にまとめられる */
+			man->free[i - 1].size += size;
+			if (i < man->frees) {
+				/* 後ろもある */
+				if (addr + size == man->free[i].size) {
+					/* なんと後ろともまとめられる */
+					man->free[i - 1].size += man->free[i].size;
+					/* man->free[i]の削除 */
+					/* free[i]がなくなったので前へつめる */
+					man->frees--;
+					for (; i < man->frees; i++) {
+						man->free[i] = man->free[i + 1]; /* 構造体の代入 */
+					}
+				}
+			}
+			return 0; /* 成功終了 */
+		}
+	}
+	/* 前とはまとめられなかった */
+	if (i < man->frees) {
+		/* 後ろがある */
+		if (addr + size == man->free[i].addr) {
+			/* 後ろとはまとめられる */
+			man->free[i].addr = addr;
+			man->free[i].size += size;
+			return 0; /* 成功終了 */
+		} 
+	}
+	/* 前にも後ろにもまとめられない */
+	if (man->frees < MEMMAN_FREES) {
+		/* free[i]より後ろを、後ろへずらして、すきまを作る */
+		for (j = man->frees; j > i; j--) {
+			man->free[j] = man->free[j - 1];
+		}
+		man->frees++;
+		if (man->maxfrees < man->frees) {
+			man->maxfrees = man->frees; /* 最大値を更新 */
+		}
+		man->free[i].addr = addr;
+		man->free[i].size = size;
+		return 0; /* 成功終了 */
+	}
+	/* 後ろにずらせなかった */
+	man->losts++;
+	man->lostsize += size;
+	return -1; /* 失敗終了 */
+}
+```
+
+これでメモリの空き容量が出せました。   
+本では10日目に突入しました。   
+
+今回はメモリ処理の部分をmemory.cというソースコードに分けていきます。   
+ついでに新しい処理も追加しています。   
+memory.c
+```c
+#include "bootpack.h"
+
+#define EFLAGS_AC_BIT		0x00040000
+#define CR0_CACHE_DISABLE	0x60000000
+
+unsigned int memtest(unsigned int start, unsigned int end)
+{
+	char flag486 = 0;
+	unsigned int eflg, cr0, i;
+
+	/* 386か、486以降なのかの確認 */
+	eflg = io_load_eflags();
+	eflg |= EFLAGS_AC_BIT; /* AC-bit = 1 */
+	io_store_eflags(eflg);
+	eflg = io_load_eflags();
+	if ((eflg & EFLAGS_AC_BIT) != 0) { /* 386ではAC=1にしても自動で0に戻ってしまう */
+		flag486 = 1;
+	}
+	eflg &= ~EFLAGS_AC_BIT; /* AC-bit = 0 */
+	io_store_eflags(eflg);
+
+	if (flag486 != 0) {
+		cr0 = load_cr0();
+		cr0 |= CR0_CACHE_DISABLE; /* キャッシュ禁止 */
+		store_cr0(cr0);
+	}
+
+	i = memtest_sub(start, end);
+
+	if (flag486 != 0) {
+		cr0 = load_cr0();
+		cr0 &= ~CR0_CACHE_DISABLE; /* キャッシュ許可 */
+		store_cr0(cr0);
+	}
+
+	return i;
+}
+
+void memman_init(struct MEMMAN *man)
+{
+	man->frees = 0;			/* あき情報の個数 */
+	man->maxfrees = 0;		/* 状況観察用：freesの最大値 */
+	man->lostsize = 0;		/* 解放に失敗した合計サイズ */
+	man->losts = 0;			/* 解放に失敗した回数 */
+	return;
+}
+
+
+unsigned int memman_total(struct MEMMAN *man)
+/* あきサイズの合計を報告 */
+{
+	unsigned int i, t = 0;
+	for (i = 0; i < man->frees; i++) {
+		t += man->free[i].size;
+	}
+	return t;
+}
+
+unsigned int memman_alloc(struct MEMMAN *man, unsigned int size)
+/* 確保 */
+{
+	unsigned int i, a;
+	for (i = 0; i< man->frees; i++) {
+		if (man->free[i].size >= size) {
+			/* 十分な広さのあきを発見 */
+			a = man->free[i].addr;
+			man->free[i].addr += size;
+			man->free[i].size -= size;
+			if (man->free[i].size == 0) {
+				/* free[i]がなくなったので前へつめる */
+				man->frees--;
+				for (; i < man->frees; i++) {
+					man->free[i] = man->free[i+1]; /* 構造体の代入 */
+				}
+			}
+			return 0;
+		}
+	}
+	return 0; /* あきがない */
+}
+
+int memman_free(struct MEMMAN *man, unsigned int addr, unsigned int size) 
+/* 解放 */
+{
+	int i, j;
+	/* まとめやすさを考えると、free[]がaddr順に並んでいるほうがいい */
+	/* だからまず、どこに入れるべきかを決める */
+	for (i = 0; i < man->frees; i++) {
+		if (man->free[i].addr > addr) {
+			break;
+		}
+	}
+	/* free[i - 1].addr < addr < free[i].addr */
+	if (i > 0) {
+		/* 前がある */
+		if (man->free[i - 1].addr + man->free[i - i].size == addr) {
+			/* 前のあき領域にまとめられる */
+			man->free[i - 1].size += size;
+			if (i < man->frees) {
+				/* 後ろもある */
+				if (addr + size == man->free[i].size) {
+					/* なんと後ろともまとめられる */
+					man->free[i - 1].size += man->free[i].size;
+					/* man->free[i]の削除 */
+					/* free[i]がなくなったので前へつめる */
+					man->frees--;
+					for (; i < man->frees; i++) {
+						man->free[i] = man->free[i + 1]; /* 構造体の代入 */
+					}
+				}
+			}
+			return 0; /* 成功終了 */
+		}
+	}
+	/* 前とはまとめられなかった */
+	if (i < man->frees) {
+		/* 後ろがある */
+		if (addr + size == man->free[i].addr) {
+			/* 後ろとはまとめられる */
+			man->free[i].addr = addr;
+			man->free[i].size += size;
+			return 0; /* 成功終了 */
+		} 
+	}
+	/* 前にも後ろにもまとめられない */
+	if (man->frees < MEMMAN_FREES) {
+		/* free[i]より後ろを、後ろへずらして、すきまを作る */
+		for (j = man->frees; j > i; j--) {
+			man->free[j] = man->free[j - 1];
+		}
+		man->frees++;
+		if (man->maxfrees < man->frees) {
+			man->maxfrees = man->frees; /* 最大値を更新 */
+		}
+		man->free[i].addr = addr;
+		man->free[i].size = size;
+		return 0; /* 成功終了 */
+	}
+	/* 後ろにずらせなかった */
+	man->losts++;
+	man->lostsize += size;
+	return -1; /* 失敗終了 */
+}
+
+unsigned int memman_alloc_4k(struct MEMMAN *man, unsigned int size)
+{
+    unsigned int a;
+    size = (size + 0xfff) & 0xfffff000;
+    a = memman_alloc(man, size);
+    return a;
+}
+
+int memman_free_4k(struct MEMMAN *man, unsigned int addr, unsigned int size)
+{
+    int i;
+    size = (size + 0xfff) & 0xfffff000;
+    i = memman_free(man, addr, size);
+    return i;
+}
+```
+
+bootpack.c
+```c
+#include "bootpack.h"
+#include <stdio.h>
+
+void HariMain(void)
+{
+    struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
+	char s[40], mcursor[256], keybuf[32], mousebuf[128];
+	int mx, my, i;
+	unsigned int memtotal;
+	struct MOUSE_DEC mdec;
+	struct MEMMAN *memman = (struct MEMMAN *) MEMMAN_ADDR;
+
+	init_gdtidt();
+	init_pic();
+	io_sti(); /* IDT/PICの初期化が終わったのでCPUの割り込み禁止を解除 */
+	fifo8_init(&keyfifo, 32, keybuf);
+	fifo8_init(&mousefifo, 128, mousebuf);
+	io_out8(PIC0_IMR, 0xf9); /* PIC1とキーボードを許可(11111001) */
+	io_out8(PIC1_IMR, 0xef); /* マウスを許可(11101111) */
+
+	init_keyboard();
+	enable_mouse(&mdec);
+	memtotal = memtest(0x00400000, 0xbfffffff);
+	memman_init(memman);
+	memman_free(memman, 0x000010000, 0x0009e000); /* 0x00001000 - 0x0009efff */
+	memman_free(memman, 0x00400000, memtotal - 0x00400000);
+
+	init_palette();
+	init_screen8(binfo->vram, binfo->scrnx, binfo->scrny);
+	mx = (binfo->scrnx - 16) / 2; /* 画面中央になるように座標計算 */
+	my = (binfo->scrny - 28 - 16) / 2;
+	init_mouse_cursor8(mcursor, COL8_008484);
+	putblock8_8(binfo->vram, binfo->scrnx, 16, 16, mx, my, mcursor, 16);
+	sprintf(s, "(%d, %d)", mx, my);
+	putfonts8_asc(binfo->vram, binfo->scrnx, 0, 0, COL8_FFFFFF, s);
+
+	sprintf(s, "memory %dMB free : %dKB", 
+			memtotal / (1024 * 1024), memman_total(memman) /1024);
+	putfonts8_asc(binfo->vram, binfo->scrnx, 0, 32, COL8_FFFFFF, s);
+
+	for (;;) {
+		io_cli();
+		if (fifo8_status(&keyfifo) + fifo8_status(&mousefifo) == 0) {
+			io_stihlt();
+		} else {
+			if (fifo8_status(&keyfifo) != 0) {
+				i = fifo8_get(&keyfifo);
+				io_sti();
+				sprintf(s, "%02X", i);
+				boxfill8(binfo->vram, binfo->scrnx, COL8_008484, 0, 16, 15, 31);
+				putfonts8_asc(binfo->vram, binfo->scrnx, 0, 16, COL8_FFFFFF, s);
+			} else if (fifo8_status(&mousefifo) != 0) {
+				i = fifo8_get(&mousefifo);
+				io_sti();
+				if (mouse_decode(&mdec, i) != 0) {
+					/* データが3バイト揃ったので表示 */
+					sprintf(s, "[lcr %4d %4d]", mdec.x, mdec.y);
+					if ((mdec.btn & 0x01) != 0) {
+						s[1] = 'L';
+					}
+					if ((mdec.btn & 0x02) != 0) {
+						s[3] = 'R';
+					}
+					if ((mdec.btn & 0x04) != 0) {
+						s[2]= 'c';
+					}
+					boxfill8(binfo->vram, binfo->scrnx, COL8_008484, 32, 16, 32 + 15 * 8 - 1, 31);
+					putfonts8_asc(binfo->vram, binfo->scrnx, 32, 16, COL8_FFFFFF, s);
+					/* マウスカーソルの移動 */
+					boxfill8(binfo->vram, binfo->scrnx, COL8_008484, mx, my, mx + 15, my + 15);
+					mx += mdec.x;
+					my += mdec.y;
+					if (mx < 0) {
+						mx = 0;
+					}
+					if (my < 0) {
+						my = 0;
+					}
+					if (mx > binfo->scrnx - 16) {
+						mx = binfo->scrnx - 16;
+					}
+					if (my > binfo->scrny - 16) {
+						my = binfo->scrny - 16;
+					}
+					sprintf(s, "(%3d, %3d)", mx, my);
+					boxfill8(binfo->vram, binfo->scrnx, COL8_008484, 0, 0, 79, 15);
+					putfonts8_asc(binfo->vram, binfo->scrnx, 0, 0, COL8_FFFFFF, s);
+					putblock8_8(binfo->vram, binfo->scrnx, 16, 16, mx, my, mcursor, 16);
+				}
+			}
+		}
+	}
+}
+```
+
+bootpack.h
+```h
+/* memory */
+#define MEMMAN_FREES		4090
+#define MEMMAN_ADDR			0x003c0000
+
+struct FREEINFO { 	/* あき情報 */
+	unsigned int addr, size;
+};
+
+struct MEMMAN {		/* メモリ管理 */
+	int frees, maxfrees, lostsize, losts;
+	struct FREEINFO free[MEMMAN_FREES];
+};
+
+unsigned int memtest(unsigned int start, unsigned int end);
+void memman_init(struct MEMMAN *man);
+unsigned int memman_total(struct MEMMAN *man);
+unsigned int memman_alloc(struct MEMMAN *man, unsigned int siza);
+int memman_free(struct MEMMAN *man, unsigned int addr, unsigned int size);
+unsigned int memman_alloc_4k(struct MEMMAN *man, unsigned int size);
+int memman_free_4k(struct MEMMAN *man, unsigned int addr, unsigned int size);
+```
+
+Makefile
+```Makefile
+OBJS_BOOTPACK = bootpack.obj naskfunc.obj hankaku.obj graphic.obj dsctbl.obj \
+				int.obj fifo.obj keybord.obj mouse.obj memory.obj
+```
+
+これでbootpack.cがきれいになりました。   
+
+さらに進めていってマウスが動いてもグラフィックが消えないように対応します。   
+bootpack.c
+```c
+/* bootpackのメイン */
+
+#include "bootpack.h"
+#include <stdio.h>
+
+void HariMain(void)
+{
+	struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
+	char s[40], keybuf[32], mousebuf[128];
+	int mx, my, i;
+	unsigned int memtotal;
+	struct MOUSE_DEC mdec;
+	struct MEMMAN *memman = (struct MEMMAN *) MEMMAN_ADDR;
+	struct SHTCTL *shtctl;
+	struct SHEET *sht_back, *sht_mouse;
+	unsigned char *buf_back, buf_mouse[256];
+
+	init_gdtidt();
+	init_pic();
+	io_sti(); /* IDT/PICの初期化が終わったのでCPUの割り込み禁止を解除 */
+	fifo8_init(&keyfifo, 32, keybuf);
+	fifo8_init(&mousefifo, 128, mousebuf);
+	io_out8(PIC0_IMR, 0xf9); /* PIC1とキーボードを許可(11111001) */
+	io_out8(PIC1_IMR, 0xef); /* マウスを許可(11101111) */
+
+	init_keyboard();
+	enable_mouse(&mdec);
+	memtotal = memtest(0x00400000, 0xbfffffff);
+	memman_init(memman);
+	memman_free(memman, 0x00001000, 0x0009e000); /* 0x00001000 - 0x0009efff */
+	memman_free(memman, 0x00400000, memtotal - 0x00400000);
+
+	init_palette();
+	shtctl = shtctl_init(memman, binfo->vram, binfo->scrnx, binfo->scrny);
+	sht_back  = sheet_alloc(shtctl);
+	sht_mouse = sheet_alloc(shtctl);
+	buf_back  = (unsigned char *) memman_alloc_4k(memman, binfo->scrnx * binfo->scrny);
+	sheet_setbuf(sht_back, buf_back, binfo->scrnx, binfo->scrny, -1); /* 透明色なし */
+	sheet_setbuf(sht_mouse, buf_mouse, 16, 16, 99);
+	init_screen8(buf_back, binfo->scrnx, binfo->scrny);
+	init_mouse_cursor8(buf_mouse, 99);
+	sheet_slide(shtctl, sht_back, 0, 0);
+	mx = (binfo->scrnx - 16) / 2; /* 画面中央になるように座標計算 */
+	my = (binfo->scrny - 28 - 16) / 2;
+	sheet_slide(shtctl, sht_mouse, mx, my);
+	sheet_updown(shtctl, sht_back,  0);
+	sheet_updown(shtctl, sht_mouse, 1);
+	sprintf(s, "(%3d, %3d)", mx, my);
+	putfonts8_asc(buf_back, binfo->scrnx, 0, 0, COL8_FFFFFF, s);
+	sprintf(s, "memory %dMB   free : %dKB",
+			memtotal / (1024 * 1024), memman_total(memman) / 1024);
+	putfonts8_asc(buf_back, binfo->scrnx, 0, 32, COL8_FFFFFF, s);
+	sheet_refresh(shtctl);
+
+	for (;;) {
+		io_cli();
+		if (fifo8_status(&keyfifo) + fifo8_status(&mousefifo) == 0) {
+			io_stihlt();
+		} else {
+			if (fifo8_status(&keyfifo) != 0) {
+				i = fifo8_get(&keyfifo);
+				io_sti();
+				sprintf(s, "%02X", i);
+				boxfill8(buf_back, binfo->scrnx, COL8_008484,  0, 16, 15, 31);
+				putfonts8_asc(buf_back, binfo->scrnx, 0, 16, COL8_FFFFFF, s);
+				sheet_refresh(shtctl);
+			} else if (fifo8_status(&mousefifo) != 0) {
+				i = fifo8_get(&mousefifo);
+				io_sti();
+				if (mouse_decode(&mdec, i) != 0) {
+					/* データが3バイト揃ったので表示 */
+					sprintf(s, "[lcr %4d %4d]", mdec.x, mdec.y);
+					if ((mdec.btn & 0x01) != 0) {
+						s[1] = 'L';
+					}
+					if ((mdec.btn & 0x02) != 0) {
+						s[3] = 'R';
+					}
+					if ((mdec.btn & 0x04) != 0) {
+						s[2] = 'C';
+					}
+					boxfill8(buf_back, binfo->scrnx, COL8_008484, 32, 16, 32 + 15 * 8 - 1, 31);
+					putfonts8_asc(buf_back, binfo->scrnx, 32, 16, COL8_FFFFFF, s);
+					/* マウスカーソルの移動 */
+					mx += mdec.x;
+					my += mdec.y;
+					if (mx < 0) {
+						mx = 0;
+					}
+					if (my < 0) {
+						my = 0;
+					}
+					if (mx > binfo->scrnx - 16) {
+						mx = binfo->scrnx - 16;
+					}
+					if (my > binfo->scrny - 16) {
+						my = binfo->scrny - 16;
+					}
+					sprintf(s, "(%3d, %3d)", mx, my);
+					boxfill8(buf_back, binfo->scrnx, COL8_008484, 0, 0, 79, 15); /* 座標消す */
+					putfonts8_asc(buf_back, binfo->scrnx, 0, 0, COL8_FFFFFF, s); /* 座標書く */
+					sheet_slide(shtctl, sht_mouse, mx, my); /* sheet_refreshを含む */
+				}
+			}
+		}
+	}
+}
+```
+
+sheet.c
+```c
+/* マウスやウィンドウの重ね合わせ処理 */
+
+#include "bootpack.h"
+
+#define SHEET_USE		1
+
+struct SHTCTL *shtctl_init(struct MEMMAN *memman, unsigned char *vram, int xsize, int ysize)
+{
+	struct SHTCTL *ctl;
+	int i;
+	ctl = (struct SHTCTL *) memman_alloc_4k(memman, sizeof (struct SHTCTL));
+	if (ctl == 0) {
+		goto err;
+	}
+	ctl->vram = vram;
+	ctl->xsize = xsize;
+	ctl->ysize = ysize;
+	ctl->top = -1; /* シートは一枚もない */
+	for (i = 0; i < MAX_SHEETS; i++) {
+		ctl->sheets0[i].flags = 0; /* 未使用マーク */
+	}
+err:
+	return ctl;
+}
+
+struct SHEET *sheet_alloc(struct SHTCTL *ctl)
+{
+	struct SHEET *sht;
+	int i;
+	for (i = 0; i < MAX_SHEETS; i++) {
+		if (ctl->sheets0[i].flags == 0) {
+			sht = &ctl->sheets0[i];
+			sht->flags = SHEET_USE; /* 使用中マーク */
+			sht->height = -1; /* 非表示中 */
+			return sht;
+		}
+	}
+	return 0;	/* 全てのシートが使用中だった */
+}
+
+void sheet_setbuf(struct SHEET *sht, unsigned char *buf, int xsize, int ysize, int col_inv)
+{
+	sht->buf = buf;
+	sht->bxsize = xsize;
+	sht->bysize = ysize;
+	sht->col_inv = col_inv;
+	return;
+}
+
+void sheet_updown(struct SHTCTL *ctl, struct SHEET *sht, int height)
+{
+	int h, old = sht->height; /* 設定前の高さを記憶する */
+
+	/* 指定が低すぎや高すぎだったら、修正する */
+	if (height > ctl->top + 1) {
+		height = ctl->top + 1;
+	}
+	if (height < -1) {
+		height = -1;
+	}
+	sht->height = height; /* 高さを設定 */
+
+	/* 以下は主にsheets[]の並べ替え */
+	if (old > height) {	/* 以前よりも低くなる */
+		if (height >= 0) {
+			/* 間のものを引き上げる */
+			for (h = old; h > height; h--) {
+				ctl->sheets[h] = ctl->sheets[h - 1];
+				ctl->sheets[h]->height = h;
+			}
+			ctl->sheets[height] = sht;
+		} else {	/* 非表示化 */
+			if (ctl->top > old) {
+				/* 上になっているものをおろす */
+				for (h = old; h < ctl->top; h++) {
+					ctl->sheets[h] = ctl->sheets[h + 1];
+					ctl->sheets[h]->height = h;
+				}
+			}
+			ctl->top--; /* 表示中の下じきが一つ減るので、一番上の高さが減る */
+		}
+		sheet_refresh(ctl); /* 新しい下じきの情報に沿って画面を描き直す */
+	} else if (old < height) {	/* 以前よりも高くなる */
+		if (old >= 0) {
+			/* 間のものを押し下げる */
+			for (h = old; h < height; h++) {
+				ctl->sheets[h] = ctl->sheets[h + 1];
+				ctl->sheets[h]->height = h;
+			}
+			ctl->sheets[height] = sht;
+		} else {	/* 非表示状態から表示状態へ */
+			/* 上になるものを持ち上げる */
+			for (h = ctl->top; h >= height; h--) {
+				ctl->sheets[h + 1] = ctl->sheets[h];
+				ctl->sheets[h + 1]->height = h + 1;
+			}
+			ctl->sheets[height] = sht;
+			ctl->top++; /* 表示中の下じきが一つ増えるので、一番上の高さが増える */
+		}
+		sheet_refresh(ctl); /* 新しい下じきの情報に沿って画面を描き直す */
+	}
+	return;
+}
+
+void sheet_refresh(struct SHTCTL *ctl)
+{
+	int h, bx, by, vx, vy;
+	unsigned char *buf, c, *vram = ctl->vram;
+	struct SHEET *sht;
+	for (h = 0; h <= ctl->top; h++) {
+		sht = ctl->sheets[h];
+		buf = sht->buf;
+		for (by = 0; by < sht->bysize; by++) {
+			vy = sht->vy0 + by;
+			for (bx = 0; bx < sht->bxsize; bx++) {
+				vx = sht->vx0 + bx;
+				c = buf[by * sht->bxsize + bx];
+				if (c != sht->col_inv) {
+					vram[vy * ctl->xsize + vx] = c;
+				}
+			}
+		}
+	}
+	return;
+}
+
+void sheet_slide(struct SHTCTL *ctl, struct SHEET *sht, int vx0, int vy0)
+{
+	sht->vx0 = vx0;
+	sht->vy0 = vy0;
+	if (sht->height >= 0) { /* もしも表示中なら */
+		sheet_refresh(ctl); /* 新しい下じきの情報に沿って画面を描き直す */
+	}
+	return;
+}
+
+void sheet_free(struct SHTCTL *ctl, struct SHEET *sht)
+{
+	if (sht->height >= 0) {
+		sheet_updown(ctl, sht, -1); /* 表示中ならまず非表示にする */
+	}
+	sht->flags = 0; /* 未使用マーク */
+	return;
+}
+```
+
+bootpack.h
+```h
+/* sheet.c */
+#define MAX_SHEETS      256
+struct SHEET {
+    unsigned char *buf;
+    int bxsize, bysize, vx0, vy0, col_inv, height, flags;
+};
+struct SHTCTL {
+    unsigned char *vram;
+    int xsize, ysize, top;
+    struct SHEET *sheets[MAX_SHEETS];
+    struct SHEET sheets0[MAX_SHEETS];
+};
+struct SHTCTL *shtctl_init(struct MEMMAN *memman, unsigned char *vram, int xsize, int ysize);
+struct SHEET *sheet_alloc(struct SHTCTL *ctl);
+void sheet_setbuf(struct SHEET *sht, unsigned char *buf, int xsize, int ysize, int col_inv);
+void sheet_updown(struct SHTCTL *ctl, struct SHEET *sht, int height);
+void sheet_refresh(struct SHTCTL *ctl);
+void sheet_slide(struct SHTCTL *ctl, struct SHEET *sht, int vx0, int vy0);
+void sheet_free(struct SHTCTL *ctl, struct SHEET *sht);
+```
+
+これで起動しても画面が真っ暗なまんまです。   
+なぜでしょう。
+
+**実装過程**   
+・　[2df4bb731190ee7a73d899289655171d175cc624](2df4bb731190ee7a73d899289655171d175cc624)
