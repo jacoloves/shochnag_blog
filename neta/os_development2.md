@@ -4656,3 +4656,6 @@ int mouse_decode(struct MOUSE_DEC *mdec, unsigned char dat)
 	 return -1; /* ここに来ることはないはず */
 }
 ```
+
+**実装過程**   
+・　[2dc2eed40057daaf4aa84bc00f02a949565165fc](2dc2eed40057daaf4aa84bc00f02a949565165fc)
