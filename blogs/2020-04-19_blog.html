@@ -1,0 +1,1844 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>20200419.md</title>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+
+<style>
+/* https://github.com/microsoft/vscode/blob/master/extensions/markdown-language-features/media/markdown.css */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+body {
+	font-family: var(--vscode-markdown-font-family, -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif);
+	font-size: var(--vscode-markdown-font-size, 14px);
+	padding: 0 26px;
+	line-height: var(--vscode-markdown-line-height, 22px);
+	word-wrap: break-word;
+}
+
+#code-csp-warning {
+	position: fixed;
+	top: 0;
+	right: 0;
+	color: white;
+	margin: 16px;
+	text-align: center;
+	font-size: 12px;
+	font-family: sans-serif;
+	background-color:#444444;
+	cursor: pointer;
+	padding: 6px;
+	box-shadow: 1px 1px 1px rgba(0,0,0,.25);
+}
+
+#code-csp-warning:hover {
+	text-decoration: none;
+	background-color:#007acc;
+	box-shadow: 2px 2px 2px rgba(0,0,0,.25);
+}
+
+body.scrollBeyondLastLine {
+	margin-bottom: calc(100vh - 22px);
+}
+
+body.showEditorSelection .code-line {
+	position: relative;
+}
+
+body.showEditorSelection .code-active-line:before,
+body.showEditorSelection .code-line:hover:before {
+	content: "";
+	display: block;
+	position: absolute;
+	top: 0;
+	left: -12px;
+	height: 100%;
+}
+
+body.showEditorSelection li.code-active-line:before,
+body.showEditorSelection li.code-line:hover:before {
+	left: -30px;
+}
+
+.vscode-light.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.15);
+}
+
+.vscode-light.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.40);
+}
+
+.vscode-light.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-dark.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.4);
+}
+
+.vscode-dark.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.60);
+}
+
+.vscode-dark.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-high-contrast.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 160, 0, 0.7);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 160, 0, 1);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+img {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+	outline: 1px solid -webkit-focus-ring-color;
+	outline-offset: -1px;
+}
+
+hr {
+	border: 0;
+	height: 2px;
+	border-bottom: 2px solid;
+}
+
+h1 {
+	padding-bottom: 0.3em;
+	line-height: 1.2;
+	border-bottom-width: 1px;
+	border-bottom-style: solid;
+}
+
+h1, h2, h3 {
+	font-weight: normal;
+}
+
+table {
+	border-collapse: collapse;
+}
+
+table > thead > tr > th {
+	text-align: left;
+	border-bottom: 1px solid;
+}
+
+table > thead > tr > th,
+table > thead > tr > td,
+table > tbody > tr > th,
+table > tbody > tr > td {
+	padding: 5px 10px;
+}
+
+table > tbody > tr + tr > td {
+	border-top: 1px solid;
+}
+
+blockquote {
+	margin: 0 7px 0 5px;
+	padding: 0 16px 0 10px;
+	border-left-width: 5px;
+	border-left-style: solid;
+}
+
+code {
+	font-family: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
+	font-size: 1em;
+	line-height: 1.357em;
+}
+
+body.wordWrap pre {
+	white-space: pre-wrap;
+}
+
+pre:not(.hljs),
+pre.hljs code > div {
+	padding: 16px;
+	border-radius: 3px;
+	overflow: auto;
+}
+
+pre code {
+	color: var(--vscode-editor-foreground);
+	tab-size: 4;
+}
+
+/** Theming */
+
+.vscode-light pre {
+	background-color: rgba(220, 220, 220, 0.4);
+}
+
+.vscode-dark pre {
+	background-color: rgba(10, 10, 10, 0.4);
+}
+
+.vscode-high-contrast pre {
+	background-color: rgb(0, 0, 0);
+}
+
+.vscode-high-contrast h1 {
+	border-color: rgb(0, 0, 0);
+}
+
+.vscode-light table > thead > tr > th {
+	border-color: rgba(0, 0, 0, 0.69);
+}
+
+.vscode-dark table > thead > tr > th {
+	border-color: rgba(255, 255, 255, 0.69);
+}
+
+.vscode-light h1,
+.vscode-light hr,
+.vscode-light table > tbody > tr + tr > td {
+	border-color: rgba(0, 0, 0, 0.18);
+}
+
+.vscode-dark h1,
+.vscode-dark hr,
+.vscode-dark table > tbody > tr + tr > td {
+	border-color: rgba(255, 255, 255, 0.18);
+}
+
+</style>
+
+<style>
+/* Tomorrow Theme */
+/* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+/* Original theme - https://github.com/chriskempson/tomorrow-theme */
+
+/* Tomorrow Comment */
+.hljs-comment,
+.hljs-quote {
+	color: #8e908c;
+}
+
+/* Tomorrow Red */
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-regexp,
+.hljs-deletion {
+	color: #c82829;
+}
+
+/* Tomorrow Orange */
+.hljs-number,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-literal,
+.hljs-type,
+.hljs-params,
+.hljs-meta,
+.hljs-link {
+	color: #f5871f;
+}
+
+/* Tomorrow Yellow */
+.hljs-attribute {
+	color: #eab700;
+}
+
+/* Tomorrow Green */
+.hljs-string,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
+	color: #718c00;
+}
+
+/* Tomorrow Blue */
+.hljs-title,
+.hljs-section {
+	color: #4271ae;
+}
+
+/* Tomorrow Purple */
+.hljs-keyword,
+.hljs-selector-tag {
+	color: #8959a8;
+}
+
+.hljs {
+	display: block;
+	overflow-x: auto;
+	color: #4d4d4c;
+	padding: 0.5em;
+}
+
+.hljs-emphasis {
+	font-style: italic;
+}
+
+.hljs-strong {
+	font-weight: bold;
+}
+</style>
+
+<style>
+/*
+ * Markdown PDF CSS
+ */
+
+ body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
+	padding: 0 12px;
+}
+
+pre {
+	background-color: #f8f8f8;
+	border: 1px solid #cccccc;
+	border-radius: 3px;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+}
+
+pre:not(.hljs) {
+	padding: 23px;
+	line-height: 19px;
+}
+
+blockquote {
+	background: rgba(127, 127, 127, 0.1);
+	border-color: rgba(0, 122, 204, 0.5);
+}
+
+.emoji {
+	height: 1.4em;
+}
+
+code {
+	font-size: 14px;
+	line-height: 19px;
+}
+
+/* for inline code */
+:not(pre):not(.hljs) > code {
+	color: #C9AE75; /* Change the old color so it seems less like an error */
+	font-size: inherit;
+}
+
+/* Page Break : use <div class="page"/> to insert page break
+-------------------------------------------------------- */
+.page {
+	page-break-after: always;
+}
+
+</style>
+
+<script src="https://unpkg.com/mermaid/dist/mermaid.min.js"></script>
+</head>
+<body>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: document.body.classList.contains('vscode-dark') || document.body.classList.contains('vscode-high-contrast')
+          ? 'dark'
+          : 'default'
+    });
+  </script>
+<h2 id="day8">day8</h2>
+<p>開発初めて8日目になりました。<br>
+1週間立ちましたね。<br>
+今日はマウスカーソルを動かすところから作っていきたいと思います。</p>
+<p>bootpack.c</p>
+<pre class="hljs"><code><div><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">HariMain</span><span class="hljs-params">(<span class="hljs-keyword">void</span>)</span>
+</span>{
+    <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">BOOTINFO</span> *<span class="hljs-title">binfo</span> = (<span class="hljs-title">struct</span> <span class="hljs-title">BOOTINFO</span> *) <span class="hljs-title">ADR_BOOTINFO</span>;</span>
+	<span class="hljs-keyword">char</span> s[<span class="hljs-number">40</span>], mcursor[<span class="hljs-number">256</span>], keybuf[<span class="hljs-number">32</span>], mousebuf[<span class="hljs-number">128</span>];
+	<span class="hljs-keyword">int</span> mx, my, i;
+	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">MOUSE_DEC</span> <span class="hljs-title">mdec</span>;</span>
+
+	init_gdtidt();
+	init_pic();
+	io_sti(); <span class="hljs-comment">/* IDT/PICの初期化が終わったのでCPUの割り込み禁止を解除 */</span>
+	fifo8_init(&amp;keyfifo, <span class="hljs-number">32</span>, keybuf);
+	fifo8_init(&amp;mousefifo, <span class="hljs-number">128</span>, mousebuf);
+	io_out8(PIC0_IMR, <span class="hljs-number">0xf9</span>); <span class="hljs-comment">/* PIC1とキーボードを許可(11111001) */</span>
+	io_out8(PIC1_IMR, <span class="hljs-number">0xef</span>); <span class="hljs-comment">/* マウスを許可(11101111) */</span>
+
+	init_keyboard();
+
+	init_palette();
+	init_screen8(binfo-&gt;vram, binfo-&gt;scrnx, binfo-&gt;scrny);
+	mx = (binfo-&gt;scrnx - <span class="hljs-number">16</span>) / <span class="hljs-number">2</span>; <span class="hljs-comment">/* 画面中央になるように座標計算 */</span>
+	my = (binfo-&gt;scrny - <span class="hljs-number">28</span> - <span class="hljs-number">16</span>) / <span class="hljs-number">2</span>;
+	init_mouse_cursor8(mcursor, COL8_008484);
+	putblock8_8(binfo-&gt;vram, binfo-&gt;scrnx, <span class="hljs-number">16</span>, <span class="hljs-number">16</span>, mx, my, mcursor, <span class="hljs-number">16</span>);
+	<span class="hljs-built_in">sprintf</span>(s, <span class="hljs-string">"(%d, %d)"</span>, mx, my);
+	putfonts8_asc(binfo-&gt;vram, binfo-&gt;scrnx, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, COL8_FFFFFF, s);
+
+	enable_mouse(&amp;mdec);
+
+	<span class="hljs-keyword">for</span> (;;) {
+		io_cli();
+		<span class="hljs-keyword">if</span> (fifo8_status(&amp;keyfifo) + fifo8_status(&amp;mousefifo) == <span class="hljs-number">0</span>) {
+			io_stihlt();
+		} <span class="hljs-keyword">else</span> {
+			<span class="hljs-keyword">if</span> (fifo8_status(&amp;keyfifo) != <span class="hljs-number">0</span>) {
+				i = fifo8_get(&amp;keyfifo);
+				io_sti();
+				<span class="hljs-built_in">sprintf</span>(s, <span class="hljs-string">"%02X"</span>, i);
+				boxfill8(binfo-&gt;vram, binfo-&gt;scrnx, COL8_008484, <span class="hljs-number">0</span>, <span class="hljs-number">16</span>, <span class="hljs-number">15</span>, <span class="hljs-number">31</span>);
+				putfonts8_asc(binfo-&gt;vram, binfo-&gt;scrnx, <span class="hljs-number">0</span>, <span class="hljs-number">16</span>, COL8_FFFFFF, s);
+			} <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (fifo8_status(&amp;mousefifo) != <span class="hljs-number">0</span>) {
+				i = fifo8_get(&amp;mousefifo);
+				io_sti();
+				<span class="hljs-keyword">if</span> (mouse_decode(&amp;mdec, i) != <span class="hljs-number">0</span>) {
+					<span class="hljs-comment">/* データが3バイト揃ったので表示 */</span>
+					<span class="hljs-built_in">sprintf</span>(s, <span class="hljs-string">"[lcr %4d%4d]"</span>, mdec.x, mdec.y);
+					<span class="hljs-keyword">if</span> ((mdec.btn &amp; <span class="hljs-number">0x01</span>) != <span class="hljs-number">0</span>) {
+						s[<span class="hljs-number">1</span>] = <span class="hljs-string">'L'</span>;
+					}
+					<span class="hljs-keyword">if</span> ((mdec.btn &amp; <span class="hljs-number">0x02</span>) != <span class="hljs-number">0</span>) {
+						s[<span class="hljs-number">3</span>] = <span class="hljs-string">'R'</span>;
+					}
+					<span class="hljs-keyword">if</span> ((mdec.btn &amp; <span class="hljs-number">0x04</span>) != <span class="hljs-number">0</span>) {
+						s[<span class="hljs-number">2</span>]= <span class="hljs-string">'c'</span>;
+					}
+					boxfill8(binfo-&gt;vram, binfo-&gt;scrnx, COL8_008484, <span class="hljs-number">32</span>, <span class="hljs-number">16</span>, <span class="hljs-number">32</span> + <span class="hljs-number">15</span> * <span class="hljs-number">8</span> - <span class="hljs-number">1</span>, <span class="hljs-number">31</span>);
+					putfonts8_asc(binfo-&gt;vram, binfo-&gt;scrnx, <span class="hljs-number">32</span>, <span class="hljs-number">16</span>, COL8_FFFFFF, s);
+					<span class="hljs-comment">/* マウスカーソルの移動 */</span>
+					boxfill8(binfo-&gt;vram, binfo-&gt;scrnx, COL8_008484, mx, my, mx + <span class="hljs-number">15</span>, my + <span class="hljs-number">15</span>);
+					mx += mdec.x;
+					my += mdec.y;
+					<span class="hljs-keyword">if</span> (mx &lt; <span class="hljs-number">0</span>) {
+						mx = <span class="hljs-number">0</span>;
+					}
+					<span class="hljs-keyword">if</span> (my &lt; <span class="hljs-number">0</span>) {
+						my = <span class="hljs-number">0</span>;
+					}
+					<span class="hljs-keyword">if</span> (mx &gt; binfo-&gt;scrnx - <span class="hljs-number">16</span>) {
+						mx = binfo-&gt;scrnx - <span class="hljs-number">16</span>;
+					}
+					<span class="hljs-keyword">if</span> (my &gt; binfo-&gt;scrny - <span class="hljs-number">16</span>) {
+						my = binfo-&gt;scrny - <span class="hljs-number">16</span>;
+					}
+					<span class="hljs-built_in">sprintf</span>(s, <span class="hljs-string">"(%3d, %3d)"</span>, mx, my);
+					boxfill8(binfo-&gt;vram, binfo-&gt;scrnx, COL8_008484, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">79</span>, <span class="hljs-number">15</span>);
+					putfonts8_asc(binfo-&gt;vram, binfo-&gt;scrnx, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, COL8_FFFFFF, s);
+					putblock8_8(binfo-&gt;vram, binfo-&gt;scrnx, <span class="hljs-number">16</span>, <span class="hljs-number">16</span>, mx, my, mcursor, <span class="hljs-number">16</span>);
+				}
+			}
+		}
+	}
+}
+</div></code></pre>
+<p>これでマウスが動くようになりました。<br>
+かっこいいですね！</p>
+<p>書籍の9日目に突入しました。<br>
+まずはbootpack.cとint.cを整理する所からスタートです。<br>
+整理することで新しくkeybord.cとmouse.cが出来ました。</p>
+<p>keybord.c</p>
+<pre class="hljs"><code><div><span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">"bootpack.h"</span></span>
+
+<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">FIFO8</span> <span class="hljs-title">keyfifo</span>;</span>
+
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> PORT_KEYSTA			0x0064</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span>	KEYSTA_SEND_NOTREDY	0x02</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> KEYCMD_WRITE_MODE	0x60</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> KBC_MODE			0x47</span>
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">wait_KBC_sendready</span><span class="hljs-params">(<span class="hljs-keyword">void</span>)</span>
+</span>{
+	<span class="hljs-comment">/* キーボードコントローラーがデータ送信可能になるのを待つ */</span>
+	<span class="hljs-keyword">for</span> (;;) {
+		<span class="hljs-keyword">if</span> ((io_in8(PORT_KEYSTA) &amp; KEYSTA_SEND_NOTREDY) == <span class="hljs-number">0</span>) {
+			<span class="hljs-keyword">break</span>;
+		}
+	}
+	<span class="hljs-keyword">return</span>;
+}
+
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">init_keyboard</span><span class="hljs-params">(<span class="hljs-keyword">void</span>)</span>
+</span>{
+	<span class="hljs-comment">/* キーボードコントローラの初期化 */</span>
+	wait_KBC_sendready();
+	io_out8(PORT_KEYCMD, KEYCMD_WRITE_MODE);
+	wait_KBC_sendready();
+	io_out8(PORT_KEYDAT, KBC_MODE);
+	<span class="hljs-keyword">return</span>;
+}
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">inthandler21</span><span class="hljs-params">(<span class="hljs-keyword">int</span> *esp)</span>
+</span>{
+	<span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">char</span> data;
+	io_out8(PIC0_OCW2, <span class="hljs-number">0x61</span>);	<span class="hljs-comment">/* IRQ-01受付完了をPICに通知 */</span>
+	data = io_in8(PORT_KEYDAT);
+	fifo8_put(&amp;keyfifo, data);
+	<span class="hljs-keyword">return</span>;
+}
+</div></code></pre>
+<p>mouse.c</p>
+<pre class="hljs"><code><div><span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">"bootpack.h"</span></span>
+
+<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">FIFO8</span>    <span class="hljs-title">mousefifo</span>;</span>
+
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> KEYCMD_SENDTO_MOUSE	0xd4</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> MOUSECMD_ENABLE		0xf4</span>
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">enable_mouse</span><span class="hljs-params">(struct MOUSE_DEC *mdec)</span>
+</span>{
+	<span class="hljs-comment">/* マウス有効 */</span>
+	wait_KBC_sendready();
+	io_out8(PORT_KEYCMD, KEYCMD_SENDTO_MOUSE);
+	wait_KBC_sendready();
+	io_out8(PORT_KEYDAT, MOUSECMD_ENABLE);
+	<span class="hljs-comment">/* うまくいくとACK(0xfa)が送信されてくる */</span>
+	mdec-&gt;phase = <span class="hljs-number">0</span>; <span class="hljs-comment">/* マウスの0xfaを待っている段階 */</span>
+	<span class="hljs-keyword">return</span>; 
+}
+
+<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">mouse_decode</span><span class="hljs-params">(struct MOUSE_DEC *mdec, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">char</span> dat)</span>
+</span>{
+	 <span class="hljs-keyword">if</span> (mdec-&gt;phase == <span class="hljs-number">0</span>) {
+		 <span class="hljs-comment">/* マウスの0xfaを待っている段階 */</span>
+		 <span class="hljs-keyword">if</span> (dat == <span class="hljs-number">0xfa</span>) {
+			 mdec-&gt;phase = <span class="hljs-number">1</span>;
+		 }
+		 <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
+	 }
+	 <span class="hljs-keyword">if</span> (mdec-&gt;phase == <span class="hljs-number">1</span>) {
+		 <span class="hljs-comment">/* マウスの1バイト目を待っている段階 */</span>
+		 <span class="hljs-keyword">if</span> ((dat &amp; <span class="hljs-number">0xc8</span>) == <span class="hljs-number">0x08</span>) {
+			<span class="hljs-comment">/* 正しい1バイト目だった */</span>
+			mdec-&gt;buf[<span class="hljs-number">0</span>] = dat;
+		 	mdec-&gt;phase = <span class="hljs-number">2</span>;
+		 }
+		 <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
+	 }
+	 <span class="hljs-keyword">if</span> (mdec-&gt;phase == <span class="hljs-number">2</span>) {
+		 <span class="hljs-comment">/* マウスの2バイト目を待っている段階 */</span>
+		 mdec-&gt;buf[<span class="hljs-number">1</span>] = dat;
+		 mdec-&gt;phase = <span class="hljs-number">3</span>;
+		 <span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
+	 }
+	 <span class="hljs-keyword">if</span> (mdec-&gt;phase == <span class="hljs-number">3</span>) {
+		 <span class="hljs-comment">/* マウスの3バイト目を待っている段階 */</span>
+		 mdec-&gt;buf[<span class="hljs-number">2</span>] = dat;
+		 mdec-&gt;phase = <span class="hljs-number">1</span>;
+		 mdec-&gt;btn = mdec-&gt;buf[<span class="hljs-number">0</span>] &amp; <span class="hljs-number">0x07</span>;
+		 mdec-&gt;x = mdec-&gt;buf[<span class="hljs-number">1</span>];
+		 mdec-&gt;y = mdec-&gt;buf[<span class="hljs-number">2</span>];
+		 <span class="hljs-keyword">if</span> ((mdec-&gt;buf[<span class="hljs-number">0</span>] &amp; <span class="hljs-number">0x10</span>) != <span class="hljs-number">0</span>) {
+			 mdec-&gt;x |= <span class="hljs-number">0xffffff00</span>;
+		 }
+		 <span class="hljs-keyword">if</span> ((mdec-&gt;buf[<span class="hljs-number">0</span>] &amp; <span class="hljs-number">0x20</span>) != <span class="hljs-number">0</span>) {
+			 mdec-&gt;y |= <span class="hljs-number">0xffffff00</span>;
+		 }
+		 mdec-&gt;y = - mdec-&gt;y; <span class="hljs-comment">/* マウスではy方向の符号が画面と反対 */</span>
+		 <span class="hljs-keyword">return</span> <span class="hljs-number">1</span>;
+	 }
+	 <span class="hljs-keyword">return</span> <span class="hljs-number">-1</span>; <span class="hljs-comment">/* ここに来ることはないはず */</span>
+}
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">inthandler2c</span><span class="hljs-params">(<span class="hljs-keyword">int</span> *esp)</span>
+<span class="hljs-comment">/* PS/2 mouse interrupt */</span>
+</span>{
+    <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">char</span> data;
+    io_out8(PIC1_OCW2, <span class="hljs-number">0x64</span>);
+    io_out8(PIC0_OCW2, <span class="hljs-number">0x62</span>);
+    data = io_in8(PORT_KEYDAT);
+    fifo8_put(&amp;mousefifo, data);
+    <span class="hljs-keyword">return</span>;
+}
+</div></code></pre>
+<p>bootpack.c</p>
+<pre class="hljs"><code><div><span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">"bootpack.h"</span></span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;stdio.h&gt;</span></span>
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">HariMain</span><span class="hljs-params">(<span class="hljs-keyword">void</span>)</span>
+</span>{
+    <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">BOOTINFO</span> *<span class="hljs-title">binfo</span> = (<span class="hljs-title">struct</span> <span class="hljs-title">BOOTINFO</span> *) <span class="hljs-title">ADR_BOOTINFO</span>;</span>
+	<span class="hljs-keyword">char</span> s[<span class="hljs-number">40</span>], mcursor[<span class="hljs-number">256</span>], keybuf[<span class="hljs-number">32</span>], mousebuf[<span class="hljs-number">128</span>];
+	<span class="hljs-keyword">int</span> mx, my, i;
+	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">MOUSE_DEC</span> <span class="hljs-title">mdec</span>;</span>
+
+	init_gdtidt();
+	init_pic();
+	io_sti(); <span class="hljs-comment">/* IDT/PICの初期化が終わったのでCPUの割り込み禁止を解除 */</span>
+	fifo8_init(&amp;keyfifo, <span class="hljs-number">32</span>, keybuf);
+	fifo8_init(&amp;mousefifo, <span class="hljs-number">128</span>, mousebuf);
+	io_out8(PIC0_IMR, <span class="hljs-number">0xf9</span>); <span class="hljs-comment">/* PIC1とキーボードを許可(11111001) */</span>
+	io_out8(PIC1_IMR, <span class="hljs-number">0xef</span>); <span class="hljs-comment">/* マウスを許可(11101111) */</span>
+
+	init_keyboard();
+
+	init_palette();
+	init_screen8(binfo-&gt;vram, binfo-&gt;scrnx, binfo-&gt;scrny);
+	mx = (binfo-&gt;scrnx - <span class="hljs-number">16</span>) / <span class="hljs-number">2</span>; <span class="hljs-comment">/* 画面中央になるように座標計算 */</span>
+	my = (binfo-&gt;scrny - <span class="hljs-number">28</span> - <span class="hljs-number">16</span>) / <span class="hljs-number">2</span>;
+	init_mouse_cursor8(mcursor, COL8_008484);
+	putblock8_8(binfo-&gt;vram, binfo-&gt;scrnx, <span class="hljs-number">16</span>, <span class="hljs-number">16</span>, mx, my, mcursor, <span class="hljs-number">16</span>);
+	<span class="hljs-built_in">sprintf</span>(s, <span class="hljs-string">"(%d, %d)"</span>, mx, my);
+	putfonts8_asc(binfo-&gt;vram, binfo-&gt;scrnx, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, COL8_FFFFFF, s);
+
+	enable_mouse(&amp;mdec);
+
+	<span class="hljs-keyword">for</span> (;;) {
+		io_cli();
+		<span class="hljs-keyword">if</span> (fifo8_status(&amp;keyfifo) + fifo8_status(&amp;mousefifo) == <span class="hljs-number">0</span>) {
+			io_stihlt();
+		} <span class="hljs-keyword">else</span> {
+			<span class="hljs-keyword">if</span> (fifo8_status(&amp;keyfifo) != <span class="hljs-number">0</span>) {
+				i = fifo8_get(&amp;keyfifo);
+				io_sti();
+				<span class="hljs-built_in">sprintf</span>(s, <span class="hljs-string">"%02X"</span>, i);
+				boxfill8(binfo-&gt;vram, binfo-&gt;scrnx, COL8_008484, <span class="hljs-number">0</span>, <span class="hljs-number">16</span>, <span class="hljs-number">15</span>, <span class="hljs-number">31</span>);
+				putfonts8_asc(binfo-&gt;vram, binfo-&gt;scrnx, <span class="hljs-number">0</span>, <span class="hljs-number">16</span>, COL8_FFFFFF, s);
+			} <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (fifo8_status(&amp;mousefifo) != <span class="hljs-number">0</span>) {
+				i = fifo8_get(&amp;mousefifo);
+				io_sti();
+				<span class="hljs-keyword">if</span> (mouse_decode(&amp;mdec, i) != <span class="hljs-number">0</span>) {
+					<span class="hljs-comment">/* データが3バイト揃ったので表示 */</span>
+					<span class="hljs-built_in">sprintf</span>(s, <span class="hljs-string">"[lcr %4d%4d]"</span>, mdec.x, mdec.y);
+					<span class="hljs-keyword">if</span> ((mdec.btn &amp; <span class="hljs-number">0x01</span>) != <span class="hljs-number">0</span>) {
+						s[<span class="hljs-number">1</span>] = <span class="hljs-string">'L'</span>;
+					}
+					<span class="hljs-keyword">if</span> ((mdec.btn &amp; <span class="hljs-number">0x02</span>) != <span class="hljs-number">0</span>) {
+						s[<span class="hljs-number">3</span>] = <span class="hljs-string">'R'</span>;
+					}
+					<span class="hljs-keyword">if</span> ((mdec.btn &amp; <span class="hljs-number">0x04</span>) != <span class="hljs-number">0</span>) {
+						s[<span class="hljs-number">2</span>]= <span class="hljs-string">'c'</span>;
+					}
+					boxfill8(binfo-&gt;vram, binfo-&gt;scrnx, COL8_008484, <span class="hljs-number">32</span>, <span class="hljs-number">16</span>, <span class="hljs-number">32</span> + <span class="hljs-number">15</span> * <span class="hljs-number">8</span> - <span class="hljs-number">1</span>, <span class="hljs-number">31</span>);
+					putfonts8_asc(binfo-&gt;vram, binfo-&gt;scrnx, <span class="hljs-number">32</span>, <span class="hljs-number">16</span>, COL8_FFFFFF, s);
+					<span class="hljs-comment">/* マウスカーソルの移動 */</span>
+					boxfill8(binfo-&gt;vram, binfo-&gt;scrnx, COL8_008484, mx, my, mx + <span class="hljs-number">15</span>, my + <span class="hljs-number">15</span>);
+					mx += mdec.x;
+					my += mdec.y;
+					<span class="hljs-keyword">if</span> (mx &lt; <span class="hljs-number">0</span>) {
+						mx = <span class="hljs-number">0</span>;
+					}
+					<span class="hljs-keyword">if</span> (my &lt; <span class="hljs-number">0</span>) {
+						my = <span class="hljs-number">0</span>;
+					}
+					<span class="hljs-keyword">if</span> (mx &gt; binfo-&gt;scrnx - <span class="hljs-number">16</span>) {
+						mx = binfo-&gt;scrnx - <span class="hljs-number">16</span>;
+					}
+					<span class="hljs-keyword">if</span> (my &gt; binfo-&gt;scrny - <span class="hljs-number">16</span>) {
+						my = binfo-&gt;scrny - <span class="hljs-number">16</span>;
+					}
+					<span class="hljs-built_in">sprintf</span>(s, <span class="hljs-string">"(%3d, %3d)"</span>, mx, my);
+					boxfill8(binfo-&gt;vram, binfo-&gt;scrnx, COL8_008484, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">79</span>, <span class="hljs-number">15</span>);
+					putfonts8_asc(binfo-&gt;vram, binfo-&gt;scrnx, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, COL8_FFFFFF, s);
+					putblock8_8(binfo-&gt;vram, binfo-&gt;scrnx, <span class="hljs-number">16</span>, <span class="hljs-number">16</span>, mx, my, mcursor, <span class="hljs-number">16</span>);
+				}
+			}
+		}
+	}
+}
+</div></code></pre>
+<p>int.c</p>
+<pre class="hljs"><code><div><span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">"bootpack.h"</span></span>
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">init_pic</span><span class="hljs-params">(<span class="hljs-keyword">void</span>)</span>
+<span class="hljs-comment">/* Initialize pic */</span>
+</span>{
+    io_out8(PIC0_IMR, <span class="hljs-number">0xff</span> );
+    io_out8(PIC1_IMR, <span class="hljs-number">0xff</span> );
+
+    io_out8(PIC0_ICW1, <span class="hljs-number">0x11</span> );
+    io_out8(PIC0_ICW2, <span class="hljs-number">0x20</span> );
+    io_out8(PIC0_ICW3, <span class="hljs-number">1</span> &lt;&lt; <span class="hljs-number">2</span>);
+    io_out8(PIC0_ICW4, <span class="hljs-number">0x01</span> );
+
+    io_out8(PIC1_ICW1, <span class="hljs-number">0x11</span> );
+    io_out8(PIC1_ICW2, <span class="hljs-number">0x28</span> );
+    io_out8(PIC1_ICW3, <span class="hljs-number">2</span> );
+    io_out8(PIC1_ICW4, <span class="hljs-number">0x01</span> );
+
+    io_out8(PIC0_IMR, <span class="hljs-number">0x0fb</span> );
+    io_out8(PIC1_IMR, <span class="hljs-number">0xff</span> );
+
+    <span class="hljs-keyword">return</span>;
+}
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">inthandler27</span><span class="hljs-params">(<span class="hljs-keyword">int</span> *esp)</span>
+<span class="hljs-comment">/* PIC0からの不完全割り込み対策 */</span>
+<span class="hljs-comment">/* Athlon64X2機などではチップセットの都合によりPICの初期化時にこの割り込みが1度だけおこる */</span>
+<span class="hljs-comment">/* この割り込み処理関数は、その割り込みに対して何もしないでやり過ごす */</span>
+<span class="hljs-comment">/* なぜ何もしなくていいの？
+	→  この割り込みはPIC初期化時の電気的なノイズによって発生したものなので、
+		まじめに何か処理してやる必要がない。									*/</span>
+</span>{
+    io_out8(PIC0_OCW2, <span class="hljs-number">0x67</span>);
+    <span class="hljs-keyword">return</span>;
+}
+</div></code></pre>
+<p>bootpack.h</p>
+<pre class="hljs"><code><div><span class="hljs-comment">/* keybord.c */</span>
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">inthandler21</span><span class="hljs-params">(<span class="hljs-keyword">int</span> *esp)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">wait_KBC_sendready</span><span class="hljs-params">(<span class="hljs-keyword">void</span>)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">init_keyboard</span><span class="hljs-params">(<span class="hljs-keyword">void</span>)</span></span>;
+<span class="hljs-keyword">extern</span> <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">FIFO8</span> <span class="hljs-title">keyfifo</span>;</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> PORT_KEYDAT			0x0060</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> PORT_KEYCMD			0x0064</span>
+
+<span class="hljs-comment">/* mouse.c */</span>
+<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">MOUSE_DEC</span> {</span>
+	<span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">char</span> buf[<span class="hljs-number">3</span>], phase;
+	<span class="hljs-keyword">int</span> x, y, btn;
+};
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">inthandler2c</span><span class="hljs-params">(<span class="hljs-keyword">int</span> *esp)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">enable_mouse</span><span class="hljs-params">(struct MOUSE_DEC *mdec)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">mouse_decode</span><span class="hljs-params">(struct MOUSE_DEC *mdec, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">char</span> dat)</span></span>;
+<span class="hljs-keyword">extern</span> <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">FIFO8</span> <span class="hljs-title">mousefifo</span>;</span>
+</div></code></pre>
+<p>Makefile</p>
+<pre class="hljs"><code><div>OBJS_BOOTPACK = bootpack.obj naskfunc.obj hankaku.obj graphic.obj dsctbl.obj \
+				int.obj fifo.obj keybord.obj mouse.obj
+</div></code></pre>
+<p>メモリ容量をチェックするためにソースコードに加筆していきます。</p>
+<p>bootpack.c</p>
+<pre class="hljs"><code><div><span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">"bootpack.h"</span></span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;stdio.h&gt;</span></span>
+
+<span class="hljs-function"><span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> <span class="hljs-title">memtest</span><span class="hljs-params">(<span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> start, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> <span class="hljs-built_in">end</span>)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> <span class="hljs-title">memtest_sub</span><span class="hljs-params">(<span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> start, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> <span class="hljs-built_in">end</span>)</span></span>;
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">HariMain</span><span class="hljs-params">(<span class="hljs-keyword">void</span>)</span>
+</span>{
+    <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">BOOTINFO</span> *<span class="hljs-title">binfo</span> = (<span class="hljs-title">struct</span> <span class="hljs-title">BOOTINFO</span> *) <span class="hljs-title">ADR_BOOTINFO</span>;</span>
+	<span class="hljs-keyword">char</span> s[<span class="hljs-number">40</span>], mcursor[<span class="hljs-number">256</span>], keybuf[<span class="hljs-number">32</span>], mousebuf[<span class="hljs-number">128</span>];
+	<span class="hljs-keyword">int</span> mx, my, i;
+	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">MOUSE_DEC</span> <span class="hljs-title">mdec</span>;</span>
+
+	init_gdtidt();
+	init_pic();
+	io_sti(); <span class="hljs-comment">/* IDT/PICの初期化が終わったのでCPUの割り込み禁止を解除 */</span>
+	fifo8_init(&amp;keyfifo, <span class="hljs-number">32</span>, keybuf);
+	fifo8_init(&amp;mousefifo, <span class="hljs-number">128</span>, mousebuf);
+	io_out8(PIC0_IMR, <span class="hljs-number">0xf9</span>); <span class="hljs-comment">/* PIC1とキーボードを許可(11111001) */</span>
+	io_out8(PIC1_IMR, <span class="hljs-number">0xef</span>); <span class="hljs-comment">/* マウスを許可(11101111) */</span>
+
+	init_keyboard();
+	enable_mouse(&amp;mdec);
+
+	init_palette();
+	init_screen8(binfo-&gt;vram, binfo-&gt;scrnx, binfo-&gt;scrny);
+	mx = (binfo-&gt;scrnx - <span class="hljs-number">16</span>) / <span class="hljs-number">2</span>; <span class="hljs-comment">/* 画面中央になるように座標計算 */</span>
+	my = (binfo-&gt;scrny - <span class="hljs-number">28</span> - <span class="hljs-number">16</span>) / <span class="hljs-number">2</span>;
+	init_mouse_cursor8(mcursor, COL8_008484);
+	putblock8_8(binfo-&gt;vram, binfo-&gt;scrnx, <span class="hljs-number">16</span>, <span class="hljs-number">16</span>, mx, my, mcursor, <span class="hljs-number">16</span>);
+	<span class="hljs-built_in">sprintf</span>(s, <span class="hljs-string">"(%d, %d)"</span>, mx, my);
+	putfonts8_asc(binfo-&gt;vram, binfo-&gt;scrnx, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, COL8_FFFFFF, s);
+
+	i = memtest(<span class="hljs-number">0x00400000</span>, <span class="hljs-number">0xbfffffff</span>);
+	<span class="hljs-built_in">sprintf</span>(s, <span class="hljs-string">"memory %dMB"</span>, i);
+	putfonts8_asc(binfo-&gt;vram, binfo-&gt;scrnx, <span class="hljs-number">0</span>, <span class="hljs-number">32</span>, COL8_FFFFFF, s);
+
+	<span class="hljs-keyword">for</span> (;;) {
+		io_cli();
+		<span class="hljs-keyword">if</span> (fifo8_status(&amp;keyfifo) + fifo8_status(&amp;mousefifo) == <span class="hljs-number">0</span>) {
+			io_stihlt();
+		} <span class="hljs-keyword">else</span> {
+			<span class="hljs-keyword">if</span> (fifo8_status(&amp;keyfifo) != <span class="hljs-number">0</span>) {
+				i = fifo8_get(&amp;keyfifo);
+				io_sti();
+				<span class="hljs-built_in">sprintf</span>(s, <span class="hljs-string">"%02X"</span>, i);
+				boxfill8(binfo-&gt;vram, binfo-&gt;scrnx, COL8_008484, <span class="hljs-number">0</span>, <span class="hljs-number">16</span>, <span class="hljs-number">15</span>, <span class="hljs-number">31</span>);
+				putfonts8_asc(binfo-&gt;vram, binfo-&gt;scrnx, <span class="hljs-number">0</span>, <span class="hljs-number">16</span>, COL8_FFFFFF, s);
+			} <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (fifo8_status(&amp;mousefifo) != <span class="hljs-number">0</span>) {
+				i = fifo8_get(&amp;mousefifo);
+				io_sti();
+				<span class="hljs-keyword">if</span> (mouse_decode(&amp;mdec, i) != <span class="hljs-number">0</span>) {
+					<span class="hljs-comment">/* データが3バイト揃ったので表示 */</span>
+					<span class="hljs-built_in">sprintf</span>(s, <span class="hljs-string">"[lcr %4d %4d]"</span>, mdec.x, mdec.y);
+					<span class="hljs-keyword">if</span> ((mdec.btn &amp; <span class="hljs-number">0x01</span>) != <span class="hljs-number">0</span>) {
+						s[<span class="hljs-number">1</span>] = <span class="hljs-string">'L'</span>;
+					}
+					<span class="hljs-keyword">if</span> ((mdec.btn &amp; <span class="hljs-number">0x02</span>) != <span class="hljs-number">0</span>) {
+						s[<span class="hljs-number">3</span>] = <span class="hljs-string">'R'</span>;
+					}
+					<span class="hljs-keyword">if</span> ((mdec.btn &amp; <span class="hljs-number">0x04</span>) != <span class="hljs-number">0</span>) {
+						s[<span class="hljs-number">2</span>]= <span class="hljs-string">'c'</span>;
+					}
+					boxfill8(binfo-&gt;vram, binfo-&gt;scrnx, COL8_008484, <span class="hljs-number">32</span>, <span class="hljs-number">16</span>, <span class="hljs-number">32</span> + <span class="hljs-number">15</span> * <span class="hljs-number">8</span> - <span class="hljs-number">1</span>, <span class="hljs-number">31</span>);
+					putfonts8_asc(binfo-&gt;vram, binfo-&gt;scrnx, <span class="hljs-number">32</span>, <span class="hljs-number">16</span>, COL8_FFFFFF, s);
+					<span class="hljs-comment">/* マウスカーソルの移動 */</span>
+					boxfill8(binfo-&gt;vram, binfo-&gt;scrnx, COL8_008484, mx, my, mx + <span class="hljs-number">15</span>, my + <span class="hljs-number">15</span>);
+					mx += mdec.x;
+					my += mdec.y;
+					<span class="hljs-keyword">if</span> (mx &lt; <span class="hljs-number">0</span>) {
+						mx = <span class="hljs-number">0</span>;
+					}
+					<span class="hljs-keyword">if</span> (my &lt; <span class="hljs-number">0</span>) {
+						my = <span class="hljs-number">0</span>;
+					}
+					<span class="hljs-keyword">if</span> (mx &gt; binfo-&gt;scrnx - <span class="hljs-number">16</span>) {
+						mx = binfo-&gt;scrnx - <span class="hljs-number">16</span>;
+					}
+					<span class="hljs-keyword">if</span> (my &gt; binfo-&gt;scrny - <span class="hljs-number">16</span>) {
+						my = binfo-&gt;scrny - <span class="hljs-number">16</span>;
+					}
+					<span class="hljs-built_in">sprintf</span>(s, <span class="hljs-string">"(%3d, %3d)"</span>, mx, my);
+					boxfill8(binfo-&gt;vram, binfo-&gt;scrnx, COL8_008484, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">79</span>, <span class="hljs-number">15</span>);
+					putfonts8_asc(binfo-&gt;vram, binfo-&gt;scrnx, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, COL8_FFFFFF, s);
+					putblock8_8(binfo-&gt;vram, binfo-&gt;scrnx, <span class="hljs-number">16</span>, <span class="hljs-number">16</span>, mx, my, mcursor, <span class="hljs-number">16</span>);
+				}
+			}
+		}
+	}
+}
+
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> EFLAGS_AC_BIT		0x00040000</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> CR0_CACHE_DISABLE	0x60000000</span>
+
+<span class="hljs-function"><span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> <span class="hljs-title">memtest</span><span class="hljs-params">(<span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> start, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> <span class="hljs-built_in">end</span>)</span>
+</span>{
+	<span class="hljs-keyword">char</span> flag486 = <span class="hljs-number">0</span>;
+	<span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> eflg, cr0, i;
+
+	<span class="hljs-comment">/* 386か、486以降なのかの確認 */</span>
+	eflg = io_load_eflags();
+	eflg |= EFLAGS_AC_BIT; <span class="hljs-comment">/* AC-bit = 1 */</span>
+	io_store_eflags(eflg);
+	eflg = io_load_eflags();
+	<span class="hljs-keyword">if</span> ((eflg &amp; EFLAGS_AC_BIT) != <span class="hljs-number">0</span>) { <span class="hljs-comment">/* 386ではAC=1にしても自動で0に戻ってしまう */</span>
+		flag486 = <span class="hljs-number">1</span>;
+	}
+	eflg &amp;= ~EFLAGS_AC_BIT; <span class="hljs-comment">/* AC-bit = 0 */</span>
+	io_store_eflags(eflg);
+
+	<span class="hljs-keyword">if</span> (flag486 != <span class="hljs-number">0</span>) {
+		cr0 = load_cr0();
+		cr0 |= CR0_CACHE_DISABLE; <span class="hljs-comment">/* キャッシュ禁止 */</span>
+		store_cr0(cr0);
+	}
+
+	i = memtest_sub(start, <span class="hljs-built_in">end</span>);
+
+	<span class="hljs-keyword">if</span> (flag486 != <span class="hljs-number">0</span>) {
+		cr0 = load_cr0();
+		cr0 &amp;= ~CR0_CACHE_DISABLE; <span class="hljs-comment">/* キャッシュ許可 */</span>
+		store_cr0(cr0);
+	}
+
+	<span class="hljs-keyword">return</span> i;
+}
+
+<span class="hljs-function"><span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> <span class="hljs-title">memtest_sub</span><span class="hljs-params">(<span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> start, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> <span class="hljs-built_in">end</span>)</span>
+</span>{
+	<span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> i, *p, old, pat0 = <span class="hljs-number">0xaa55aa55</span>, pat1 = <span class="hljs-number">0x55aa55aa</span>;
+	<span class="hljs-keyword">for</span> (i = start; i &lt;= <span class="hljs-built_in">end</span>; i += <span class="hljs-number">0x1000</span>) {
+		p = (<span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> *) (i + <span class="hljs-number">0xffc</span>);
+		old = *p;			<span class="hljs-comment">/* いじる前の値を覚えておく */</span>
+		*p = pat0;			<span class="hljs-comment">/* ためしに書いてみる */</span>
+		*p ^= <span class="hljs-number">0xffffffff</span>;	<span class="hljs-comment">/* そしてそれを反転してみる */</span>
+		<span class="hljs-keyword">if</span> (*p != pat1) {	<span class="hljs-comment">/* 反転結果になったか？ */</span>
+not_memory:	
+			*p = old;
+			<span class="hljs-keyword">break</span>;
+		}
+		*p ^= <span class="hljs-number">0xffffffff</span>;	<span class="hljs-comment">/* もう一度反転してみる */</span>
+		<span class="hljs-keyword">if</span> (*p != pat0) {	<span class="hljs-comment">/* 元に戻ったか？ */</span>
+			<span class="hljs-keyword">goto</span> not_memory;
+		}
+		*p = old;			<span class="hljs-comment">/* いじった値を元に戻す */</span>
+	}
+	<span class="hljs-keyword">return</span> i;
+}
+</div></code></pre>
+<p>naskfunc</p>
+<pre class="hljs"><code><div>GLOBAL  _load_cr0, _store_cr0
+</div></code></pre>
+<pre class="hljs"><code><div>_load_cr0:		; int load_cr0(void);
+		MOV		EAX,CR0
+		RET
+
+_store_cr0:		; void store_cr0(int cr0);
+		MOV		EAX,[ESP+4]
+		MOV		CR0,EAX
+		RET
+</div></code></pre>
+<p>bootpack.h</p>
+<pre class="hljs"><code><div><span class="hljs-comment">/* naskfunc.nas */</span>
+<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">load_cr0</span><span class="hljs-params">(<span class="hljs-keyword">void</span>)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">store_cr0</span><span class="hljs-params">(<span class="hljs-keyword">int</span> cr0)</span></span>;
+</div></code></pre>
+<p>このままだとメモリの部分がバグったままなのでさらに書き換えることにします。</p>
+<p>naskfunc.nas</p>
+<pre class="hljs"><code><div>GLOBAL  _memtest_sub
+</div></code></pre>
+<pre class="hljs"><code><div>_memtest_sub:	; unsigned int memtest_sub(unsigned int start, unsigned int end)
+		PUSH	EDI						; （EBX, ESI, EDI も使いたいので）
+		PUSH	ESI
+		PUSH	EBX
+		MOV		ESI,0xaa55aa55			; pat0 = 0xaa55aa55;
+		MOV		EDI,0x55aa55aa			; pat1 = 0x55aa55aa;
+		MOV		EAX,[ESP+12+4]			; i = start;
+mts_loop:
+		MOV		EBX,EAX
+		ADD		EBX,0xffc				; p = i + 0xffc;
+		MOV		EDX,[EBX]				; old = *p;
+		MOV		[EBX],ESI				; *p = pat0;
+		XOR		DWORD [EBX],0xffffffff	; *p ^= 0xffffffff;
+		CMP		EDI,[EBX]				; if (*p != pat1) goto fin;
+		JNE		mts_fin
+		XOR		DWORD [EBX],0xffffffff	; *p ^= 0xffffffff;
+		CMP		ESI,[EBX]				; if (*p != pat0) goto fin;
+		JNE		mts_fin
+		MOV		[EBX],EDX				; *p = old;
+		ADD		EAX,0x1000				; i += 0x1000;
+		CMP		EAX,[ESP+12+8]			; if (i &lt;= end) goto mts_loop;
+		JBE		mts_loop
+		POP		EBX
+		POP		ESI
+		POP		EDI
+		RET
+mts_fin:
+		MOV		[EBX],EDX				; *p = old;
+		POP		EBX
+		POP		ESI
+		POP		EDI
+		RET
+</div></code></pre>
+<p>bootpack.c</p>
+<pre class="hljs"><code><div><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">HariMain</span><span class="hljs-params">(<span class="hljs-keyword">void</span>)</span>
+</span>{
+    <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">BOOTINFO</span> *<span class="hljs-title">binfo</span> = (<span class="hljs-title">struct</span> <span class="hljs-title">BOOTINFO</span> *) <span class="hljs-title">ADR_BOOTINFO</span>;</span>
+	<span class="hljs-keyword">char</span> s[<span class="hljs-number">40</span>], mcursor[<span class="hljs-number">256</span>], keybuf[<span class="hljs-number">32</span>], mousebuf[<span class="hljs-number">128</span>];
+	<span class="hljs-keyword">int</span> mx, my, i;
+	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">MOUSE_DEC</span> <span class="hljs-title">mdec</span>;</span>
+
+	init_gdtidt();
+	init_pic();
+	io_sti(); <span class="hljs-comment">/* IDT/PICの初期化が終わったのでCPUの割り込み禁止を解除 */</span>
+	fifo8_init(&amp;keyfifo, <span class="hljs-number">32</span>, keybuf);
+	fifo8_init(&amp;mousefifo, <span class="hljs-number">128</span>, mousebuf);
+	io_out8(PIC0_IMR, <span class="hljs-number">0xf9</span>); <span class="hljs-comment">/* PIC1とキーボードを許可(11111001) */</span>
+	io_out8(PIC1_IMR, <span class="hljs-number">0xef</span>); <span class="hljs-comment">/* マウスを許可(11101111) */</span>
+
+	init_keyboard();
+	enable_mouse(&amp;mdec);
+
+	init_palette();
+	init_screen8(binfo-&gt;vram, binfo-&gt;scrnx, binfo-&gt;scrny);
+	mx = (binfo-&gt;scrnx - <span class="hljs-number">16</span>) / <span class="hljs-number">2</span>; <span class="hljs-comment">/* 画面中央になるように座標計算 */</span>
+	my = (binfo-&gt;scrny - <span class="hljs-number">28</span> - <span class="hljs-number">16</span>) / <span class="hljs-number">2</span>;
+	init_mouse_cursor8(mcursor, COL8_008484);
+	putblock8_8(binfo-&gt;vram, binfo-&gt;scrnx, <span class="hljs-number">16</span>, <span class="hljs-number">16</span>, mx, my, mcursor, <span class="hljs-number">16</span>);
+	<span class="hljs-built_in">sprintf</span>(s, <span class="hljs-string">"(%d, %d)"</span>, mx, my);
+	putfonts8_asc(binfo-&gt;vram, binfo-&gt;scrnx, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, COL8_FFFFFF, s);
+
+	i = memtest(<span class="hljs-number">0x00400000</span>, <span class="hljs-number">0xbfffffff</span>) / (<span class="hljs-number">1024</span> * <span class="hljs-number">1024</span>);
+	<span class="hljs-built_in">sprintf</span>(s, <span class="hljs-string">"memory %dMB"</span>, i);
+	putfonts8_asc(binfo-&gt;vram, binfo-&gt;scrnx, <span class="hljs-number">0</span>, <span class="hljs-number">32</span>, COL8_FFFFFF, s);
+
+	<span class="hljs-keyword">for</span> (;;) {
+		io_cli();
+		<span class="hljs-keyword">if</span> (fifo8_status(&amp;keyfifo) + fifo8_status(&amp;mousefifo) == <span class="hljs-number">0</span>) {
+			io_stihlt();
+		} <span class="hljs-keyword">else</span> {
+			<span class="hljs-keyword">if</span> (fifo8_status(&amp;keyfifo) != <span class="hljs-number">0</span>) {
+				i = fifo8_get(&amp;keyfifo);
+				io_sti();
+				<span class="hljs-built_in">sprintf</span>(s, <span class="hljs-string">"%02X"</span>, i);
+				boxfill8(binfo-&gt;vram, binfo-&gt;scrnx, COL8_008484, <span class="hljs-number">0</span>, <span class="hljs-number">16</span>, <span class="hljs-number">15</span>, <span class="hljs-number">31</span>);
+				putfonts8_asc(binfo-&gt;vram, binfo-&gt;scrnx, <span class="hljs-number">0</span>, <span class="hljs-number">16</span>, COL8_FFFFFF, s);
+			} <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (fifo8_status(&amp;mousefifo) != <span class="hljs-number">0</span>) {
+				i = fifo8_get(&amp;mousefifo);
+				io_sti();
+				<span class="hljs-keyword">if</span> (mouse_decode(&amp;mdec, i) != <span class="hljs-number">0</span>) {
+					<span class="hljs-comment">/* データが3バイト揃ったので表示 */</span>
+					<span class="hljs-built_in">sprintf</span>(s, <span class="hljs-string">"[lcr %4d %4d]"</span>, mdec.x, mdec.y);
+					<span class="hljs-keyword">if</span> ((mdec.btn &amp; <span class="hljs-number">0x01</span>) != <span class="hljs-number">0</span>) {
+						s[<span class="hljs-number">1</span>] = <span class="hljs-string">'L'</span>;
+					}
+					<span class="hljs-keyword">if</span> ((mdec.btn &amp; <span class="hljs-number">0x02</span>) != <span class="hljs-number">0</span>) {
+						s[<span class="hljs-number">3</span>] = <span class="hljs-string">'R'</span>;
+					}
+					<span class="hljs-keyword">if</span> ((mdec.btn &amp; <span class="hljs-number">0x04</span>) != <span class="hljs-number">0</span>) {
+						s[<span class="hljs-number">2</span>]= <span class="hljs-string">'c'</span>;
+					}
+					boxfill8(binfo-&gt;vram, binfo-&gt;scrnx, COL8_008484, <span class="hljs-number">32</span>, <span class="hljs-number">16</span>, <span class="hljs-number">32</span> + <span class="hljs-number">15</span> * <span class="hljs-number">8</span> - <span class="hljs-number">1</span>, <span class="hljs-number">31</span>);
+					putfonts8_asc(binfo-&gt;vram, binfo-&gt;scrnx, <span class="hljs-number">32</span>, <span class="hljs-number">16</span>, COL8_FFFFFF, s);
+					<span class="hljs-comment">/* マウスカーソルの移動 */</span>
+					boxfill8(binfo-&gt;vram, binfo-&gt;scrnx, COL8_008484, mx, my, mx + <span class="hljs-number">15</span>, my + <span class="hljs-number">15</span>);
+					mx += mdec.x;
+					my += mdec.y;
+					<span class="hljs-keyword">if</span> (mx &lt; <span class="hljs-number">0</span>) {
+						mx = <span class="hljs-number">0</span>;
+					}
+					<span class="hljs-keyword">if</span> (my &lt; <span class="hljs-number">0</span>) {
+						my = <span class="hljs-number">0</span>;
+					}
+					<span class="hljs-keyword">if</span> (mx &gt; binfo-&gt;scrnx - <span class="hljs-number">16</span>) {
+						mx = binfo-&gt;scrnx - <span class="hljs-number">16</span>;
+					}
+					<span class="hljs-keyword">if</span> (my &gt; binfo-&gt;scrny - <span class="hljs-number">16</span>) {
+						my = binfo-&gt;scrny - <span class="hljs-number">16</span>;
+					}
+					<span class="hljs-built_in">sprintf</span>(s, <span class="hljs-string">"(%3d, %3d)"</span>, mx, my);
+					boxfill8(binfo-&gt;vram, binfo-&gt;scrnx, COL8_008484, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">79</span>, <span class="hljs-number">15</span>);
+					putfonts8_asc(binfo-&gt;vram, binfo-&gt;scrnx, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, COL8_FFFFFF, s);
+					putblock8_8(binfo-&gt;vram, binfo-&gt;scrnx, <span class="hljs-number">16</span>, <span class="hljs-number">16</span>, mx, my, mcursor, <span class="hljs-number">16</span>);
+				}
+			}
+		}
+	}
+}
+</div></code></pre>
+<p>bootpack.h</p>
+<pre class="hljs"><code><div><span class="hljs-comment">/* naskfunc.nas */</span>
+<span class="hljs-function"><span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> <span class="hljs-title">memtest_sub</span><span class="hljs-params">(<span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> start, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> <span class="hljs-built_in">end</span>)</span></span>;
+</div></code></pre>
+<p>naskfunc.nasにmemtest_subを記載したので、bootpack.cのmemtest_subは消してください。<br>
+これでメモリの値がバグらなくなりました。</p>
+<p>メモリの空き量も知りたいので追加することにします。</p>
+<p>bootpack.c</p>
+<pre class="hljs"><code><div><span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">"bootpack.h"</span></span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;stdio.h&gt;</span></span>
+
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> MEMMAN_FREES		4090</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> MEMMAN_ADDR			0x003c0000</span>
+
+<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">FREEINFO</span> {</span> 	<span class="hljs-comment">/* あき情報 */</span>
+	<span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> addr, <span class="hljs-built_in">size</span>;
+};
+
+<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">MEMMAN</span> {</span>		<span class="hljs-comment">/* メモリ管理 */</span>
+	<span class="hljs-keyword">int</span> frees, maxfrees, lostsize, losts;
+	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">FREEINFO</span> <span class="hljs-title">free</span>[<span class="hljs-title">MEMMAN_FREES</span>];</span>
+};
+
+<span class="hljs-function"><span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> <span class="hljs-title">memtest</span><span class="hljs-params">(<span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> start, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> <span class="hljs-built_in">end</span>)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">memman_init</span><span class="hljs-params">(struct MEMMAN *man)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> <span class="hljs-title">memman_total</span><span class="hljs-params">(struct MEMMAN *man)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> <span class="hljs-title">memman_alloc</span><span class="hljs-params">(struct MEMMAN *man, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> siza)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">memman_free</span><span class="hljs-params">(struct MEMMAN *man, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> addr, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> <span class="hljs-built_in">size</span>)</span></span>;
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">HariMain</span><span class="hljs-params">(<span class="hljs-keyword">void</span>)</span>
+</span>{
+    <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">BOOTINFO</span> *<span class="hljs-title">binfo</span> = (<span class="hljs-title">struct</span> <span class="hljs-title">BOOTINFO</span> *) <span class="hljs-title">ADR_BOOTINFO</span>;</span>
+	<span class="hljs-keyword">char</span> s[<span class="hljs-number">40</span>], mcursor[<span class="hljs-number">256</span>], keybuf[<span class="hljs-number">32</span>], mousebuf[<span class="hljs-number">128</span>];
+	<span class="hljs-keyword">int</span> mx, my, i;
+	<span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> memtotal;
+	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">MOUSE_DEC</span> <span class="hljs-title">mdec</span>;</span>
+	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">MEMMAN</span> *<span class="hljs-title">memman</span> = (<span class="hljs-title">struct</span> <span class="hljs-title">MEMMAN</span> *) <span class="hljs-title">MEMMAN_ADDR</span>;</span>
+
+	init_gdtidt();
+	init_pic();
+	io_sti(); <span class="hljs-comment">/* IDT/PICの初期化が終わったのでCPUの割り込み禁止を解除 */</span>
+	fifo8_init(&amp;keyfifo, <span class="hljs-number">32</span>, keybuf);
+	fifo8_init(&amp;mousefifo, <span class="hljs-number">128</span>, mousebuf);
+	io_out8(PIC0_IMR, <span class="hljs-number">0xf9</span>); <span class="hljs-comment">/* PIC1とキーボードを許可(11111001) */</span>
+	io_out8(PIC1_IMR, <span class="hljs-number">0xef</span>); <span class="hljs-comment">/* マウスを許可(11101111) */</span>
+
+	init_keyboard();
+	enable_mouse(&amp;mdec);
+	memtotal = memtest(<span class="hljs-number">0x00400000</span>, <span class="hljs-number">0xbfffffff</span>);
+	memman_init(memman);
+	memman_free(memman, <span class="hljs-number">0x000010000</span>, <span class="hljs-number">0x0009e000</span>); <span class="hljs-comment">/* 0x00001000 - 0x0009efff */</span>
+	memman_free(memman, <span class="hljs-number">0x00400000</span>, memtotal - <span class="hljs-number">0x00400000</span>);
+
+	init_palette();
+	init_screen8(binfo-&gt;vram, binfo-&gt;scrnx, binfo-&gt;scrny);
+	mx = (binfo-&gt;scrnx - <span class="hljs-number">16</span>) / <span class="hljs-number">2</span>; <span class="hljs-comment">/* 画面中央になるように座標計算 */</span>
+	my = (binfo-&gt;scrny - <span class="hljs-number">28</span> - <span class="hljs-number">16</span>) / <span class="hljs-number">2</span>;
+	init_mouse_cursor8(mcursor, COL8_008484);
+	putblock8_8(binfo-&gt;vram, binfo-&gt;scrnx, <span class="hljs-number">16</span>, <span class="hljs-number">16</span>, mx, my, mcursor, <span class="hljs-number">16</span>);
+	<span class="hljs-built_in">sprintf</span>(s, <span class="hljs-string">"(%d, %d)"</span>, mx, my);
+	putfonts8_asc(binfo-&gt;vram, binfo-&gt;scrnx, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, COL8_FFFFFF, s);
+
+	<span class="hljs-built_in">sprintf</span>(s, <span class="hljs-string">"memory %dMB free : %dKB"</span>, 
+			memtotal / (<span class="hljs-number">1024</span> * <span class="hljs-number">1024</span>), memman_total(memman) /<span class="hljs-number">1024</span>);
+	putfonts8_asc(binfo-&gt;vram, binfo-&gt;scrnx, <span class="hljs-number">0</span>, <span class="hljs-number">32</span>, COL8_FFFFFF, s);
+
+	<span class="hljs-keyword">for</span> (;;) {
+		io_cli();
+		<span class="hljs-keyword">if</span> (fifo8_status(&amp;keyfifo) + fifo8_status(&amp;mousefifo) == <span class="hljs-number">0</span>) {
+			io_stihlt();
+		} <span class="hljs-keyword">else</span> {
+			<span class="hljs-keyword">if</span> (fifo8_status(&amp;keyfifo) != <span class="hljs-number">0</span>) {
+				i = fifo8_get(&amp;keyfifo);
+				io_sti();
+				<span class="hljs-built_in">sprintf</span>(s, <span class="hljs-string">"%02X"</span>, i);
+				boxfill8(binfo-&gt;vram, binfo-&gt;scrnx, COL8_008484, <span class="hljs-number">0</span>, <span class="hljs-number">16</span>, <span class="hljs-number">15</span>, <span class="hljs-number">31</span>);
+				putfonts8_asc(binfo-&gt;vram, binfo-&gt;scrnx, <span class="hljs-number">0</span>, <span class="hljs-number">16</span>, COL8_FFFFFF, s);
+			} <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (fifo8_status(&amp;mousefifo) != <span class="hljs-number">0</span>) {
+				i = fifo8_get(&amp;mousefifo);
+				io_sti();
+				<span class="hljs-keyword">if</span> (mouse_decode(&amp;mdec, i) != <span class="hljs-number">0</span>) {
+					<span class="hljs-comment">/* データが3バイト揃ったので表示 */</span>
+					<span class="hljs-built_in">sprintf</span>(s, <span class="hljs-string">"[lcr %4d %4d]"</span>, mdec.x, mdec.y);
+					<span class="hljs-keyword">if</span> ((mdec.btn &amp; <span class="hljs-number">0x01</span>) != <span class="hljs-number">0</span>) {
+						s[<span class="hljs-number">1</span>] = <span class="hljs-string">'L'</span>;
+					}
+					<span class="hljs-keyword">if</span> ((mdec.btn &amp; <span class="hljs-number">0x02</span>) != <span class="hljs-number">0</span>) {
+						s[<span class="hljs-number">3</span>] = <span class="hljs-string">'R'</span>;
+					}
+					<span class="hljs-keyword">if</span> ((mdec.btn &amp; <span class="hljs-number">0x04</span>) != <span class="hljs-number">0</span>) {
+						s[<span class="hljs-number">2</span>]= <span class="hljs-string">'c'</span>;
+					}
+					boxfill8(binfo-&gt;vram, binfo-&gt;scrnx, COL8_008484, <span class="hljs-number">32</span>, <span class="hljs-number">16</span>, <span class="hljs-number">32</span> + <span class="hljs-number">15</span> * <span class="hljs-number">8</span> - <span class="hljs-number">1</span>, <span class="hljs-number">31</span>);
+					putfonts8_asc(binfo-&gt;vram, binfo-&gt;scrnx, <span class="hljs-number">32</span>, <span class="hljs-number">16</span>, COL8_FFFFFF, s);
+					<span class="hljs-comment">/* マウスカーソルの移動 */</span>
+					boxfill8(binfo-&gt;vram, binfo-&gt;scrnx, COL8_008484, mx, my, mx + <span class="hljs-number">15</span>, my + <span class="hljs-number">15</span>);
+					mx += mdec.x;
+					my += mdec.y;
+					<span class="hljs-keyword">if</span> (mx &lt; <span class="hljs-number">0</span>) {
+						mx = <span class="hljs-number">0</span>;
+					}
+					<span class="hljs-keyword">if</span> (my &lt; <span class="hljs-number">0</span>) {
+						my = <span class="hljs-number">0</span>;
+					}
+					<span class="hljs-keyword">if</span> (mx &gt; binfo-&gt;scrnx - <span class="hljs-number">16</span>) {
+						mx = binfo-&gt;scrnx - <span class="hljs-number">16</span>;
+					}
+					<span class="hljs-keyword">if</span> (my &gt; binfo-&gt;scrny - <span class="hljs-number">16</span>) {
+						my = binfo-&gt;scrny - <span class="hljs-number">16</span>;
+					}
+					<span class="hljs-built_in">sprintf</span>(s, <span class="hljs-string">"(%3d, %3d)"</span>, mx, my);
+					boxfill8(binfo-&gt;vram, binfo-&gt;scrnx, COL8_008484, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">79</span>, <span class="hljs-number">15</span>);
+					putfonts8_asc(binfo-&gt;vram, binfo-&gt;scrnx, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, COL8_FFFFFF, s);
+					putblock8_8(binfo-&gt;vram, binfo-&gt;scrnx, <span class="hljs-number">16</span>, <span class="hljs-number">16</span>, mx, my, mcursor, <span class="hljs-number">16</span>);
+				}
+			}
+		}
+	}
+}
+
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> EFLAGS_AC_BIT		0x00040000</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> CR0_CACHE_DISABLE	0x60000000</span>
+
+<span class="hljs-function"><span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> <span class="hljs-title">memtest</span><span class="hljs-params">(<span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> start, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> <span class="hljs-built_in">end</span>)</span>
+</span>{
+	<span class="hljs-keyword">char</span> flag486 = <span class="hljs-number">0</span>;
+	<span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> eflg, cr0, i;
+
+	<span class="hljs-comment">/* 386か、486以降なのかの確認 */</span>
+	eflg = io_load_eflags();
+	eflg |= EFLAGS_AC_BIT; <span class="hljs-comment">/* AC-bit = 1 */</span>
+	io_store_eflags(eflg);
+	eflg = io_load_eflags();
+	<span class="hljs-keyword">if</span> ((eflg &amp; EFLAGS_AC_BIT) != <span class="hljs-number">0</span>) { <span class="hljs-comment">/* 386ではAC=1にしても自動で0に戻ってしまう */</span>
+		flag486 = <span class="hljs-number">1</span>;
+	}
+	eflg &amp;= ~EFLAGS_AC_BIT; <span class="hljs-comment">/* AC-bit = 0 */</span>
+	io_store_eflags(eflg);
+
+	<span class="hljs-keyword">if</span> (flag486 != <span class="hljs-number">0</span>) {
+		cr0 = load_cr0();
+		cr0 |= CR0_CACHE_DISABLE; <span class="hljs-comment">/* キャッシュ禁止 */</span>
+		store_cr0(cr0);
+	}
+
+	i = memtest_sub(start, <span class="hljs-built_in">end</span>);
+
+	<span class="hljs-keyword">if</span> (flag486 != <span class="hljs-number">0</span>) {
+		cr0 = load_cr0();
+		cr0 &amp;= ~CR0_CACHE_DISABLE; <span class="hljs-comment">/* キャッシュ許可 */</span>
+		store_cr0(cr0);
+	}
+
+	<span class="hljs-keyword">return</span> i;
+}
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">memman_init</span><span class="hljs-params">(struct MEMMAN *man)</span>
+</span>{
+	man-&gt;frees = <span class="hljs-number">0</span>;			<span class="hljs-comment">/* あき情報の個数 */</span>
+	man-&gt;maxfrees = <span class="hljs-number">0</span>;		<span class="hljs-comment">/* 状況観察用：freesの最大値 */</span>
+	man-&gt;lostsize = <span class="hljs-number">0</span>;		<span class="hljs-comment">/* 解放に失敗した合計サイズ */</span>
+	man-&gt;losts = <span class="hljs-number">0</span>;			<span class="hljs-comment">/* 解放に失敗した回数 */</span>
+	<span class="hljs-keyword">return</span>;
+}
+
+
+<span class="hljs-function"><span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> <span class="hljs-title">memman_total</span><span class="hljs-params">(struct MEMMAN *man)</span>
+<span class="hljs-comment">/* あきサイズの合計を報告 */</span>
+</span>{
+	<span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> i, t = <span class="hljs-number">0</span>;
+	<span class="hljs-keyword">for</span> (i = <span class="hljs-number">0</span>; i &lt; man-&gt;frees; i++) {
+		t += man-&gt;<span class="hljs-built_in">free</span>[i].<span class="hljs-built_in">size</span>;
+	}
+	<span class="hljs-keyword">return</span> t;
+}
+
+<span class="hljs-function"><span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> <span class="hljs-title">memman_alloc</span><span class="hljs-params">(struct MEMMAN *man, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> <span class="hljs-built_in">size</span>)</span>
+<span class="hljs-comment">/* 確保 */</span>
+</span>{
+	<span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> i, a;
+	<span class="hljs-keyword">for</span> (i = <span class="hljs-number">0</span>; i&lt; man-&gt;frees; i++) {
+		<span class="hljs-keyword">if</span> (man-&gt;<span class="hljs-built_in">free</span>[i].<span class="hljs-built_in">size</span> &gt;= <span class="hljs-built_in">size</span>) {
+			<span class="hljs-comment">/* 十分な広さのあきを発見 */</span>
+			a = man-&gt;<span class="hljs-built_in">free</span>[i].addr;
+			man-&gt;<span class="hljs-built_in">free</span>[i].addr += <span class="hljs-built_in">size</span>;
+			man-&gt;<span class="hljs-built_in">free</span>[i].<span class="hljs-built_in">size</span> -= <span class="hljs-built_in">size</span>;
+			<span class="hljs-keyword">if</span> (man-&gt;<span class="hljs-built_in">free</span>[i].<span class="hljs-built_in">size</span> == <span class="hljs-number">0</span>) {
+				<span class="hljs-comment">/* free[i]がなくなったので前へつめる */</span>
+				man-&gt;frees--;
+				<span class="hljs-keyword">for</span> (; i &lt; man-&gt;frees; i++) {
+					man-&gt;<span class="hljs-built_in">free</span>[i] = man-&gt;<span class="hljs-built_in">free</span>[i+<span class="hljs-number">1</span>]; <span class="hljs-comment">/* 構造体の代入 */</span>
+				}
+			}
+			<span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
+		}
+	}
+	<span class="hljs-keyword">return</span> <span class="hljs-number">0</span>; <span class="hljs-comment">/* あきがない */</span>
+}
+
+<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">memman_free</span><span class="hljs-params">(struct MEMMAN *man, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> addr, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> <span class="hljs-built_in">size</span>)</span> 
+<span class="hljs-comment">/* 解放 */</span>
+</span>{
+	<span class="hljs-keyword">int</span> i, j;
+	<span class="hljs-comment">/* まとめやすさを考えると、free[]がaddr順に並んでいるほうがいい */</span>
+	<span class="hljs-comment">/* だからまず、どこに入れるべきかを決める */</span>
+	<span class="hljs-keyword">for</span> (i = <span class="hljs-number">0</span>; i &lt; man-&gt;frees; i++) {
+		<span class="hljs-keyword">if</span> (man-&gt;<span class="hljs-built_in">free</span>[i].addr &gt; addr) {
+			<span class="hljs-keyword">break</span>;
+		}
+	}
+	<span class="hljs-comment">/* free[i - 1].addr &lt; addr &lt; free[i].addr */</span>
+	<span class="hljs-keyword">if</span> (i &gt; <span class="hljs-number">0</span>) {
+		<span class="hljs-comment">/* 前がある */</span>
+		<span class="hljs-keyword">if</span> (man-&gt;<span class="hljs-built_in">free</span>[i - <span class="hljs-number">1</span>].addr + man-&gt;<span class="hljs-built_in">free</span>[i - i].<span class="hljs-built_in">size</span> == addr) {
+			<span class="hljs-comment">/* 前のあき領域にまとめられる */</span>
+			man-&gt;<span class="hljs-built_in">free</span>[i - <span class="hljs-number">1</span>].<span class="hljs-built_in">size</span> += <span class="hljs-built_in">size</span>;
+			<span class="hljs-keyword">if</span> (i &lt; man-&gt;frees) {
+				<span class="hljs-comment">/* 後ろもある */</span>
+				<span class="hljs-keyword">if</span> (addr + <span class="hljs-built_in">size</span> == man-&gt;<span class="hljs-built_in">free</span>[i].<span class="hljs-built_in">size</span>) {
+					<span class="hljs-comment">/* なんと後ろともまとめられる */</span>
+					man-&gt;<span class="hljs-built_in">free</span>[i - <span class="hljs-number">1</span>].<span class="hljs-built_in">size</span> += man-&gt;<span class="hljs-built_in">free</span>[i].<span class="hljs-built_in">size</span>;
+					<span class="hljs-comment">/* man-&gt;free[i]の削除 */</span>
+					<span class="hljs-comment">/* free[i]がなくなったので前へつめる */</span>
+					man-&gt;frees--;
+					<span class="hljs-keyword">for</span> (; i &lt; man-&gt;frees; i++) {
+						man-&gt;<span class="hljs-built_in">free</span>[i] = man-&gt;<span class="hljs-built_in">free</span>[i + <span class="hljs-number">1</span>]; <span class="hljs-comment">/* 構造体の代入 */</span>
+					}
+				}
+			}
+			<span class="hljs-keyword">return</span> <span class="hljs-number">0</span>; <span class="hljs-comment">/* 成功終了 */</span>
+		}
+	}
+	<span class="hljs-comment">/* 前とはまとめられなかった */</span>
+	<span class="hljs-keyword">if</span> (i &lt; man-&gt;frees) {
+		<span class="hljs-comment">/* 後ろがある */</span>
+		<span class="hljs-keyword">if</span> (addr + <span class="hljs-built_in">size</span> == man-&gt;<span class="hljs-built_in">free</span>[i].addr) {
+			<span class="hljs-comment">/* 後ろとはまとめられる */</span>
+			man-&gt;<span class="hljs-built_in">free</span>[i].addr = addr;
+			man-&gt;<span class="hljs-built_in">free</span>[i].<span class="hljs-built_in">size</span> += <span class="hljs-built_in">size</span>;
+			<span class="hljs-keyword">return</span> <span class="hljs-number">0</span>; <span class="hljs-comment">/* 成功終了 */</span>
+		} 
+	}
+	<span class="hljs-comment">/* 前にも後ろにもまとめられない */</span>
+	<span class="hljs-keyword">if</span> (man-&gt;frees &lt; MEMMAN_FREES) {
+		<span class="hljs-comment">/* free[i]より後ろを、後ろへずらして、すきまを作る */</span>
+		<span class="hljs-keyword">for</span> (j = man-&gt;frees; j &gt; i; j--) {
+			man-&gt;<span class="hljs-built_in">free</span>[j] = man-&gt;<span class="hljs-built_in">free</span>[j - <span class="hljs-number">1</span>];
+		}
+		man-&gt;frees++;
+		<span class="hljs-keyword">if</span> (man-&gt;maxfrees &lt; man-&gt;frees) {
+			man-&gt;maxfrees = man-&gt;frees; <span class="hljs-comment">/* 最大値を更新 */</span>
+		}
+		man-&gt;<span class="hljs-built_in">free</span>[i].addr = addr;
+		man-&gt;<span class="hljs-built_in">free</span>[i].<span class="hljs-built_in">size</span> = <span class="hljs-built_in">size</span>;
+		<span class="hljs-keyword">return</span> <span class="hljs-number">0</span>; <span class="hljs-comment">/* 成功終了 */</span>
+	}
+	<span class="hljs-comment">/* 後ろにずらせなかった */</span>
+	man-&gt;losts++;
+	man-&gt;lostsize += <span class="hljs-built_in">size</span>;
+	<span class="hljs-keyword">return</span> <span class="hljs-number">-1</span>; <span class="hljs-comment">/* 失敗終了 */</span>
+}
+</div></code></pre>
+<p>これでメモリの空き容量が出せました。<br>
+本では10日目に突入しました。</p>
+<p>今回はメモリ処理の部分をmemory.cというソースコードに分けていきます。<br>
+ついでに新しい処理も追加しています。<br>
+memory.c</p>
+<pre class="hljs"><code><div><span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">"bootpack.h"</span></span>
+
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> EFLAGS_AC_BIT		0x00040000</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> CR0_CACHE_DISABLE	0x60000000</span>
+
+<span class="hljs-function"><span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> <span class="hljs-title">memtest</span><span class="hljs-params">(<span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> start, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> <span class="hljs-built_in">end</span>)</span>
+</span>{
+	<span class="hljs-keyword">char</span> flag486 = <span class="hljs-number">0</span>;
+	<span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> eflg, cr0, i;
+
+	<span class="hljs-comment">/* 386か、486以降なのかの確認 */</span>
+	eflg = io_load_eflags();
+	eflg |= EFLAGS_AC_BIT; <span class="hljs-comment">/* AC-bit = 1 */</span>
+	io_store_eflags(eflg);
+	eflg = io_load_eflags();
+	<span class="hljs-keyword">if</span> ((eflg &amp; EFLAGS_AC_BIT) != <span class="hljs-number">0</span>) { <span class="hljs-comment">/* 386ではAC=1にしても自動で0に戻ってしまう */</span>
+		flag486 = <span class="hljs-number">1</span>;
+	}
+	eflg &amp;= ~EFLAGS_AC_BIT; <span class="hljs-comment">/* AC-bit = 0 */</span>
+	io_store_eflags(eflg);
+
+	<span class="hljs-keyword">if</span> (flag486 != <span class="hljs-number">0</span>) {
+		cr0 = load_cr0();
+		cr0 |= CR0_CACHE_DISABLE; <span class="hljs-comment">/* キャッシュ禁止 */</span>
+		store_cr0(cr0);
+	}
+
+	i = memtest_sub(start, <span class="hljs-built_in">end</span>);
+
+	<span class="hljs-keyword">if</span> (flag486 != <span class="hljs-number">0</span>) {
+		cr0 = load_cr0();
+		cr0 &amp;= ~CR0_CACHE_DISABLE; <span class="hljs-comment">/* キャッシュ許可 */</span>
+		store_cr0(cr0);
+	}
+
+	<span class="hljs-keyword">return</span> i;
+}
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">memman_init</span><span class="hljs-params">(struct MEMMAN *man)</span>
+</span>{
+	man-&gt;frees = <span class="hljs-number">0</span>;			<span class="hljs-comment">/* あき情報の個数 */</span>
+	man-&gt;maxfrees = <span class="hljs-number">0</span>;		<span class="hljs-comment">/* 状況観察用：freesの最大値 */</span>
+	man-&gt;lostsize = <span class="hljs-number">0</span>;		<span class="hljs-comment">/* 解放に失敗した合計サイズ */</span>
+	man-&gt;losts = <span class="hljs-number">0</span>;			<span class="hljs-comment">/* 解放に失敗した回数 */</span>
+	<span class="hljs-keyword">return</span>;
+}
+
+
+<span class="hljs-function"><span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> <span class="hljs-title">memman_total</span><span class="hljs-params">(struct MEMMAN *man)</span>
+<span class="hljs-comment">/* あきサイズの合計を報告 */</span>
+</span>{
+	<span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> i, t = <span class="hljs-number">0</span>;
+	<span class="hljs-keyword">for</span> (i = <span class="hljs-number">0</span>; i &lt; man-&gt;frees; i++) {
+		t += man-&gt;<span class="hljs-built_in">free</span>[i].<span class="hljs-built_in">size</span>;
+	}
+	<span class="hljs-keyword">return</span> t;
+}
+
+<span class="hljs-function"><span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> <span class="hljs-title">memman_alloc</span><span class="hljs-params">(struct MEMMAN *man, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> <span class="hljs-built_in">size</span>)</span>
+<span class="hljs-comment">/* 確保 */</span>
+</span>{
+	<span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> i, a;
+	<span class="hljs-keyword">for</span> (i = <span class="hljs-number">0</span>; i&lt; man-&gt;frees; i++) {
+		<span class="hljs-keyword">if</span> (man-&gt;<span class="hljs-built_in">free</span>[i].<span class="hljs-built_in">size</span> &gt;= <span class="hljs-built_in">size</span>) {
+			<span class="hljs-comment">/* 十分な広さのあきを発見 */</span>
+			a = man-&gt;<span class="hljs-built_in">free</span>[i].addr;
+			man-&gt;<span class="hljs-built_in">free</span>[i].addr += <span class="hljs-built_in">size</span>;
+			man-&gt;<span class="hljs-built_in">free</span>[i].<span class="hljs-built_in">size</span> -= <span class="hljs-built_in">size</span>;
+			<span class="hljs-keyword">if</span> (man-&gt;<span class="hljs-built_in">free</span>[i].<span class="hljs-built_in">size</span> == <span class="hljs-number">0</span>) {
+				<span class="hljs-comment">/* free[i]がなくなったので前へつめる */</span>
+				man-&gt;frees--;
+				<span class="hljs-keyword">for</span> (; i &lt; man-&gt;frees; i++) {
+					man-&gt;<span class="hljs-built_in">free</span>[i] = man-&gt;<span class="hljs-built_in">free</span>[i+<span class="hljs-number">1</span>]; <span class="hljs-comment">/* 構造体の代入 */</span>
+				}
+			}
+			<span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;
+		}
+	}
+	<span class="hljs-keyword">return</span> <span class="hljs-number">0</span>; <span class="hljs-comment">/* あきがない */</span>
+}
+
+<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">memman_free</span><span class="hljs-params">(struct MEMMAN *man, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> addr, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> <span class="hljs-built_in">size</span>)</span> 
+<span class="hljs-comment">/* 解放 */</span>
+</span>{
+	<span class="hljs-keyword">int</span> i, j;
+	<span class="hljs-comment">/* まとめやすさを考えると、free[]がaddr順に並んでいるほうがいい */</span>
+	<span class="hljs-comment">/* だからまず、どこに入れるべきかを決める */</span>
+	<span class="hljs-keyword">for</span> (i = <span class="hljs-number">0</span>; i &lt; man-&gt;frees; i++) {
+		<span class="hljs-keyword">if</span> (man-&gt;<span class="hljs-built_in">free</span>[i].addr &gt; addr) {
+			<span class="hljs-keyword">break</span>;
+		}
+	}
+	<span class="hljs-comment">/* free[i - 1].addr &lt; addr &lt; free[i].addr */</span>
+	<span class="hljs-keyword">if</span> (i &gt; <span class="hljs-number">0</span>) {
+		<span class="hljs-comment">/* 前がある */</span>
+		<span class="hljs-keyword">if</span> (man-&gt;<span class="hljs-built_in">free</span>[i - <span class="hljs-number">1</span>].addr + man-&gt;<span class="hljs-built_in">free</span>[i - i].<span class="hljs-built_in">size</span> == addr) {
+			<span class="hljs-comment">/* 前のあき領域にまとめられる */</span>
+			man-&gt;<span class="hljs-built_in">free</span>[i - <span class="hljs-number">1</span>].<span class="hljs-built_in">size</span> += <span class="hljs-built_in">size</span>;
+			<span class="hljs-keyword">if</span> (i &lt; man-&gt;frees) {
+				<span class="hljs-comment">/* 後ろもある */</span>
+				<span class="hljs-keyword">if</span> (addr + <span class="hljs-built_in">size</span> == man-&gt;<span class="hljs-built_in">free</span>[i].<span class="hljs-built_in">size</span>) {
+					<span class="hljs-comment">/* なんと後ろともまとめられる */</span>
+					man-&gt;<span class="hljs-built_in">free</span>[i - <span class="hljs-number">1</span>].<span class="hljs-built_in">size</span> += man-&gt;<span class="hljs-built_in">free</span>[i].<span class="hljs-built_in">size</span>;
+					<span class="hljs-comment">/* man-&gt;free[i]の削除 */</span>
+					<span class="hljs-comment">/* free[i]がなくなったので前へつめる */</span>
+					man-&gt;frees--;
+					<span class="hljs-keyword">for</span> (; i &lt; man-&gt;frees; i++) {
+						man-&gt;<span class="hljs-built_in">free</span>[i] = man-&gt;<span class="hljs-built_in">free</span>[i + <span class="hljs-number">1</span>]; <span class="hljs-comment">/* 構造体の代入 */</span>
+					}
+				}
+			}
+			<span class="hljs-keyword">return</span> <span class="hljs-number">0</span>; <span class="hljs-comment">/* 成功終了 */</span>
+		}
+	}
+	<span class="hljs-comment">/* 前とはまとめられなかった */</span>
+	<span class="hljs-keyword">if</span> (i &lt; man-&gt;frees) {
+		<span class="hljs-comment">/* 後ろがある */</span>
+		<span class="hljs-keyword">if</span> (addr + <span class="hljs-built_in">size</span> == man-&gt;<span class="hljs-built_in">free</span>[i].addr) {
+			<span class="hljs-comment">/* 後ろとはまとめられる */</span>
+			man-&gt;<span class="hljs-built_in">free</span>[i].addr = addr;
+			man-&gt;<span class="hljs-built_in">free</span>[i].<span class="hljs-built_in">size</span> += <span class="hljs-built_in">size</span>;
+			<span class="hljs-keyword">return</span> <span class="hljs-number">0</span>; <span class="hljs-comment">/* 成功終了 */</span>
+		} 
+	}
+	<span class="hljs-comment">/* 前にも後ろにもまとめられない */</span>
+	<span class="hljs-keyword">if</span> (man-&gt;frees &lt; MEMMAN_FREES) {
+		<span class="hljs-comment">/* free[i]より後ろを、後ろへずらして、すきまを作る */</span>
+		<span class="hljs-keyword">for</span> (j = man-&gt;frees; j &gt; i; j--) {
+			man-&gt;<span class="hljs-built_in">free</span>[j] = man-&gt;<span class="hljs-built_in">free</span>[j - <span class="hljs-number">1</span>];
+		}
+		man-&gt;frees++;
+		<span class="hljs-keyword">if</span> (man-&gt;maxfrees &lt; man-&gt;frees) {
+			man-&gt;maxfrees = man-&gt;frees; <span class="hljs-comment">/* 最大値を更新 */</span>
+		}
+		man-&gt;<span class="hljs-built_in">free</span>[i].addr = addr;
+		man-&gt;<span class="hljs-built_in">free</span>[i].<span class="hljs-built_in">size</span> = <span class="hljs-built_in">size</span>;
+		<span class="hljs-keyword">return</span> <span class="hljs-number">0</span>; <span class="hljs-comment">/* 成功終了 */</span>
+	}
+	<span class="hljs-comment">/* 後ろにずらせなかった */</span>
+	man-&gt;losts++;
+	man-&gt;lostsize += <span class="hljs-built_in">size</span>;
+	<span class="hljs-keyword">return</span> <span class="hljs-number">-1</span>; <span class="hljs-comment">/* 失敗終了 */</span>
+}
+
+<span class="hljs-function"><span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> <span class="hljs-title">memman_alloc_4k</span><span class="hljs-params">(struct MEMMAN *man, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> <span class="hljs-built_in">size</span>)</span>
+</span>{
+    <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> a;
+    <span class="hljs-built_in">size</span> = (<span class="hljs-built_in">size</span> + <span class="hljs-number">0xfff</span>) &amp; <span class="hljs-number">0xfffff000</span>;
+    a = memman_alloc(man, <span class="hljs-built_in">size</span>);
+    <span class="hljs-keyword">return</span> a;
+}
+
+<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">memman_free_4k</span><span class="hljs-params">(struct MEMMAN *man, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> addr, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> <span class="hljs-built_in">size</span>)</span>
+</span>{
+    <span class="hljs-keyword">int</span> i;
+    <span class="hljs-built_in">size</span> = (<span class="hljs-built_in">size</span> + <span class="hljs-number">0xfff</span>) &amp; <span class="hljs-number">0xfffff000</span>;
+    i = memman_free(man, addr, <span class="hljs-built_in">size</span>);
+    <span class="hljs-keyword">return</span> i;
+}
+</div></code></pre>
+<p>bootpack.c</p>
+<pre class="hljs"><code><div><span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">"bootpack.h"</span></span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;stdio.h&gt;</span></span>
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">HariMain</span><span class="hljs-params">(<span class="hljs-keyword">void</span>)</span>
+</span>{
+    <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">BOOTINFO</span> *<span class="hljs-title">binfo</span> = (<span class="hljs-title">struct</span> <span class="hljs-title">BOOTINFO</span> *) <span class="hljs-title">ADR_BOOTINFO</span>;</span>
+	<span class="hljs-keyword">char</span> s[<span class="hljs-number">40</span>], mcursor[<span class="hljs-number">256</span>], keybuf[<span class="hljs-number">32</span>], mousebuf[<span class="hljs-number">128</span>];
+	<span class="hljs-keyword">int</span> mx, my, i;
+	<span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> memtotal;
+	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">MOUSE_DEC</span> <span class="hljs-title">mdec</span>;</span>
+	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">MEMMAN</span> *<span class="hljs-title">memman</span> = (<span class="hljs-title">struct</span> <span class="hljs-title">MEMMAN</span> *) <span class="hljs-title">MEMMAN_ADDR</span>;</span>
+
+	init_gdtidt();
+	init_pic();
+	io_sti(); <span class="hljs-comment">/* IDT/PICの初期化が終わったのでCPUの割り込み禁止を解除 */</span>
+	fifo8_init(&amp;keyfifo, <span class="hljs-number">32</span>, keybuf);
+	fifo8_init(&amp;mousefifo, <span class="hljs-number">128</span>, mousebuf);
+	io_out8(PIC0_IMR, <span class="hljs-number">0xf9</span>); <span class="hljs-comment">/* PIC1とキーボードを許可(11111001) */</span>
+	io_out8(PIC1_IMR, <span class="hljs-number">0xef</span>); <span class="hljs-comment">/* マウスを許可(11101111) */</span>
+
+	init_keyboard();
+	enable_mouse(&amp;mdec);
+	memtotal = memtest(<span class="hljs-number">0x00400000</span>, <span class="hljs-number">0xbfffffff</span>);
+	memman_init(memman);
+	memman_free(memman, <span class="hljs-number">0x000010000</span>, <span class="hljs-number">0x0009e000</span>); <span class="hljs-comment">/* 0x00001000 - 0x0009efff */</span>
+	memman_free(memman, <span class="hljs-number">0x00400000</span>, memtotal - <span class="hljs-number">0x00400000</span>);
+
+	init_palette();
+	init_screen8(binfo-&gt;vram, binfo-&gt;scrnx, binfo-&gt;scrny);
+	mx = (binfo-&gt;scrnx - <span class="hljs-number">16</span>) / <span class="hljs-number">2</span>; <span class="hljs-comment">/* 画面中央になるように座標計算 */</span>
+	my = (binfo-&gt;scrny - <span class="hljs-number">28</span> - <span class="hljs-number">16</span>) / <span class="hljs-number">2</span>;
+	init_mouse_cursor8(mcursor, COL8_008484);
+	putblock8_8(binfo-&gt;vram, binfo-&gt;scrnx, <span class="hljs-number">16</span>, <span class="hljs-number">16</span>, mx, my, mcursor, <span class="hljs-number">16</span>);
+	<span class="hljs-built_in">sprintf</span>(s, <span class="hljs-string">"(%d, %d)"</span>, mx, my);
+	putfonts8_asc(binfo-&gt;vram, binfo-&gt;scrnx, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, COL8_FFFFFF, s);
+
+	<span class="hljs-built_in">sprintf</span>(s, <span class="hljs-string">"memory %dMB free : %dKB"</span>, 
+			memtotal / (<span class="hljs-number">1024</span> * <span class="hljs-number">1024</span>), memman_total(memman) /<span class="hljs-number">1024</span>);
+	putfonts8_asc(binfo-&gt;vram, binfo-&gt;scrnx, <span class="hljs-number">0</span>, <span class="hljs-number">32</span>, COL8_FFFFFF, s);
+
+	<span class="hljs-keyword">for</span> (;;) {
+		io_cli();
+		<span class="hljs-keyword">if</span> (fifo8_status(&amp;keyfifo) + fifo8_status(&amp;mousefifo) == <span class="hljs-number">0</span>) {
+			io_stihlt();
+		} <span class="hljs-keyword">else</span> {
+			<span class="hljs-keyword">if</span> (fifo8_status(&amp;keyfifo) != <span class="hljs-number">0</span>) {
+				i = fifo8_get(&amp;keyfifo);
+				io_sti();
+				<span class="hljs-built_in">sprintf</span>(s, <span class="hljs-string">"%02X"</span>, i);
+				boxfill8(binfo-&gt;vram, binfo-&gt;scrnx, COL8_008484, <span class="hljs-number">0</span>, <span class="hljs-number">16</span>, <span class="hljs-number">15</span>, <span class="hljs-number">31</span>);
+				putfonts8_asc(binfo-&gt;vram, binfo-&gt;scrnx, <span class="hljs-number">0</span>, <span class="hljs-number">16</span>, COL8_FFFFFF, s);
+			} <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (fifo8_status(&amp;mousefifo) != <span class="hljs-number">0</span>) {
+				i = fifo8_get(&amp;mousefifo);
+				io_sti();
+				<span class="hljs-keyword">if</span> (mouse_decode(&amp;mdec, i) != <span class="hljs-number">0</span>) {
+					<span class="hljs-comment">/* データが3バイト揃ったので表示 */</span>
+					<span class="hljs-built_in">sprintf</span>(s, <span class="hljs-string">"[lcr %4d %4d]"</span>, mdec.x, mdec.y);
+					<span class="hljs-keyword">if</span> ((mdec.btn &amp; <span class="hljs-number">0x01</span>) != <span class="hljs-number">0</span>) {
+						s[<span class="hljs-number">1</span>] = <span class="hljs-string">'L'</span>;
+					}
+					<span class="hljs-keyword">if</span> ((mdec.btn &amp; <span class="hljs-number">0x02</span>) != <span class="hljs-number">0</span>) {
+						s[<span class="hljs-number">3</span>] = <span class="hljs-string">'R'</span>;
+					}
+					<span class="hljs-keyword">if</span> ((mdec.btn &amp; <span class="hljs-number">0x04</span>) != <span class="hljs-number">0</span>) {
+						s[<span class="hljs-number">2</span>]= <span class="hljs-string">'c'</span>;
+					}
+					boxfill8(binfo-&gt;vram, binfo-&gt;scrnx, COL8_008484, <span class="hljs-number">32</span>, <span class="hljs-number">16</span>, <span class="hljs-number">32</span> + <span class="hljs-number">15</span> * <span class="hljs-number">8</span> - <span class="hljs-number">1</span>, <span class="hljs-number">31</span>);
+					putfonts8_asc(binfo-&gt;vram, binfo-&gt;scrnx, <span class="hljs-number">32</span>, <span class="hljs-number">16</span>, COL8_FFFFFF, s);
+					<span class="hljs-comment">/* マウスカーソルの移動 */</span>
+					boxfill8(binfo-&gt;vram, binfo-&gt;scrnx, COL8_008484, mx, my, mx + <span class="hljs-number">15</span>, my + <span class="hljs-number">15</span>);
+					mx += mdec.x;
+					my += mdec.y;
+					<span class="hljs-keyword">if</span> (mx &lt; <span class="hljs-number">0</span>) {
+						mx = <span class="hljs-number">0</span>;
+					}
+					<span class="hljs-keyword">if</span> (my &lt; <span class="hljs-number">0</span>) {
+						my = <span class="hljs-number">0</span>;
+					}
+					<span class="hljs-keyword">if</span> (mx &gt; binfo-&gt;scrnx - <span class="hljs-number">16</span>) {
+						mx = binfo-&gt;scrnx - <span class="hljs-number">16</span>;
+					}
+					<span class="hljs-keyword">if</span> (my &gt; binfo-&gt;scrny - <span class="hljs-number">16</span>) {
+						my = binfo-&gt;scrny - <span class="hljs-number">16</span>;
+					}
+					<span class="hljs-built_in">sprintf</span>(s, <span class="hljs-string">"(%3d, %3d)"</span>, mx, my);
+					boxfill8(binfo-&gt;vram, binfo-&gt;scrnx, COL8_008484, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">79</span>, <span class="hljs-number">15</span>);
+					putfonts8_asc(binfo-&gt;vram, binfo-&gt;scrnx, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, COL8_FFFFFF, s);
+					putblock8_8(binfo-&gt;vram, binfo-&gt;scrnx, <span class="hljs-number">16</span>, <span class="hljs-number">16</span>, mx, my, mcursor, <span class="hljs-number">16</span>);
+				}
+			}
+		}
+	}
+}
+</div></code></pre>
+<p>bootpack.h</p>
+<pre class="hljs"><code><div><span class="hljs-comment">/* memory */</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> MEMMAN_FREES		4090</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> MEMMAN_ADDR			0x003c0000</span>
+
+<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">FREEINFO</span> {</span> 	<span class="hljs-comment">/* あき情報 */</span>
+	<span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> addr, <span class="hljs-built_in">size</span>;
+};
+
+<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">MEMMAN</span> {</span>		<span class="hljs-comment">/* メモリ管理 */</span>
+	<span class="hljs-keyword">int</span> frees, maxfrees, lostsize, losts;
+	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">FREEINFO</span> <span class="hljs-title">free</span>[<span class="hljs-title">MEMMAN_FREES</span>];</span>
+};
+
+<span class="hljs-function"><span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> <span class="hljs-title">memtest</span><span class="hljs-params">(<span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> start, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> <span class="hljs-built_in">end</span>)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">memman_init</span><span class="hljs-params">(struct MEMMAN *man)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> <span class="hljs-title">memman_total</span><span class="hljs-params">(struct MEMMAN *man)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> <span class="hljs-title">memman_alloc</span><span class="hljs-params">(struct MEMMAN *man, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> siza)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">memman_free</span><span class="hljs-params">(struct MEMMAN *man, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> addr, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> <span class="hljs-built_in">size</span>)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> <span class="hljs-title">memman_alloc_4k</span><span class="hljs-params">(struct MEMMAN *man, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> <span class="hljs-built_in">size</span>)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">int</span> <span class="hljs-title">memman_free_4k</span><span class="hljs-params">(struct MEMMAN *man, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> addr, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> <span class="hljs-built_in">size</span>)</span></span>;
+</div></code></pre>
+<p>Makefile</p>
+<pre class="hljs"><code><div>OBJS_BOOTPACK = bootpack.obj naskfunc.obj hankaku.obj graphic.obj dsctbl.obj \
+				int.obj fifo.obj keybord.obj mouse.obj memory.obj
+</div></code></pre>
+<p>これでbootpack.cがきれいになりました。</p>
+<p>さらに進めていってマウスが動いてもグラフィックが消えないように対応します。<br>
+bootpack.c</p>
+<pre class="hljs"><code><div><span class="hljs-comment">/* bootpackのメイン */</span>
+
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">"bootpack.h"</span></span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;stdio.h&gt;</span></span>
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">HariMain</span><span class="hljs-params">(<span class="hljs-keyword">void</span>)</span>
+</span>{
+	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">BOOTINFO</span> *<span class="hljs-title">binfo</span> = (<span class="hljs-title">struct</span> <span class="hljs-title">BOOTINFO</span> *) <span class="hljs-title">ADR_BOOTINFO</span>;</span>
+	<span class="hljs-keyword">char</span> s[<span class="hljs-number">40</span>], keybuf[<span class="hljs-number">32</span>], mousebuf[<span class="hljs-number">128</span>];
+	<span class="hljs-keyword">int</span> mx, my, i;
+	<span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">int</span> memtotal;
+	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">MOUSE_DEC</span> <span class="hljs-title">mdec</span>;</span>
+	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">MEMMAN</span> *<span class="hljs-title">memman</span> = (<span class="hljs-title">struct</span> <span class="hljs-title">MEMMAN</span> *) <span class="hljs-title">MEMMAN_ADDR</span>;</span>
+	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">SHTCTL</span> *<span class="hljs-title">shtctl</span>;</span>
+	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">SHEET</span> *<span class="hljs-title">sht_back</span>, *<span class="hljs-title">sht_mouse</span>;</span>
+	<span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">char</span> *buf_back, buf_mouse[<span class="hljs-number">256</span>];
+
+	init_gdtidt();
+	init_pic();
+	io_sti(); <span class="hljs-comment">/* IDT/PICの初期化が終わったのでCPUの割り込み禁止を解除 */</span>
+	fifo8_init(&amp;keyfifo, <span class="hljs-number">32</span>, keybuf);
+	fifo8_init(&amp;mousefifo, <span class="hljs-number">128</span>, mousebuf);
+	io_out8(PIC0_IMR, <span class="hljs-number">0xf9</span>); <span class="hljs-comment">/* PIC1とキーボードを許可(11111001) */</span>
+	io_out8(PIC1_IMR, <span class="hljs-number">0xef</span>); <span class="hljs-comment">/* マウスを許可(11101111) */</span>
+
+	init_keyboard();
+	enable_mouse(&amp;mdec);
+	memtotal = memtest(<span class="hljs-number">0x00400000</span>, <span class="hljs-number">0xbfffffff</span>);
+	memman_init(memman);
+	memman_free(memman, <span class="hljs-number">0x00001000</span>, <span class="hljs-number">0x0009e000</span>); <span class="hljs-comment">/* 0x00001000 - 0x0009efff */</span>
+	memman_free(memman, <span class="hljs-number">0x00400000</span>, memtotal - <span class="hljs-number">0x00400000</span>);
+
+	init_palette();
+	shtctl = shtctl_init(memman, binfo-&gt;vram, binfo-&gt;scrnx, binfo-&gt;scrny);
+	sht_back  = sheet_alloc(shtctl);
+	sht_mouse = sheet_alloc(shtctl);
+	buf_back  = (<span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">char</span> *) memman_alloc_4k(memman, binfo-&gt;scrnx * binfo-&gt;scrny);
+	sheet_setbuf(sht_back, buf_back, binfo-&gt;scrnx, binfo-&gt;scrny, <span class="hljs-number">-1</span>); <span class="hljs-comment">/* 透明色なし */</span>
+	sheet_setbuf(sht_mouse, buf_mouse, <span class="hljs-number">16</span>, <span class="hljs-number">16</span>, <span class="hljs-number">99</span>);
+	init_screen8(buf_back, binfo-&gt;scrnx, binfo-&gt;scrny);
+	init_mouse_cursor8(buf_mouse, <span class="hljs-number">99</span>);
+	sheet_slide(shtctl, sht_back, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>);
+	mx = (binfo-&gt;scrnx - <span class="hljs-number">16</span>) / <span class="hljs-number">2</span>; <span class="hljs-comment">/* 画面中央になるように座標計算 */</span>
+	my = (binfo-&gt;scrny - <span class="hljs-number">28</span> - <span class="hljs-number">16</span>) / <span class="hljs-number">2</span>;
+	sheet_slide(shtctl, sht_mouse, mx, my);
+	sheet_updown(shtctl, sht_back,  <span class="hljs-number">0</span>);
+	sheet_updown(shtctl, sht_mouse, <span class="hljs-number">1</span>);
+	<span class="hljs-built_in">sprintf</span>(s, <span class="hljs-string">"(%3d, %3d)"</span>, mx, my);
+	putfonts8_asc(buf_back, binfo-&gt;scrnx, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, COL8_FFFFFF, s);
+	<span class="hljs-built_in">sprintf</span>(s, <span class="hljs-string">"memory %dMB   free : %dKB"</span>,
+			memtotal / (<span class="hljs-number">1024</span> * <span class="hljs-number">1024</span>), memman_total(memman) / <span class="hljs-number">1024</span>);
+	putfonts8_asc(buf_back, binfo-&gt;scrnx, <span class="hljs-number">0</span>, <span class="hljs-number">32</span>, COL8_FFFFFF, s);
+	sheet_refresh(shtctl);
+
+	<span class="hljs-keyword">for</span> (;;) {
+		io_cli();
+		<span class="hljs-keyword">if</span> (fifo8_status(&amp;keyfifo) + fifo8_status(&amp;mousefifo) == <span class="hljs-number">0</span>) {
+			io_stihlt();
+		} <span class="hljs-keyword">else</span> {
+			<span class="hljs-keyword">if</span> (fifo8_status(&amp;keyfifo) != <span class="hljs-number">0</span>) {
+				i = fifo8_get(&amp;keyfifo);
+				io_sti();
+				<span class="hljs-built_in">sprintf</span>(s, <span class="hljs-string">"%02X"</span>, i);
+				boxfill8(buf_back, binfo-&gt;scrnx, COL8_008484,  <span class="hljs-number">0</span>, <span class="hljs-number">16</span>, <span class="hljs-number">15</span>, <span class="hljs-number">31</span>);
+				putfonts8_asc(buf_back, binfo-&gt;scrnx, <span class="hljs-number">0</span>, <span class="hljs-number">16</span>, COL8_FFFFFF, s);
+				sheet_refresh(shtctl);
+			} <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (fifo8_status(&amp;mousefifo) != <span class="hljs-number">0</span>) {
+				i = fifo8_get(&amp;mousefifo);
+				io_sti();
+				<span class="hljs-keyword">if</span> (mouse_decode(&amp;mdec, i) != <span class="hljs-number">0</span>) {
+					<span class="hljs-comment">/* データが3バイト揃ったので表示 */</span>
+					<span class="hljs-built_in">sprintf</span>(s, <span class="hljs-string">"[lcr %4d %4d]"</span>, mdec.x, mdec.y);
+					<span class="hljs-keyword">if</span> ((mdec.btn &amp; <span class="hljs-number">0x01</span>) != <span class="hljs-number">0</span>) {
+						s[<span class="hljs-number">1</span>] = <span class="hljs-string">'L'</span>;
+					}
+					<span class="hljs-keyword">if</span> ((mdec.btn &amp; <span class="hljs-number">0x02</span>) != <span class="hljs-number">0</span>) {
+						s[<span class="hljs-number">3</span>] = <span class="hljs-string">'R'</span>;
+					}
+					<span class="hljs-keyword">if</span> ((mdec.btn &amp; <span class="hljs-number">0x04</span>) != <span class="hljs-number">0</span>) {
+						s[<span class="hljs-number">2</span>] = <span class="hljs-string">'C'</span>;
+					}
+					boxfill8(buf_back, binfo-&gt;scrnx, COL8_008484, <span class="hljs-number">32</span>, <span class="hljs-number">16</span>, <span class="hljs-number">32</span> + <span class="hljs-number">15</span> * <span class="hljs-number">8</span> - <span class="hljs-number">1</span>, <span class="hljs-number">31</span>);
+					putfonts8_asc(buf_back, binfo-&gt;scrnx, <span class="hljs-number">32</span>, <span class="hljs-number">16</span>, COL8_FFFFFF, s);
+					<span class="hljs-comment">/* マウスカーソルの移動 */</span>
+					mx += mdec.x;
+					my += mdec.y;
+					<span class="hljs-keyword">if</span> (mx &lt; <span class="hljs-number">0</span>) {
+						mx = <span class="hljs-number">0</span>;
+					}
+					<span class="hljs-keyword">if</span> (my &lt; <span class="hljs-number">0</span>) {
+						my = <span class="hljs-number">0</span>;
+					}
+					<span class="hljs-keyword">if</span> (mx &gt; binfo-&gt;scrnx - <span class="hljs-number">16</span>) {
+						mx = binfo-&gt;scrnx - <span class="hljs-number">16</span>;
+					}
+					<span class="hljs-keyword">if</span> (my &gt; binfo-&gt;scrny - <span class="hljs-number">16</span>) {
+						my = binfo-&gt;scrny - <span class="hljs-number">16</span>;
+					}
+					<span class="hljs-built_in">sprintf</span>(s, <span class="hljs-string">"(%3d, %3d)"</span>, mx, my);
+					boxfill8(buf_back, binfo-&gt;scrnx, COL8_008484, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">79</span>, <span class="hljs-number">15</span>); <span class="hljs-comment">/* 座標消す */</span>
+					putfonts8_asc(buf_back, binfo-&gt;scrnx, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, COL8_FFFFFF, s); <span class="hljs-comment">/* 座標書く */</span>
+					sheet_slide(shtctl, sht_mouse, mx, my); <span class="hljs-comment">/* sheet_refreshを含む */</span>
+				}
+			}
+		}
+	}
+}
+</div></code></pre>
+<p>sheet.c</p>
+<pre class="hljs"><code><div><span class="hljs-comment">/* マウスやウィンドウの重ね合わせ処理 */</span>
+
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">"bootpack.h"</span></span>
+
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> SHEET_USE		1</span>
+
+<span class="hljs-function">struct SHTCTL *<span class="hljs-title">shtctl_init</span><span class="hljs-params">(struct MEMMAN *memman, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">char</span> *vram, <span class="hljs-keyword">int</span> xsize, <span class="hljs-keyword">int</span> ysize)</span>
+</span>{
+	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">SHTCTL</span> *<span class="hljs-title">ctl</span>;</span>
+	<span class="hljs-keyword">int</span> i;
+	ctl = (struct SHTCTL *) memman_alloc_4k(memman, <span class="hljs-keyword">sizeof</span> (struct SHTCTL));
+	<span class="hljs-keyword">if</span> (ctl == <span class="hljs-number">0</span>) {
+		<span class="hljs-keyword">goto</span> err;
+	}
+	ctl-&gt;vram = vram;
+	ctl-&gt;xsize = xsize;
+	ctl-&gt;ysize = ysize;
+	ctl-&gt;top = <span class="hljs-number">-1</span>; <span class="hljs-comment">/* シートは一枚もない */</span>
+	<span class="hljs-keyword">for</span> (i = <span class="hljs-number">0</span>; i &lt; MAX_SHEETS; i++) {
+		ctl-&gt;sheets0[i].flags = <span class="hljs-number">0</span>; <span class="hljs-comment">/* 未使用マーク */</span>
+	}
+err:
+	<span class="hljs-keyword">return</span> ctl;
+}
+
+<span class="hljs-function">struct SHEET *<span class="hljs-title">sheet_alloc</span><span class="hljs-params">(struct SHTCTL *ctl)</span>
+</span>{
+	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">SHEET</span> *<span class="hljs-title">sht</span>;</span>
+	<span class="hljs-keyword">int</span> i;
+	<span class="hljs-keyword">for</span> (i = <span class="hljs-number">0</span>; i &lt; MAX_SHEETS; i++) {
+		<span class="hljs-keyword">if</span> (ctl-&gt;sheets0[i].flags == <span class="hljs-number">0</span>) {
+			sht = &amp;ctl-&gt;sheets0[i];
+			sht-&gt;flags = SHEET_USE; <span class="hljs-comment">/* 使用中マーク */</span>
+			sht-&gt;<span class="hljs-built_in">height</span> = <span class="hljs-number">-1</span>; <span class="hljs-comment">/* 非表示中 */</span>
+			<span class="hljs-keyword">return</span> sht;
+		}
+	}
+	<span class="hljs-keyword">return</span> <span class="hljs-number">0</span>;	<span class="hljs-comment">/* 全てのシートが使用中だった */</span>
+}
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">sheet_setbuf</span><span class="hljs-params">(struct SHEET *sht, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">char</span> *buf, <span class="hljs-keyword">int</span> xsize, <span class="hljs-keyword">int</span> ysize, <span class="hljs-keyword">int</span> col_inv)</span>
+</span>{
+	sht-&gt;buf = buf;
+	sht-&gt;bxsize = xsize;
+	sht-&gt;bysize = ysize;
+	sht-&gt;col_inv = col_inv;
+	<span class="hljs-keyword">return</span>;
+}
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">sheet_updown</span><span class="hljs-params">(struct SHTCTL *ctl, struct SHEET *sht, <span class="hljs-keyword">int</span> <span class="hljs-built_in">height</span>)</span>
+</span>{
+	<span class="hljs-keyword">int</span> h, old = sht-&gt;<span class="hljs-built_in">height</span>; <span class="hljs-comment">/* 設定前の高さを記憶する */</span>
+
+	<span class="hljs-comment">/* 指定が低すぎや高すぎだったら、修正する */</span>
+	<span class="hljs-keyword">if</span> (<span class="hljs-built_in">height</span> &gt; ctl-&gt;top + <span class="hljs-number">1</span>) {
+		<span class="hljs-built_in">height</span> = ctl-&gt;top + <span class="hljs-number">1</span>;
+	}
+	<span class="hljs-keyword">if</span> (<span class="hljs-built_in">height</span> &lt; <span class="hljs-number">-1</span>) {
+		<span class="hljs-built_in">height</span> = <span class="hljs-number">-1</span>;
+	}
+	sht-&gt;<span class="hljs-built_in">height</span> = <span class="hljs-built_in">height</span>; <span class="hljs-comment">/* 高さを設定 */</span>
+
+	<span class="hljs-comment">/* 以下は主にsheets[]の並べ替え */</span>
+	<span class="hljs-keyword">if</span> (old &gt; <span class="hljs-built_in">height</span>) {	<span class="hljs-comment">/* 以前よりも低くなる */</span>
+		<span class="hljs-keyword">if</span> (<span class="hljs-built_in">height</span> &gt;= <span class="hljs-number">0</span>) {
+			<span class="hljs-comment">/* 間のものを引き上げる */</span>
+			<span class="hljs-keyword">for</span> (h = old; h &gt; <span class="hljs-built_in">height</span>; h--) {
+				ctl-&gt;sheets[h] = ctl-&gt;sheets[h - <span class="hljs-number">1</span>];
+				ctl-&gt;sheets[h]-&gt;<span class="hljs-built_in">height</span> = h;
+			}
+			ctl-&gt;sheets[<span class="hljs-built_in">height</span>] = sht;
+		} <span class="hljs-keyword">else</span> {	<span class="hljs-comment">/* 非表示化 */</span>
+			<span class="hljs-keyword">if</span> (ctl-&gt;top &gt; old) {
+				<span class="hljs-comment">/* 上になっているものをおろす */</span>
+				<span class="hljs-keyword">for</span> (h = old; h &lt; ctl-&gt;top; h++) {
+					ctl-&gt;sheets[h] = ctl-&gt;sheets[h + <span class="hljs-number">1</span>];
+					ctl-&gt;sheets[h]-&gt;<span class="hljs-built_in">height</span> = h;
+				}
+			}
+			ctl-&gt;top--; <span class="hljs-comment">/* 表示中の下じきが一つ減るので、一番上の高さが減る */</span>
+		}
+		sheet_refresh(ctl); <span class="hljs-comment">/* 新しい下じきの情報に沿って画面を描き直す */</span>
+	} <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (old &lt; <span class="hljs-built_in">height</span>) {	<span class="hljs-comment">/* 以前よりも高くなる */</span>
+		<span class="hljs-keyword">if</span> (old &gt;= <span class="hljs-number">0</span>) {
+			<span class="hljs-comment">/* 間のものを押し下げる */</span>
+			<span class="hljs-keyword">for</span> (h = old; h &lt; <span class="hljs-built_in">height</span>; h++) {
+				ctl-&gt;sheets[h] = ctl-&gt;sheets[h + <span class="hljs-number">1</span>];
+				ctl-&gt;sheets[h]-&gt;<span class="hljs-built_in">height</span> = h;
+			}
+			ctl-&gt;sheets[<span class="hljs-built_in">height</span>] = sht;
+		} <span class="hljs-keyword">else</span> {	<span class="hljs-comment">/* 非表示状態から表示状態へ */</span>
+			<span class="hljs-comment">/* 上になるものを持ち上げる */</span>
+			<span class="hljs-keyword">for</span> (h = ctl-&gt;top; h &gt;= <span class="hljs-built_in">height</span>; h--) {
+				ctl-&gt;sheets[h + <span class="hljs-number">1</span>] = ctl-&gt;sheets[h];
+				ctl-&gt;sheets[h + <span class="hljs-number">1</span>]-&gt;<span class="hljs-built_in">height</span> = h + <span class="hljs-number">1</span>;
+			}
+			ctl-&gt;sheets[<span class="hljs-built_in">height</span>] = sht;
+			ctl-&gt;top++; <span class="hljs-comment">/* 表示中の下じきが一つ増えるので、一番上の高さが増える */</span>
+		}
+		sheet_refresh(ctl); <span class="hljs-comment">/* 新しい下じきの情報に沿って画面を描き直す */</span>
+	}
+	<span class="hljs-keyword">return</span>;
+}
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">sheet_refresh</span><span class="hljs-params">(struct SHTCTL *ctl)</span>
+</span>{
+	<span class="hljs-keyword">int</span> h, bx, by, vx, vy;
+	<span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">char</span> *buf, c, *vram = ctl-&gt;vram;
+	<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">SHEET</span> *<span class="hljs-title">sht</span>;</span>
+	<span class="hljs-keyword">for</span> (h = <span class="hljs-number">0</span>; h &lt;= ctl-&gt;top; h++) {
+		sht = ctl-&gt;sheets[h];
+		buf = sht-&gt;buf;
+		<span class="hljs-keyword">for</span> (by = <span class="hljs-number">0</span>; by &lt; sht-&gt;bysize; by++) {
+			vy = sht-&gt;vy0 + by;
+			<span class="hljs-keyword">for</span> (bx = <span class="hljs-number">0</span>; bx &lt; sht-&gt;bxsize; bx++) {
+				vx = sht-&gt;vx0 + bx;
+				c = buf[by * sht-&gt;bxsize + bx];
+				<span class="hljs-keyword">if</span> (c != sht-&gt;col_inv) {
+					vram[vy * ctl-&gt;xsize + vx] = c;
+				}
+			}
+		}
+	}
+	<span class="hljs-keyword">return</span>;
+}
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">sheet_slide</span><span class="hljs-params">(struct SHTCTL *ctl, struct SHEET *sht, <span class="hljs-keyword">int</span> vx0, <span class="hljs-keyword">int</span> vy0)</span>
+</span>{
+	sht-&gt;vx0 = vx0;
+	sht-&gt;vy0 = vy0;
+	<span class="hljs-keyword">if</span> (sht-&gt;<span class="hljs-built_in">height</span> &gt;= <span class="hljs-number">0</span>) { <span class="hljs-comment">/* もしも表示中なら */</span>
+		sheet_refresh(ctl); <span class="hljs-comment">/* 新しい下じきの情報に沿って画面を描き直す */</span>
+	}
+	<span class="hljs-keyword">return</span>;
+}
+
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">sheet_free</span><span class="hljs-params">(struct SHTCTL *ctl, struct SHEET *sht)</span>
+</span>{
+	<span class="hljs-keyword">if</span> (sht-&gt;<span class="hljs-built_in">height</span> &gt;= <span class="hljs-number">0</span>) {
+		sheet_updown(ctl, sht, <span class="hljs-number">-1</span>); <span class="hljs-comment">/* 表示中ならまず非表示にする */</span>
+	}
+	sht-&gt;flags = <span class="hljs-number">0</span>; <span class="hljs-comment">/* 未使用マーク */</span>
+	<span class="hljs-keyword">return</span>;
+}
+</div></code></pre>
+<p>bootpack.h</p>
+<pre class="hljs"><code><div><span class="hljs-comment">/* sheet.c */</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> MAX_SHEETS      256</span>
+<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">SHEET</span> {</span>
+    <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">char</span> *buf;
+    <span class="hljs-keyword">int</span> bxsize, bysize, vx0, vy0, col_inv, <span class="hljs-built_in">height</span>, flags;
+};
+<span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">SHTCTL</span> {</span>
+    <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">char</span> *vram;
+    <span class="hljs-keyword">int</span> xsize, ysize, top;
+    <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">SHEET</span> *<span class="hljs-title">sheets</span>[<span class="hljs-title">MAX_SHEETS</span>];</span>
+    <span class="hljs-class"><span class="hljs-keyword">struct</span> <span class="hljs-title">SHEET</span> <span class="hljs-title">sheets0</span>[<span class="hljs-title">MAX_SHEETS</span>];</span>
+};
+<span class="hljs-function">struct SHTCTL *<span class="hljs-title">shtctl_init</span><span class="hljs-params">(struct MEMMAN *memman, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">char</span> *vram, <span class="hljs-keyword">int</span> xsize, <span class="hljs-keyword">int</span> ysize)</span></span>;
+<span class="hljs-function">struct SHEET *<span class="hljs-title">sheet_alloc</span><span class="hljs-params">(struct SHTCTL *ctl)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">sheet_setbuf</span><span class="hljs-params">(struct SHEET *sht, <span class="hljs-keyword">unsigned</span> <span class="hljs-keyword">char</span> *buf, <span class="hljs-keyword">int</span> xsize, <span class="hljs-keyword">int</span> ysize, <span class="hljs-keyword">int</span> col_inv)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">sheet_updown</span><span class="hljs-params">(struct SHTCTL *ctl, struct SHEET *sht, <span class="hljs-keyword">int</span> <span class="hljs-built_in">height</span>)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">sheet_refresh</span><span class="hljs-params">(struct SHTCTL *ctl)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">sheet_slide</span><span class="hljs-params">(struct SHTCTL *ctl, struct SHEET *sht, <span class="hljs-keyword">int</span> vx0, <span class="hljs-keyword">int</span> vy0)</span></span>;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">sheet_free</span><span class="hljs-params">(struct SHTCTL *ctl, struct SHEET *sht)</span></span>;
+</div></code></pre>
+<p>これで起動しても画面が真っ暗なまんまです。<br>
+なぜでしょう。</p>
+<p><strong>実装過程</strong><br>
+・　<a href="2df4bb731190ee7a73d899289655171d175cc624">2df4bb731190ee7a73d899289655171d175cc624</a>vvv</p>
+
+</body>
+</html>
