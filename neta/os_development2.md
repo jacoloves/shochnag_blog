@@ -6190,3 +6190,507 @@ void sheet_free(struct SHTCTL *ctl, struct SHEET *sht);
 
 **実装過程**   
 ・　[2df4bb731190ee7a73d899289655171d175cc624](2df4bb731190ee7a73d899289655171d175cc624)
+
+## day9
+9日目です。   
+前回最後に画面が真っ暗になってしまった件ですが、解決することができました。   
+理由はmemory.cに誤字があったことが理由でした。   
+しょうもない理由でした。書き直したmemory.cがこちらになります。   
+memory.c
+```c
+/* メモリ関係 */
+
+#include "bootpack.h"
+
+#define EFLAGS_AC_BIT		0x00040000
+#define CR0_CACHE_DISABLE	0x60000000
+
+unsigned int memtest(unsigned int start, unsigned int end)
+{
+	char flg486 = 0;
+	unsigned int eflg, cr0, i;
+
+	/* 386か、486以降なのかの確認 */
+	eflg = io_load_eflags();
+	eflg |= EFLAGS_AC_BIT; /* AC-bit = 1 */
+	io_store_eflags(eflg);
+	eflg = io_load_eflags();
+	if ((eflg & EFLAGS_AC_BIT) != 0) { /* 386ではAC=1にしても自動で0に戻ってしまう */
+		flg486 = 1;
+	}
+	eflg &= ~EFLAGS_AC_BIT; /* AC-bit = 0 */
+	io_store_eflags(eflg);
+
+	if (flg486 != 0) {
+		cr0 = load_cr0();
+		cr0 |= CR0_CACHE_DISABLE; /* キャッシュ禁止 */
+		store_cr0(cr0);
+	}
+
+	i = memtest_sub(start, end);
+
+	if (flg486 != 0) {
+		cr0 = load_cr0();
+		cr0 &= ~CR0_CACHE_DISABLE; /* キャッシュ許可 */
+		store_cr0(cr0);
+	}
+
+	return i;
+}
+
+void memman_init(struct MEMMAN *man)
+{
+	man->frees = 0;			/* あき情報の個数 */
+	man->maxfrees = 0;		/* 状況観察用：freesの最大値 */
+	man->lostsize = 0;		/* 解放に失敗した合計サイズ */
+	man->losts = 0;			/* 解放に失敗した回数 */
+	return;
+}
+
+unsigned int memman_total(struct MEMMAN *man)
+/* あきサイズの合計を報告 */
+{
+	unsigned int i, t = 0;
+	for (i = 0; i < man->frees; i++) {
+		t += man->free[i].size;
+	}
+	return t;
+}
+
+unsigned int memman_alloc(struct MEMMAN *man, unsigned int size)
+/* 確保 */
+{
+	unsigned int i, a;
+	for (i = 0; i < man->frees; i++) {
+		if (man->free[i].size >= size) {
+			/* 十分な広さのあきを発見 */
+			a = man->free[i].addr;
+			man->free[i].addr += size;
+			man->free[i].size -= size;
+			if (man->free[i].size == 0) {
+				/* free[i]がなくなったので前へつめる */
+				man->frees--;
+				for (; i < man->frees; i++) {
+					man->free[i] = man->free[i + 1]; /* 構造体の代入 */
+				}
+			}
+			return a;
+		}
+	}
+	return 0; /* あきがない */
+}
+
+int memman_free(struct MEMMAN *man, unsigned int addr, unsigned int size)
+/* 解放 */
+{
+	int i, j;
+	/* まとめやすさを考えると、free[]がaddr順に並んでいるほうがいい */
+	/* だからまず、どこに入れるべきかを決める */
+	for (i = 0; i < man->frees; i++) {
+		if (man->free[i].addr > addr) {
+			break;
+		}
+	}
+	/* free[i - 1].addr < addr < free[i].addr */
+	if (i > 0) {
+		/* 前がある */
+		if (man->free[i - 1].addr + man->free[i - 1].size == addr) {
+			/* 前のあき領域にまとめられる */
+			man->free[i - 1].size += size;
+			if (i < man->frees) {
+				/* 後ろもある */
+				if (addr + size == man->free[i].addr) {
+					/* なんと後ろともまとめられる */
+					man->free[i - 1].size += man->free[i].size;
+					/* man->free[i]の削除 */
+					/* free[i]がなくなったので前へつめる */
+					man->frees--;
+					for (; i < man->frees; i++) {
+						man->free[i] = man->free[i + 1]; /* 構造体の代入 */
+					}
+				}
+			}
+			return 0; /* 成功終了 */
+		}
+	}
+	/* 前とはまとめられなかった */
+	if (i < man->frees) {
+		/* 後ろがある */
+		if (addr + size == man->free[i].addr) {
+			/* 後ろとはまとめられる */
+			man->free[i].addr = addr;
+			man->free[i].size += size;
+			return 0; /* 成功終了 */
+		}
+	}
+	/* 前にも後ろにもまとめられない */
+	if (man->frees < MEMMAN_FREES) {
+		/* free[i]より後ろを、後ろへずらして、すきまを作る */
+		for (j = man->frees; j > i; j--) {
+			man->free[j] = man->free[j - 1];
+		}
+		man->frees++;
+		if (man->maxfrees < man->frees) {
+			man->maxfrees = man->frees; /* 最大値を更新 */
+		}
+		man->free[i].addr = addr;
+		man->free[i].size = size;
+		return 0; /* 成功終了 */
+	}
+	/* 後ろにずらせなかった */
+	man->losts++;
+	man->lostsize += size;
+	return -1; /* 失敗終了 */
+}
+
+unsigned int memman_alloc_4k(struct MEMMAN *man, unsigned int size)
+{
+	unsigned int a;
+	size = (size + 0xfff) & 0xfffff000;
+	a = memman_alloc(man, size);
+	return a;
+}
+
+int memman_free_4k(struct MEMMAN *man, unsigned int addr, unsigned int size)
+{
+	int i;
+	size = (size + 0xfff) & 0xfffff000;
+	i = memman_free(man, addr, size);
+	return i;
+}
+```
+
+今回はさらにマウスカーソル早くしていこうという試みを実装していきます。   
+
+sheet.c
+```c
+void sheet_refreshsub(struct SHTCTL *ctl, int vx0, int vy0, int vx1, int vy1)
+{
+	int h, bx, by, vx, vy;
+	unsigned char *buf, c, *vram = ctl->vram;
+	struct SHEET *sht;
+	for (h = 0; h <= ctl->top; h++) {
+		sht = ctl->sheets[h];
+		buf = sht->buf;
+		for (by = 0; by < sht->bysize; by++) {
+			vy = sht->vy0 + by;
+			for (bx = 0; bx < sht->bxsize; bx++) {
+				vx = sht->vx0 + bx;
+				if (vx0 <= vx && vx < vx1 && vy0 <= vy && vy < vy1) {
+					c = buf[by * sht->bxsize + bx];
+					if (c != sht->col_inv) {
+						vram[vy * ctl->xsize + vx] = c;
+					}
+				}
+			}
+		}
+	}
+	return;
+}
+
+void sheet_updown(struct SHTCTL *ctl, struct SHEET *sht, int height)
+{
+	int h, old = sht->height; /* 設定前の高さを記憶する */
+
+	/* 指定が低すぎや高すぎだったら、修正する */
+	if (height > ctl->top + 1) {
+		height = ctl->top + 1;
+	}
+	if (height < -1) {
+		height = -1;
+	}
+	sht->height = height; /* 高さを設定 */
+
+	/* 以下は主にsheets[]の並べ替え */
+	if (old > height) {	/* 以前よりも低くなる */
+		if (height >= 0) {
+			/* 間のものを引き上げる */
+			for (h = old; h > height; h--) {
+				ctl->sheets[h] = ctl->sheets[h - 1];
+				ctl->sheets[h]->height = h;
+			}
+			ctl->sheets[height] = sht;
+		} else {	/* 非表示化 */
+			if (ctl->top > old) {
+				/* 上になっているものをおろす */
+				for (h = old; h < ctl->top; h++) {
+					ctl->sheets[h] = ctl->sheets[h + 1];
+					ctl->sheets[h]->height = h;
+				}
+			}
+			ctl->top--; /* 表示中の下じきが一つ減るので、一番上の高さが減る */
+		}
+		sheet_refreshsub(ctl, sht->vx0, sht->vy0, sht->vx0 + sht->bxsize, sht->vy0 + sht->bysize);
+	} else if (old < height) {	/* 以前よりも高くなる */
+		if (old >= 0) {
+			/* 間のものを押し下げる */
+			for (h = old; h < height; h++) {
+				ctl->sheets[h] = ctl->sheets[h + 1];
+				ctl->sheets[h]->height = h;
+			}
+			ctl->sheets[height] = sht;
+		} else {	/* 非表示状態から表示状態へ */
+			/* 上になるものを持ち上げる */
+			for (h = ctl->top; h >= height; h--) {
+				ctl->sheets[h + 1] = ctl->sheets[h];
+				ctl->sheets[h + 1]->height = h + 1;
+			}
+			ctl->sheets[height] = sht;
+			ctl->top++; /* 表示中の下じきが一つ増えるので、一番上の高さが増える */
+		}
+		sheet_refreshsub(ctl, sht->vx0, sht->vy0, sht->vx0 + sht->bxsize, sht->vy0 + sht->bysize);
+	}
+	return;
+}
+
+void sheet_refresh(struct SHTCTL *ctl, struct SHEET *sht, int bx0, int by0, int bx1, int by1)
+{
+	if (sht->height >= 0) { /* もしも表示中なら、新しい下じきの情報に沿って画面を描き直す */
+		sheet_refreshsub(ctl, sht->vx0 + bx0, sht->vy0 + by0, sht->vx0 + bx1, sht->vy0 + by1);
+	}
+	return;
+}
+
+void sheet_slide(struct SHTCTL *ctl, struct SHEET *sht, int vx0, int vy0)
+{
+	int old_vx0 = sht->vx0, old_vy0 = sht->vy0;
+	sht->vx0 = vx0;
+	sht->vy0 = vy0;
+	if (sht->height >= 0) { /* もしも表示中なら、新しい下じきの情報に沿って画面を描き直す */
+		sheet_refreshsub(ctl, old_vx0, old_vy0, old_vx0 + sht->bxsize, old_vy0 + sht->bysize);
+		sheet_refreshsub(ctl, vx0, vy0, vx0 + sht->bxsize, vy0 + sht->bysize);
+	}
+	return;
+}
+```
+
+bootpack.c
+```c
+void HariMain(void)
+{
+	struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
+	char s[40], keybuf[32], mousebuf[128];
+	int mx, my, i;
+	unsigned int memtotal;
+	struct MOUSE_DEC mdec;
+	struct MEMMAN *memman = (struct MEMMAN *) MEMMAN_ADDR;
+	struct SHTCTL *shtctl;
+	struct SHEET *sht_back, *sht_mouse;
+	unsigned char *buf_back, buf_mouse[256];
+
+	init_gdtidt();
+	init_pic();
+	io_sti(); /* IDT/PICの初期化が終わったのでCPUの割り込み禁止を解除 */
+	fifo8_init(&keyfifo, 32, keybuf);
+	fifo8_init(&mousefifo, 128, mousebuf);
+	io_out8(PIC0_IMR, 0xf9); /* PIC1とキーボードを許可(11111001) */
+	io_out8(PIC1_IMR, 0xef); /* マウスを許可(11101111) */
+
+	init_keyboard();
+	enable_mouse(&mdec);
+	memtotal = memtest(0x00400000, 0xbfffffff);
+	memman_init(memman);
+	memman_free(memman, 0x00001000, 0x0009e000); /* 0x00001000 - 0x0009efff */
+	memman_free(memman, 0x00400000, memtotal - 0x00400000);
+
+	init_palette();
+	shtctl = shtctl_init(memman, binfo->vram, binfo->scrnx, binfo->scrny);
+	sht_back  = sheet_alloc(shtctl);
+	sht_mouse = sheet_alloc(shtctl);
+	buf_back  = (unsigned char *) memman_alloc_4k(memman, binfo->scrnx * binfo->scrny);
+	sheet_setbuf(sht_back, buf_back, binfo->scrnx, binfo->scrny, -1); /* 透明色なし */
+	sheet_setbuf(sht_mouse, buf_mouse, 16, 16, 99);
+	init_screen8(buf_back, binfo->scrnx, binfo->scrny);
+	init_mouse_cursor8(buf_mouse, 99);
+	sheet_slide(shtctl, sht_back, 0, 0);
+	mx = (binfo->scrnx - 16) / 2; /* 画面中央になるように座標計算 */
+	my = (binfo->scrny - 28 - 16) / 2;
+	sheet_slide(shtctl, sht_mouse, mx, my);
+	sheet_updown(shtctl, sht_back,  0);
+	sheet_updown(shtctl, sht_mouse, 1);
+	sprintf(s, "(%3d, %3d)", mx, my);
+	putfonts8_asc(buf_back, binfo->scrnx, 0, 0, COL8_FFFFFF, s);
+	sprintf(s, "memory %dMB   free : %dKB",
+			memtotal / (1024 * 1024), memman_total(memman) / 1024);
+	putfonts8_asc(buf_back, binfo->scrnx, 0, 32, COL8_FFFFFF, s);
+	sheet_refresh(shtctl, sht_back, 0, 0, binfo->scrnx, 48);
+
+	for (;;) {
+		io_cli();
+		if (fifo8_status(&keyfifo) + fifo8_status(&mousefifo) == 0) {
+			io_stihlt();
+		} else {
+			if (fifo8_status(&keyfifo) != 0) {
+				i = fifo8_get(&keyfifo);
+				io_sti();
+				sprintf(s, "%02X", i);
+				boxfill8(buf_back, binfo->scrnx, COL8_008484,  0, 16, 15, 31);
+				putfonts8_asc(buf_back, binfo->scrnx, 0, 16, COL8_FFFFFF, s);
+				sheet_refresh(shtctl, sht_back, 0, 16, 16, 32);
+			} else if (fifo8_status(&mousefifo) != 0) {
+				i = fifo8_get(&mousefifo);
+				io_sti();
+				if (mouse_decode(&mdec, i) != 0) {
+					/* データが3バイト揃ったので表示 */
+					sprintf(s, "[lcr %4d %4d]", mdec.x, mdec.y);
+					if ((mdec.btn & 0x01) != 0) {
+						s[1] = 'L';
+					}
+					if ((mdec.btn & 0x02) != 0) {
+						s[3] = 'R';
+					}
+					if ((mdec.btn & 0x04) != 0) {
+						s[2] = 'C';
+					}
+					boxfill8(buf_back, binfo->scrnx, COL8_008484, 32, 16, 32 + 15 * 8 - 1, 31);
+					putfonts8_asc(buf_back, binfo->scrnx, 32, 16, COL8_FFFFFF, s);
+					sheet_refresh(shtctl, sht_back, 32, 16, 32 + 15 * 8, 32);
+					/* マウスカーソルの移動 */
+					mx += mdec.x;
+					my += mdec.y;
+					if (mx < 0) {
+						mx = 0;
+					}
+					if (my < 0) {
+						my = 0;
+					}
+					if (mx > binfo->scrnx - 16) {
+						mx = binfo->scrnx - 16;
+					}
+					if (my > binfo->scrny - 16) {
+						my = binfo->scrny - 16;
+					}
+					sprintf(s, "(%3d, %3d)", mx, my);
+					boxfill8(buf_back, binfo->scrnx, COL8_008484, 0, 0, 79, 15); /* 座標消す */
+					putfonts8_asc(buf_back, binfo->scrnx, 0, 0, COL8_FFFFFF, s); /* 座標書く */
+					sheet_refresh(shtctl, sht_back, 0, 0, 80, 16);
+					sheet_slide(shtctl, sht_mouse, mx, my);
+				}
+			}
+		}
+	}
+}
+```
+
+bootpack.h
+```h
+/* sheet.c */
+#define MAX_SHEETS		256
+struct SHEET {
+	unsigned char *buf;
+	int bxsize, bysize, vx0, vy0, col_inv, height, flags;
+};
+struct SHTCTL {
+	unsigned char *vram;
+	int xsize, ysize, top;
+	struct SHEET *sheets[MAX_SHEETS];
+	struct SHEET sheets0[MAX_SHEETS];
+};
+struct SHTCTL *shtctl_init(struct MEMMAN *memman, unsigned char *vram, int xsize, int ysize);
+struct SHEET *sheet_alloc(struct SHTCTL *ctl);
+void sheet_setbuf(struct SHEET *sht, unsigned char *buf, int xsize, int ysize, int col_inv);
+void sheet_updown(struct SHTCTL *ctl, struct SHEET *sht, int height);
+void sheet_refresh(struct SHTCTL *ctl, struct SHEET *sht, int bx0, int by0, int bx1, int by1);
+void sheet_slide(struct SHTCTL *ctl, struct SHEET *sht, int vx0, int vy0);
+void sheet_free(struct SHTCTL *ctl, struct SHEET *sht);
+```
+
+ようやく動くマウスが見れました笑   
+そこそこ早いと思いますがさらにスピードを上げていきます。   
+
+sheet.c
+```c
+void sheet_refreshsub(struct SHTCTL *ctl, int vx0, int vy0, int vx1, int vy1)
+{
+	int h, bx, by, vx, vy, bx0, by0, bx1, by1;
+	unsigned char *buf, c, *vram = ctl->vram;
+	struct SHEET *sht;
+	for (h = 0; h <= ctl->top; h++) {
+		sht = ctl->sheets[h];
+		buf = sht->buf;
+		/* vx0～vy1を使って、bx0～by1を逆算する */
+		bx0 = vx0 - sht->vx0;
+		by0 = vy0 - sht->vy0;
+		bx1 = vx1 - sht->vx0;
+		by1 = vy1 - sht->vy0;
+		if (bx0 < 0) { bx0 = 0; }
+		if (by0 < 0) { by0 = 0; }
+		if (bx1 > sht->bxsize) { bx1 = sht->bxsize; }
+		if (by1 > sht->bysize) { by1 = sht->bysize; }
+		for (by = by0; by < by1; by++) {
+			vy = sht->vy0 + by;
+			for (bx = bx0; bx < bx1; bx++) {
+				vx = sht->vx0 + bx;
+				c = buf[by * sht->bxsize + bx];
+				if (c != sht->col_inv) {
+					vram[vy * ctl->xsize + vx] = c;
+				}
+			}
+		}
+	}
+	return;
+}
+```
+
+これでさらにすいすい動くようになりました。(体感的には変わらない感じがしますが笑)
+
+本では11日目に入りました。   
+マウスカーソルを縦横無人に動かしたいと思います。   
+bootpack.cの一部分を16→1に変えるだけですね。   
+
+bootpack.c
+```c
+					if (mx > binfo->scrnx - 1) {
+						mx = binfo->scrnx - 1;
+					}
+					if (my > binfo->scrny - 1) {
+						my = binfo->scrny - 1;
+					}
+```
+
+実際動かして画面端までいくとますが増殖するというバッグ発生してしまいます。   
+次はこのバグを直していきます。   
+
+sheet.c 
+```c
+void sheet_refreshsub(struct SHTCTL *ctl, int vx0, int vy0, int vx1, int vy1)
+{
+	int h, bx, by, vx, vy, bx0, by0, bx1, by1;
+	unsigned char *buf, c, *vram = ctl->vram;
+	struct SHEET *sht;
+	/* refresh範囲が画面買いにはみ出していたら補正 */
+	if (vx0 < 0) { vx0 = 0; }
+	if (vy0 < 0) { vy0 = 0; }
+	if (vx1 > ctl->xsize) { vx1 = ctl->xsize; }
+	if (vy1 > ctl->ysize) { vy1 = ctl->ysize; }
+	for (h = 0; h <= ctl->top; h++) {
+		sht = ctl->sheets[h];
+		buf = sht->buf;
+		/* vx0～vy1を使って、bx0～by1を逆算する */
+		bx0 = vx0 - sht->vx0;
+		by0 = vy0 - sht->vy0;
+		bx1 = vx1 - sht->vx0;
+		by1 = vy1 - sht->vy0;
+		if (bx0 < 0) { bx0 = 0; }
+		if (by0 < 0) { by0 = 0; }
+		if (bx1 > sht->bxsize) { bx1 = sht->bxsize; }
+		if (by1 > sht->bysize) { by1 = sht->bysize; }
+		for (by = by0; by < by1; by++) {
+			vy = sht->vy0 + by;
+			for (bx = bx0; bx < bx1; bx++) {
+				vx = sht->vx0 + bx;
+				c = buf[by * sht->bxsize + bx];
+				if (c != sht->col_inv) {
+					vram[vy * ctl->xsize + vx] = c;
+				}
+			}
+		}
+	}
+	return;
+}
+```
+
+これで縦横無尽にすいすい動くようになりました。
+
+**実装過程**   
+・　[e918545150418ef88c8caf8809a5b23998bfd445](e918545150418ef88c8caf8809a5b23998bfd445)
