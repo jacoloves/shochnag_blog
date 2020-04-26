@@ -8439,3 +8439,1163 @@ void inthandler20(int *esp)
 
 **実装過程**   
 ・　[e0e9aa0b10946ca9abda1418215153ff4ad9299d](e0e9aa0b10946ca9abda1418215153ff4ad9299d)
+
+## day13
+本でも13日目に突入しました。   
+今回は文字列表示を簡単にしてbootpack.cのソースコードを簡単にします。   
+
+bootpack.c
+```c
+void putfonts8_asc_sht(struct SHEET *sht, int x, int y, int c, int b, char *s, int l);
+
+void HariMain(void)
+{
+	struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
+	struct FIFO8 timerfifo, timerfifo2, timerfifo3;
+	char s[40], keybuf[32], mousebuf[128], timerbuf[8], timerbuf2[8], timerbuf3[8];
+	struct TIMER *timer, *timer2, *timer3;
+	int mx, my, i;
+	unsigned int memtotal;
+	struct MOUSE_DEC mdec;
+	struct MEMMAN *memman = (struct MEMMAN *) MEMMAN_ADDR;
+	struct SHTCTL *shtctl;
+	struct SHEET *sht_back, *sht_mouse, *sht_win;
+	unsigned char *buf_back, buf_mouse[256], *buf_win;
+
+	init_gdtidt();
+	init_pic();
+	io_sti(); /* IDT/PICの初期化が終わったのでCPUの割り込み禁止を解除 */
+	fifo8_init(&keyfifo, 32, keybuf);
+	fifo8_init(&mousefifo, 128, mousebuf);
+	init_pit();
+	io_out8(PIC0_IMR, 0xf8); /* PITとPIC1とキーボードを許可(11111000) */
+	io_out8(PIC1_IMR, 0xef); /* マウスを許可(11101111) */
+
+	fifo8_init(&timerfifo, 8, timerbuf);
+	timer = timer_alloc();
+	timer_init(timer, &timerfifo, 1);
+	timer_settime(timer, 1000);
+	fifo8_init(&timerfifo2, 8, timerbuf2);
+	timer2 = timer_alloc();
+	timer_init(timer2, &timerfifo2, 1);
+	timer_settime(timer2, 300);
+	fifo8_init(&timerfifo3, 8, timerbuf3);
+	timer3 = timer_alloc();
+	timer_init(timer3, &timerfifo3, 1);
+	timer_settime(timer3, 50);
+
+	init_keyboard();
+	enable_mouse(&mdec);
+	memtotal = memtest(0x00400000, 0xbfffffff);
+	memman_init(memman);
+	memman_free(memman, 0x00001000, 0x0009e000); /* 0x00001000 - 0x0009efff */
+	memman_free(memman, 0x00400000, memtotal - 0x00400000);
+
+	init_palette();
+	shtctl = shtctl_init(memman, binfo->vram, binfo->scrnx, binfo->scrny);
+	sht_back  = sheet_alloc(shtctl);
+	sht_mouse = sheet_alloc(shtctl);
+	sht_win   = sheet_alloc(shtctl);
+	buf_back  = (unsigned char *) memman_alloc_4k(memman, binfo->scrnx * binfo->scrny);
+	buf_win   = (unsigned char *) memman_alloc_4k(memman, 160 * 52);
+	sheet_setbuf(sht_back, buf_back, binfo->scrnx, binfo->scrny, -1); /* 透明色なし */
+	sheet_setbuf(sht_mouse, buf_mouse, 16, 16, 99);
+	sheet_setbuf(sht_win, buf_win, 160, 52, -1); /* 透明色なし */
+	init_screen8(buf_back, binfo->scrnx, binfo->scrny);
+	init_mouse_cursor8(buf_mouse, 99);
+	make_window8(buf_win, 160, 52, "counter");
+	sheet_slide(sht_back, 0, 0);
+	mx = (binfo->scrnx - 16) / 2; /* 画面中央になるように座標計算 */
+	my = (binfo->scrny - 28 - 16) / 2;
+	sheet_slide(sht_mouse, mx, my);
+	sheet_slide(sht_win, 80, 72);
+	sheet_updown(sht_back,  0);
+	sheet_updown(sht_win,   1);
+	sheet_updown(sht_mouse, 2);
+	sprintf(s, "(%3d, %3d)", mx, my);
+	putfonts8_asc_sht(sht_back, 0, 0, COL8_FFFFFF, COL8_008484, s, 10);
+	sprintf(s, "memory %dMB   free : %dKB",
+			memtotal / (1024 * 1024), memman_total(memman) / 1024);
+	putfonts8_asc_sht(sht_back, 0, 32, COL8_FFFFFF, COL8_008484, s, 40);
+
+	for (;;) {
+		sprintf(s, "%010d", timerctl.count);
+		putfonts8_asc_sht(sht_win, 40, 28, COL8_000000, COL8_C6C6C6, s, 10);
+
+		io_cli();
+		if (fifo8_status(&keyfifo) + fifo8_status(&mousefifo) + fifo8_status(&timerfifo)
+				+ fifo8_status(&timerfifo2) + fifo8_status(&timerfifo3) == 0) {
+			io_sti();
+		} else {
+			if (fifo8_status(&keyfifo) != 0) {
+				i = fifo8_get(&keyfifo);
+				io_sti();
+				sprintf(s, "%02X", i);
+				putfonts8_asc_sht(sht_back, 0, 16, COL8_FFFFFF, COL8_008484, s, 2);
+			} else if (fifo8_status(&mousefifo) != 0) {
+				i = fifo8_get(&mousefifo);
+				io_sti();
+				if (mouse_decode(&mdec, i) != 0) {
+					/* データが3バイト揃ったので表示 */
+					sprintf(s, "[lcr %4d %4d]", mdec.x, mdec.y);
+					if ((mdec.btn & 0x01) != 0) {
+						s[1] = 'L';
+					}
+					if ((mdec.btn & 0x02) != 0) {
+						s[3] = 'R';
+					}
+					if ((mdec.btn & 0x04) != 0) {
+						s[2] = 'C';
+					}
+					putfonts8_asc_sht(sht_back, 32, 16, COL8_FFFFFF, COL8_008484, s, 15);
+					/* マウスカーソルの移動 */
+					mx += mdec.x;
+					my += mdec.y;
+					if (mx < 0) {
+						mx = 0;
+					}
+					if (my < 0) {
+						my = 0;
+					}
+					if (mx > binfo->scrnx - 1) {
+						mx = binfo->scrnx - 1;
+					}
+					if (my > binfo->scrny - 1) {
+						my = binfo->scrny - 1;
+					}
+					sprintf(s, "(%3d, %3d)", mx, my);
+					putfonts8_asc_sht(sht_back, 0, 0, COL8_FFFFFF, COL8_008484, s, 10);
+					sheet_slide(sht_mouse, mx, my);
+				}
+			} else if (fifo8_status(&timerfifo) != 0) {
+				i = fifo8_get(&timerfifo); /* とりあえず読み込む（からにするために） */
+				io_sti();
+				putfonts8_asc_sht(sht_back, 0, 64, COL8_FFFFFF, COL8_008484, "10[sec]", 7);
+			} else if (fifo8_status(&timerfifo2) != 0) {
+				i = fifo8_get(&timerfifo2); /* とりあえず読み込む（からにするために） */
+				io_sti();
+				putfonts8_asc_sht(sht_back, 0, 80, COL8_FFFFFF, COL8_008484, "3[sec]", 6);
+			} else if (fifo8_status(&timerfifo3) != 0) {
+				i = fifo8_get(&timerfifo3);
+				io_sti();
+				if (i != 0) {
+					timer_init(timer3, &timerfifo3, 0); /* 次は0を */
+					boxfill8(buf_back, binfo->scrnx, COL8_FFFFFF, 8, 96, 15, 111);
+				} else {
+					timer_init(timer3, &timerfifo3, 1); /* 次は1を */
+					boxfill8(buf_back, binfo->scrnx, COL8_008484, 8, 96, 15, 111);
+				}
+				timer_settime(timer3, 50);
+				sheet_refresh(sht_back, 8, 96, 16, 112);
+			}
+		}
+	}
+}
+```
+
+```c
+void putfonts8_asc_sht(struct SHEET *sht, int x, int y, int c, int b, char *s, int l)
+{
+	boxfill8(sht->buf, sht->bxsize, b, x, y, x + l * 8 - 1, y + 15);
+	putfonts8_asc(sht->buf, sht->bxsize, x, y, c, s);
+	sheet_refresh(sht, x, y, x + l * 8, y + 16);
+	return;
+}
+```
+
+今回もHariMainのコード数を削減していきます。   
+FIFOバッファを再構成してみます。   
+bootpack.c
+```c
+void HariMain(void)
+{
+	struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
+	struct FIFO8 timerfifo;
+	char s[40], keybuf[32], mousebuf[128], timerbuf[8];
+	struct TIMER *timer, *timer2, *timer3;
+	int mx, my, i;
+	unsigned int memtotal;
+	struct MOUSE_DEC mdec;
+	struct MEMMAN *memman = (struct MEMMAN *) MEMMAN_ADDR;
+	struct SHTCTL *shtctl;
+	struct SHEET *sht_back, *sht_mouse, *sht_win;
+	unsigned char *buf_back, buf_mouse[256], *buf_win;
+
+	init_gdtidt();
+	init_pic();
+	io_sti(); /* IDT/PICの初期化が終わったのでCPUの割り込み禁止を解除 */
+	fifo8_init(&keyfifo, 32, keybuf);
+	fifo8_init(&mousefifo, 128, mousebuf);
+	init_pit();
+	io_out8(PIC0_IMR, 0xf8); /* PITとPIC1とキーボードを許可(11111000) */
+	io_out8(PIC1_IMR, 0xef); /* マウスを許可(11101111) */
+
+	fifo8_init(&timerfifo, 8, timerbuf);
+	timer = timer_alloc();
+	timer_init(timer, &timerfifo, 10);
+	timer_settime(timer, 1000);
+	timer2 = timer_alloc();
+	timer_init(timer2, &timerfifo, 3);
+	timer_settime(timer2, 300);
+	timer3 = timer_alloc();
+	timer_init(timer3, &timerfifo, 1);
+	timer_settime(timer3, 50);
+
+	init_keyboard();
+	enable_mouse(&mdec);
+	memtotal = memtest(0x00400000, 0xbfffffff);
+	memman_init(memman);
+	memman_free(memman, 0x00001000, 0x0009e000); /* 0x00001000 - 0x0009efff */
+	memman_free(memman, 0x00400000, memtotal - 0x00400000);
+
+	init_palette();
+	shtctl = shtctl_init(memman, binfo->vram, binfo->scrnx, binfo->scrny);
+	sht_back  = sheet_alloc(shtctl);
+	sht_mouse = sheet_alloc(shtctl);
+	sht_win   = sheet_alloc(shtctl);
+	buf_back  = (unsigned char *) memman_alloc_4k(memman, binfo->scrnx * binfo->scrny);
+	buf_win   = (unsigned char *) memman_alloc_4k(memman, 160 * 52);
+	sheet_setbuf(sht_back, buf_back, binfo->scrnx, binfo->scrny, -1); /* 透明色なし */
+	sheet_setbuf(sht_mouse, buf_mouse, 16, 16, 99);
+	sheet_setbuf(sht_win, buf_win, 160, 52, -1); /* 透明色なし */
+	init_screen8(buf_back, binfo->scrnx, binfo->scrny);
+	init_mouse_cursor8(buf_mouse, 99);
+	make_window8(buf_win, 160, 52, "counter");
+	sheet_slide(sht_back, 0, 0);
+	mx = (binfo->scrnx - 16) / 2; /* 画面中央になるように座標計算 */
+	my = (binfo->scrny - 28 - 16) / 2;
+	sheet_slide(sht_mouse, mx, my);
+	sheet_slide(sht_win, 80, 72);
+	sheet_updown(sht_back,  0);
+	sheet_updown(sht_win,   1);
+	sheet_updown(sht_mouse, 2);
+	sprintf(s, "(%3d, %3d)", mx, my);
+	putfonts8_asc_sht(sht_back, 0, 0, COL8_FFFFFF, COL8_008484, s, 10);
+	sprintf(s, "memory %dMB   free : %dKB",
+			memtotal / (1024 * 1024), memman_total(memman) / 1024);
+	putfonts8_asc_sht(sht_back, 0, 32, COL8_FFFFFF, COL8_008484, s, 40);
+
+	for (;;) {
+		sprintf(s, "%010d", timerctl.count);
+		putfonts8_asc_sht(sht_win, 40, 28, COL8_000000, COL8_C6C6C6, s, 10);
+
+		io_cli();
+		if (fifo8_status(&keyfifo) + fifo8_status(&mousefifo) + fifo8_status(&timerfifo) == 0) {
+			io_sti();
+		} else {
+			if (fifo8_status(&keyfifo) != 0) {
+				i = fifo8_get(&keyfifo);
+				io_sti();
+				sprintf(s, "%02X", i);
+				putfonts8_asc_sht(sht_back, 0, 16, COL8_FFFFFF, COL8_008484, s, 2);
+			} else if (fifo8_status(&mousefifo) != 0) {
+				i = fifo8_get(&mousefifo);
+				io_sti();
+				if (mouse_decode(&mdec, i) != 0) {
+					/* データが3バイト揃ったので表示 */
+					sprintf(s, "[lcr %4d %4d]", mdec.x, mdec.y);
+					if ((mdec.btn & 0x01) != 0) {
+						s[1] = 'L';
+					}
+					if ((mdec.btn & 0x02) != 0) {
+						s[3] = 'R';
+					}
+					if ((mdec.btn & 0x04) != 0) {
+						s[2] = 'C';
+					}
+					putfonts8_asc_sht(sht_back, 32, 16, COL8_FFFFFF, COL8_008484, s, 15);
+					/* マウスカーソルの移動 */
+					mx += mdec.x;
+					my += mdec.y;
+					if (mx < 0) {
+						mx = 0;
+					}
+					if (my < 0) {
+						my = 0;
+					}
+					if (mx > binfo->scrnx - 1) {
+						mx = binfo->scrnx - 1;
+					}
+					if (my > binfo->scrny - 1) {
+						my = binfo->scrny - 1;
+					}
+					sprintf(s, "(%3d, %3d)", mx, my);
+					putfonts8_asc_sht(sht_back, 0, 0, COL8_FFFFFF, COL8_008484, s, 10);
+					sheet_slide(sht_mouse, mx, my);
+				}
+			} else if (fifo8_status(&timerfifo) != 0) {
+				i = fifo8_get(&timerfifo); /* タイムアウトしたのはどれかな？ */
+				io_sti();
+				if (i == 10) {
+					putfonts8_asc_sht(sht_back, 0, 64, COL8_FFFFFF, COL8_008484, "10[sec]", 7);	
+				} else if (i == 3) {
+					putfonts8_asc_sht(sht_back, 0, 80, COL8_FFFFFF, COL8_008484, "3[sec]", 6);
+				} else {
+					/* 0か1 */
+					if (i != 0) {
+						timer_init(timer3, &timerfifo, 0); /* 次は0を */
+						boxfill8(buf_back, binfo->scrnx, COL8_FFFFFF, 8, 96, 15, 111);
+					} else {
+						timer_init(timer3, &timerfifo, 1); /* 次は1を */
+						boxfill8(buf_back, binfo->scrnx, COL8_008484, 8, 96, 15, 111);
+					}
+					timer_settime(timer3, 50);
+					sheet_refresh(sht_back, 8, 96, 16, 112);
+				}
+			}
+		}
+	}
+}
+```
+
+タイマーを改良して少しずつ速度を上げていきます。   
+(ここからしばらくはタイマーの改良に尽力します)   
+bootpack.c
+```c
+void HariMain(void)
+{
+	struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
+	struct FIFO8 timerfifo;
+	char s[40], keybuf[32], mousebuf[128], timerbuf[8];
+	struct TIMER *timer, *timer2, *timer3;
+	int mx, my, i, count = 0;
+	unsigned int memtotal;
+	struct MOUSE_DEC mdec;
+	struct MEMMAN *memman = (struct MEMMAN *) MEMMAN_ADDR;
+	struct SHTCTL *shtctl;
+	struct SHEET *sht_back, *sht_mouse, *sht_win;
+	unsigned char *buf_back, buf_mouse[256], *buf_win;
+
+	init_gdtidt();
+	init_pic();
+	io_sti(); /* IDT/PICの初期化が終わったのでCPUの割り込み禁止を解除 */
+	fifo8_init(&keyfifo, 32, keybuf);
+	fifo8_init(&mousefifo, 128, mousebuf);
+	init_pit();
+	io_out8(PIC0_IMR, 0xf8); /* PITとPIC1とキーボードを許可(11111000) */
+	io_out8(PIC1_IMR, 0xef); /* マウスを許可(11101111) */
+
+	fifo8_init(&timerfifo, 8, timerbuf);
+	timer = timer_alloc();
+	timer_init(timer, &timerfifo, 10);
+	timer_settime(timer, 1000);
+	timer2 = timer_alloc();
+	timer_init(timer2, &timerfifo, 3);
+	timer_settime(timer2, 300);
+	timer3 = timer_alloc();
+	timer_init(timer3, &timerfifo, 1);
+	timer_settime(timer3, 50);
+
+	init_keyboard();
+	enable_mouse(&mdec);
+	memtotal = memtest(0x00400000, 0xbfffffff);
+	memman_init(memman);
+	memman_free(memman, 0x00001000, 0x0009e000); /* 0x00001000 - 0x0009efff */
+	memman_free(memman, 0x00400000, memtotal - 0x00400000);
+
+	init_palette();
+	shtctl = shtctl_init(memman, binfo->vram, binfo->scrnx, binfo->scrny);
+	sht_back  = sheet_alloc(shtctl);
+	sht_mouse = sheet_alloc(shtctl);
+	sht_win   = sheet_alloc(shtctl);
+	buf_back  = (unsigned char *) memman_alloc_4k(memman, binfo->scrnx * binfo->scrny);
+	buf_win   = (unsigned char *) memman_alloc_4k(memman, 160 * 52);
+	sheet_setbuf(sht_back, buf_back, binfo->scrnx, binfo->scrny, -1); /* 透明色なし */
+	sheet_setbuf(sht_mouse, buf_mouse, 16, 16, 99);
+	sheet_setbuf(sht_win, buf_win, 160, 52, -1); /* 透明色なし */
+	init_screen8(buf_back, binfo->scrnx, binfo->scrny);
+	init_mouse_cursor8(buf_mouse, 99);
+	make_window8(buf_win, 160, 52, "counter");
+	sheet_slide(sht_back, 0, 0);
+	mx = (binfo->scrnx - 16) / 2; /* 画面中央になるように座標計算 */
+	my = (binfo->scrny - 28 - 16) / 2;
+	sheet_slide(sht_mouse, mx, my);
+	sheet_slide(sht_win, 80, 72);
+	sheet_updown(sht_back,  0);
+	sheet_updown(sht_win,   1);
+	sheet_updown(sht_mouse, 2);
+	sprintf(s, "(%3d, %3d)", mx, my);
+	putfonts8_asc_sht(sht_back, 0, 0, COL8_FFFFFF, COL8_008484, s, 10);
+	sprintf(s, "memory %dMB   free : %dKB",
+			memtotal / (1024 * 1024), memman_total(memman) / 1024);
+	putfonts8_asc_sht(sht_back, 0, 32, COL8_FFFFFF, COL8_008484, s, 40);
+
+	for (;;) {
+		count++;
+
+		io_cli();
+		if (fifo8_status(&keyfifo) + fifo8_status(&mousefifo) + fifo8_status(&timerfifo) == 0) {
+			io_sti();
+		} else {
+			if (fifo8_status(&keyfifo) != 0) {
+				i = fifo8_get(&keyfifo);
+				io_sti();
+				sprintf(s, "%02X", i);
+				putfonts8_asc_sht(sht_back, 0, 16, COL8_FFFFFF, COL8_008484, s, 2);
+			} else if (fifo8_status(&mousefifo) != 0) {
+				i = fifo8_get(&mousefifo);
+				io_sti();
+				if (mouse_decode(&mdec, i) != 0) {
+					/* データが3バイト揃ったので表示 */
+					sprintf(s, "[lcr %4d %4d]", mdec.x, mdec.y);
+					if ((mdec.btn & 0x01) != 0) {
+						s[1] = 'L';
+					}
+					if ((mdec.btn & 0x02) != 0) {
+						s[3] = 'R';
+					}
+					if ((mdec.btn & 0x04) != 0) {
+						s[2] = 'C';
+					}
+					putfonts8_asc_sht(sht_back, 32, 16, COL8_FFFFFF, COL8_008484, s, 15);
+					/* マウスカーソルの移動 */
+					mx += mdec.x;
+					my += mdec.y;
+					if (mx < 0) {
+						mx = 0;
+					}
+					if (my < 0) {
+						my = 0;
+					}
+					if (mx > binfo->scrnx - 1) {
+						mx = binfo->scrnx - 1;
+					}
+					if (my > binfo->scrny - 1) {
+						my = binfo->scrny - 1;
+					}
+					sprintf(s, "(%3d, %3d)", mx, my);
+					putfonts8_asc_sht(sht_back, 0, 0, COL8_FFFFFF, COL8_008484, s, 10);
+					sheet_slide(sht_mouse, mx, my);
+				}
+			} else if (fifo8_status(&timerfifo) != 0) {
+				i = fifo8_get(&timerfifo); /* タイムアウトしたのはどれかな？ */
+				io_sti();
+				if (i == 10) {
+					putfonts8_asc_sht(sht_back, 0, 64, COL8_FFFFFF, COL8_008484, "10[sec]", 7);	
+					sprintf(s, "%010d", count);
+					putfonts8_asc_sht(sht_win, 40, 28, COL8_000000, COL8_C6C6C6, s, 10);
+				} else if (i == 3) {
+					putfonts8_asc_sht(sht_back, 0, 80, COL8_FFFFFF, COL8_008484, "3[sec]", 6);
+					count = 0; /* 測定開始 */
+				} else {
+					/* 0か1 */
+					if (i != 0) {
+						timer_init(timer3, &timerfifo, 0); /* 次は0を */
+						boxfill8(buf_back, binfo->scrnx, COL8_FFFFFF, 8, 96, 15, 111);
+					} else {
+						timer_init(timer3, &timerfifo, 1); /* 次は1を */
+						boxfill8(buf_back, binfo->scrnx, COL8_008484, 8, 96, 15, 111);
+					}
+					timer_settime(timer3, 50);
+					sheet_refresh(sht_back, 8, 96, 16, 112);
+				}
+			}
+		}
+	}
+}
+
+hari09dの頃のtimer.cとbootpack.hを使って時間を測定してみましょう。   
+(ここからtimer.cとbootpack.hは過去のソースコード使用しています。)   
+timer.c
+```c
+/* タイマ関係 */
+
+#include "bootpack.h"
+
+#define PIT_CTRL    0x0043
+#define PIT_CNT0    0x0040
+
+struct TIMERCTL timerctl;
+
+#define TIMER_FLAGS_ALLOC       1   /* 確保した状態 */
+#define TIMER_FLAGS_USING       2   /* タイマ作動中 */
+
+void init_pit(void)
+{
+    int i;
+    io_out8(PIT_CTRL, 0x34);
+    io_out8(PIT_CNT0, 0x9c);
+    io_out8(PIT_CNT0, 0x2e);
+    timerctl.count = 0;
+    for (i = 0; i < MAX_TIMER; i++) {
+        timerctl.timer[i].flags = 0; /* 未使用 */
+    }
+    return;
+}
+
+struct TIMER *timer_alloc(void)
+{
+    int i;
+    for (i = 0; i < MAX_TIMER; i++) {
+        if (timerctl.timer[i].flags == 0) {
+            timerctl.timer[i].flags = TIMER_FLAGS_ALLOC;
+            return &timerctl.timer[i];
+        }
+    }
+    return 0; /* 見つからなかった */
+}
+
+void timer_free(struct TIMER *timer)
+{
+    timer->flags = 0; /* 未使用 */
+    return;
+}
+
+void timer_init(struct TIMER *timer, struct FIFO8 *fifo, unsigned char data)
+{
+    timer->fifo = fifo;
+    timer->data = data;
+    return;
+}
+
+void timer_settime(struct TIMER *timer, unsigned int timeout)
+{
+    timer->timeout = timeout;
+    timer->flags = TIMER_FLAGS_USING;
+    return;
+}
+
+void inthandler20(int *esp)
+{
+    int i;
+    io_out8(PIC0_OCW2, 0x60);	/* IRQ-00受付完了をPICに通知 */
+    timerctl.count++;
+    for (i = 0; i < MAX_TIMER; i++) {
+        if (timerctl.timer[i].flags == TIMER_FLAGS_USING) {
+            timerctl.timer[i].timeout--;
+            if (timerctl.timer[i].timeout == 0) {
+                timerctl.timer[i].flags = TIMER_FLAGS_ALLOC;
+                fifo8_put(timerctl.timer[i].fifo, timerctl.timer[i].data);
+            }
+        }
+    }
+    return;
+}
+```
+
+bootpack.h
+```h
+struct TIMERCTL {
+	unsigned int count;
+	struct TIMER timer[MAX_TIMER];
+};
+```
+
+残り時間をやめて、タイムアウトを時刻を導入して時間を測定しています。   
+timer.c
+```c
+void inthandler20(int *esp)
+{
+    int i;
+    io_out8(PIC0_OCW2, 0x60);	/* IRQ-00受付完了をPICに通知 */
+    timerctl.count++;
+    for (i = 0; i < MAX_TIMER; i++) {
+        if (timerctl.timer[i].flags == TIMER_FLAGS_USING) {
+            if (timerctl.timer[i].timeout <= timerctl.count) {
+                timerctl.timer[i].flags = TIMER_FLAGS_ALLOC;
+                fifo8_put(timerctl.timer[i].fifo, timerctl.timer[i].data);
+            }
+        }
+    }
+    return;
+}
+```
+
+nextを追加したバージョンで時間を測定したいと思います。   
+timer.c
+```c
+/* タイマ関係 */
+
+#include "bootpack.h"
+
+#define PIT_CTRL	0x0043
+#define PIT_CNT0	0x0040
+
+struct TIMERCTL timerctl;
+
+#define TIMER_FLAGS_ALLOC		1	/* 確保した状態 */
+#define TIMER_FLAGS_USING		2	/* タイマ作動中 */
+
+void init_pit(void)
+{
+    int i;
+    io_out8(PIT_CTRL, 0x34);
+    io_out8(PIT_CNT0, 0x9c);
+    io_out8(PIT_CNT0, 0x2e);
+    timerctl.count = 0;
+    timerctl.next = 0xffffffff; /* 最初は作動中のタイマがないので */
+    for (i = 0; i < MAX_TIMER; i++) {
+        timerctl.timer[i].flags = 0; /* 未使用 */
+    }
+    return;
+}
+
+struct TIMER *timer_alloc(void)
+{
+    int i;
+    for (i = 0; i < MAX_TIMER; i++) {
+        if (timerctl.timer[i].flags == 0) {
+            timerctl.timer[i].flags = TIMER_FLAGS_ALLOC;
+            return &timerctl.timer[i];
+        }
+    }
+    return 0; /* 見つからなかった */
+}
+
+void timer_free(struct TIMER *timer)
+{
+    timer->flags = 0; /* 未使用 */
+    return;
+}
+
+void timer_init(struct TIMER *timer, struct FIFO8 *fifo, unsigned char data)
+{
+    timer->fifo = fifo;
+    timer->data = data;
+    return;
+}
+
+void timer_settime(struct TIMER *timer, unsigned int timeout)
+{
+    timer->timeout = timeout + timerctl.count;
+    timer->flags = TIMER_FLAGS_USING;
+    if (timerctl.next > timer->timeout) {
+        /* 次回の時刻を更新 */
+        timerctl.next = timer->timeout;
+    }
+    return;
+}
+
+void inthandler20(int *esp)
+{
+    int i;
+    io_out8(PIC0_OCW2, 0x60);	/* IRQ-00受付完了をPICに通知 */
+    timerctl.count++;
+    if (timerctl.next > timerctl.count) {
+        return; /* まだ次の時刻になってないので、もうおしまい */
+    }
+    timerctl.next = 0xffffffff;
+    for (i = 0; i < MAX_TIMER; i++) {
+        if (timerctl.timer[i].flags == TIMER_FLAGS_USING) {
+            if (timerctl.timer[i].timeout <= timerctl.count) {
+                /* タイムアウト */
+                timerctl.timer[i].flags = TIMER_FLAGS_ALLOC;
+                fifo8_put(timerctl.timer[i].fifo, timerctl.timer[i].data);
+            } else {
+                /* まだタイムアウトではない */
+                if (timerctl.next > timerctl.timer[i].timeout) {
+                    timerctl.next = timerctl.timer[i].timeout;
+                }
+            }
+        }
+    }
+    return;
+}
+```
+
+bootpack.h
+```h
+struct TIMERCTL {
+	unsigned int count, next;
+	struct TIMER timer[MAX_TIMER];
+};
+```
+
+性能がどんどんよくなってることがわかりました。   
+harib10cに戻して続きを書いていきます。   
+
+キーボードとマウスも一つのバッファに纏めて管理したいと思います。   
+bootpack.c
+```c
+void HariMain(void)
+{
+	struct BOOTINFO *binfo = (struct BOOTINFO *) ADR_BOOTINFO;
+	struct FIFO32 fifo;
+	char s[40];
+	int fifobuf[128];
+	struct TIMER *timer, *timer2, *timer3;
+	int mx, my, i, count = 0;
+	unsigned int memtotal;
+	struct MOUSE_DEC mdec;
+	struct MEMMAN *memman = (struct MEMMAN *) MEMMAN_ADDR;
+	struct SHTCTL *shtctl;
+	struct SHEET *sht_back, *sht_mouse, *sht_win;
+	unsigned char *buf_back, buf_mouse[256], *buf_win;
+
+	init_gdtidt();
+	init_pic();
+	io_sti(); /* IDT/PICの初期化が終わったのでCPUの割り込み禁止を解除 */
+	fifo32_init(&fifo, 128, fifobuf);
+	init_pit();
+	init_keyboard(&fifo, 256);
+	enable_mouse(&fifo, 512, &mdec);
+	io_out8(PIC0_IMR, 0xf8); /* PITとPIC1とキーボードを許可(11111000) */
+	io_out8(PIC1_IMR, 0xef); /* マウスを許可(11101111) */
+
+	timer = timer_alloc();
+	timer_init(timer, &fifo, 10);
+	timer_settime(timer, 1000);
+	timer2 = timer_alloc();
+	timer_init(timer2, &fifo, 3);
+	timer_settime(timer2, 300);
+	timer3 = timer_alloc();
+	timer_init(timer3, &fifo, 1);
+	timer_settime(timer3, 50);
+
+	memtotal = memtest(0x00400000, 0xbfffffff);
+	memman_init(memman);
+	memman_free(memman, 0x00001000, 0x0009e000); /* 0x00001000 - 0x0009efff */
+	memman_free(memman, 0x00400000, memtotal - 0x00400000);
+
+	init_palette();
+	shtctl = shtctl_init(memman, binfo->vram, binfo->scrnx, binfo->scrny);
+	sht_back  = sheet_alloc(shtctl);
+	sht_mouse = sheet_alloc(shtctl);
+	sht_win   = sheet_alloc(shtctl);
+	buf_back  = (unsigned char *) memman_alloc_4k(memman, binfo->scrnx * binfo->scrny);
+	buf_win   = (unsigned char *) memman_alloc_4k(memman, 160 * 52);
+	sheet_setbuf(sht_back, buf_back, binfo->scrnx, binfo->scrny, -1); /* 透明色なし */
+	sheet_setbuf(sht_mouse, buf_mouse, 16, 16, 99);
+	sheet_setbuf(sht_win, buf_win, 160, 52, -1); /* 透明色なし */
+	init_screen8(buf_back, binfo->scrnx, binfo->scrny);
+	init_mouse_cursor8(buf_mouse, 99);
+	make_window8(buf_win, 160, 52, "counter");
+	sheet_slide(sht_back, 0, 0);
+	mx = (binfo->scrnx - 16) / 2; /* 画面中央になるように座標計算 */
+	my = (binfo->scrny - 28 - 16) / 2;
+	sheet_slide(sht_mouse, mx, my);
+	sheet_slide(sht_win, 80, 72);
+	sheet_updown(sht_back,  0);
+	sheet_updown(sht_win,   1);
+	sheet_updown(sht_mouse, 2);
+	sprintf(s, "(%3d, %3d)", mx, my);
+	putfonts8_asc_sht(sht_back, 0, 0, COL8_FFFFFF, COL8_008484, s, 10);
+	sprintf(s, "memory %dMB   free : %dKB",
+			memtotal / (1024 * 1024), memman_total(memman) / 1024);
+	putfonts8_asc_sht(sht_back, 0, 32, COL8_FFFFFF, COL8_008484, s, 40);
+
+	for (;;) {
+		count++;
+
+		io_cli();
+		if (fifo32_status(&fifo) == 0) {
+			io_sti();
+		} else {
+			i = fifo32_get(&fifo);
+				io_sti();
+			if (256 <= i && i <= 511) { /* キーボードデータ */
+			sprintf(s, "%02X", i - 256);
+				putfonts8_asc_sht(sht_back, 0, 16, COL8_FFFFFF, COL8_008484, s, 2);
+			} else if (512 <= i && i <= 767) { /* マウスデータ */
+				if (mouse_decode(&mdec, i - 512) != 0) {
+					/* データが3バイト揃ったので表示 */
+					sprintf(s, "[lcr %4d %4d]", mdec.x, mdec.y);
+					if ((mdec.btn & 0x01) != 0) {
+						s[1] = 'L';
+					}
+					if ((mdec.btn & 0x02) != 0) {
+						s[3] = 'R';
+					}
+					if ((mdec.btn & 0x04) != 0) {
+						s[2] = 'C';
+					}
+					putfonts8_asc_sht(sht_back, 32, 16, COL8_FFFFFF, COL8_008484, s, 15);
+					/* マウスカーソルの移動 */
+					mx += mdec.x;
+					my += mdec.y;
+					if (mx < 0) {
+						mx = 0;
+					}
+					if (my < 0) {
+						my = 0;
+					}
+					if (mx > binfo->scrnx - 1) {
+						mx = binfo->scrnx - 1;
+					}
+					if (my > binfo->scrny - 1) {
+						my = binfo->scrny - 1;
+					}
+					sprintf(s, "(%3d, %3d)", mx, my);
+					putfonts8_asc_sht(sht_back, 0, 0, COL8_FFFFFF, COL8_008484, s, 10);
+					sheet_slide(sht_mouse, mx, my);
+				}
+			} else if (i == 10) { /* 10秒タイマ */
+				putfonts8_asc_sht(sht_back, 0, 64, COL8_FFFFFF, COL8_008484, "10[sec]", 7);	
+				sprintf(s, "%010d", count);
+				putfonts8_asc_sht(sht_win, 40, 28, COL8_000000, COL8_C6C6C6, s, 10);
+			} else if (i == 3) { /* 3秒タイマ */
+				putfonts8_asc_sht(sht_back, 0, 80, COL8_FFFFFF, COL8_008484, "3[sec]", 6);
+				count = 0; /* 測定開始 */
+			} else if (i == 1) { /* カーソル用タイマ */
+				timer_init(timer3, &fifo, 0); /* 次は0を */
+				boxfill8(buf_back, binfo->scrnx, COL8_FFFFFF, 8, 96, 15, 111);
+				timer_settime(timer3, 50);
+				sheet_refresh(sht_back, 8, 96, 16, 112);
+			} else if (i == 0) { /* カーソル用タイマ */
+				timer_init(timer3, &fifo, 1); /* 次は1を */
+				boxfill8(buf_back, binfo->scrnx, COL8_008484, 8, 96, 15, 111);
+				timer_settime(timer3, 50);
+				sheet_refresh(sht_back, 8, 96, 16, 112);
+			}
+		}
+	}
+}
+```
+
+timer.c
+```c
+/* タイマ関係 */
+
+#include "bootpack.h"
+
+#define PIT_CTRL	0x0043
+#define PIT_CNT0	0x0040
+
+struct TIMERCTL timerctl;
+
+#define TIMER_FLAGS_ALLOC		1	/* 確保した状態 */
+#define TIMER_FLAGS_USING		2	/* タイマ作動中 */
+
+void init_pit(void)
+{
+    int i;
+    io_out8(PIT_CTRL, 0x34);
+    io_out8(PIT_CNT0, 0x9c);
+    io_out8(PIT_CNT0, 0x2e);
+    timerctl.count = 0;
+    timerctl.next = 0xffffffff; /* 最初は作動中のタイマがないので */
+    timerctl.using = 0;
+    for (i = 0; i < MAX_TIMER; i++) {
+        timerctl.timers0[i].flags = 0; /* 未使用 */
+    }
+    return;
+}
+
+struct TIMER *timer_alloc(void)
+{
+    int i;
+    for (i = 0; i < MAX_TIMER; i++) {
+        if (timerctl.timers0[i].flags == 0) {
+            timerctl.timers0[i].flags = TIMER_FLAGS_ALLOC;
+            return &timerctl.timers0[i];
+        }
+    }
+    return 0; /* 見つからなかった */
+}
+
+void timer_free(struct TIMER *timer)
+{
+    timer->flags = 0; /* 未使用 */
+    return;
+}
+
+void timer_init(struct TIMER *timer, struct FIFO32 *fifo, int data)
+{
+    timer->fifo = fifo;
+    timer->data = data;
+    return;
+}
+
+void timer_settime(struct TIMER *timer, unsigned int timeout)
+{
+    int e, i, j;
+    timer->timeout = timeout + timerctl.count;
+    timer->flags = TIMER_FLAGS_USING;
+    e = io_load_eflags();
+    io_cli();
+    /* どこに入れればいいかを探す */
+    for (i = 0; i < timerctl.using; i++) {
+        if (timerctl.timers[i]->timeout >= timer->timeout) {
+            break;
+        }
+    }
+    /* うしろをずらす */
+    for (j = timerctl.using; j > i; j--) {
+        timerctl.timers[j] = timerctl.timers[j - 1];
+    }
+    timerctl.using++;
+    /* あいたすきまに入れる */
+    timerctl.timers[i] = timer;
+    timerctl.next = timerctl.timers[0]->timeout;
+    io_store_eflags(e);
+    return;
+}
+
+void inthandler20(int *esp)
+{
+    int i, j;
+    io_out8(PIC0_OCW2, 0x60);	/* IRQ-00受付完了をPICに通知 */
+    timerctl.count++;
+    if (timerctl.next > timerctl.count) {
+        return;
+    }
+    for (i = 0; i < timerctl.using; i++) {
+        /* timersのタイマは全て動作中のものなので、flagsを確認しない */
+        if (timerctl.timers[i]->timeout > timerctl.count) {
+            break;
+        }
+        /* タイムアウト */
+        timerctl.timers[i]->flags = TIMER_FLAGS_ALLOC;
+        fifo32_put(timerctl.timers[i]->fifo, timerctl.timers[i]->data);
+    }
+    /* ちょうどi個のタイマがタイムアウトした。残りをずらす。 */
+    timerctl.using -= i;
+    for (j = 0; j < timerctl.using; j++) {
+        timerctl.timers[j] = timerctl.timers[i + j];
+    }
+    if (timerctl.using > 0) {
+        timerctl.next = timerctl.timers[0]->timeout;
+    } else {
+        timerctl.next = 0xffffffff;
+    }
+    return;
+}
+```
+
+mouse.c
+```c
+/* マウス関係 */
+
+#include "bootpack.h"
+
+struct FIFO32 *mousefifo;
+int mousedata0;
+
+void inthandler2c(int *esp)
+/* PS/2マウスからの割り込み */
+{
+	int data;
+	io_out8(PIC1_OCW2, 0x64);	/* IRQ-12受付完了をPIC1に通知 */
+	io_out8(PIC0_OCW2, 0x62);	/* IRQ-02受付完了をPIC0に通知 */
+	data = io_in8(PORT_KEYDAT);
+	fifo32_put(mousefifo, data + mousedata0);
+	return;
+}
+
+#define KEYCMD_SENDTO_MOUSE		0xd4
+#define MOUSECMD_ENABLE			0xf4
+
+void enable_mouse(struct FIFO32 *fifo, int data0, struct MOUSE_DEC *mdec)
+{
+	/* 書き込み先のFIFOバッファを記憶 */
+	mousefifo = fifo;
+	mousedata0 = data0;
+	/* マウス有効 */
+	wait_KBC_sendready();
+	io_out8(PORT_KEYCMD, KEYCMD_SENDTO_MOUSE);
+	wait_KBC_sendready();
+	io_out8(PORT_KEYDAT, MOUSECMD_ENABLE);
+	/* うまくいくとACK(0xfa)が送信されてくる */
+	mdec->phase = 0; /* マウスの0xfaを待っている段階 */
+	return;
+}
+
+int mouse_decode(struct MOUSE_DEC *mdec, unsigned char dat)
+{
+	if (mdec->phase == 0) {
+		/* マウスの0xfaを待っている段階 */
+		if (dat == 0xfa) {
+			mdec->phase = 1;
+		}
+		return 0;
+	}
+	if (mdec->phase == 1) {
+		/* マウスの1バイト目を待っている段階 */
+		if ((dat & 0xc8) == 0x08) {
+			/* 正しい1バイト目だった */
+			mdec->buf[0] = dat;
+			mdec->phase = 2;
+		}
+		return 0;
+	}
+	if (mdec->phase == 2) {
+		/* マウスの2バイト目を待っている段階 */
+		mdec->buf[1] = dat;
+		mdec->phase = 3;
+		return 0;
+	}
+	if (mdec->phase == 3) {
+		/* マウスの3バイト目を待っている段階 */
+		mdec->buf[2] = dat;
+		mdec->phase = 1;
+		mdec->btn = mdec->buf[0] & 0x07;
+		mdec->x = mdec->buf[1];
+		mdec->y = mdec->buf[2];
+		if ((mdec->buf[0] & 0x10) != 0) {
+			mdec->x |= 0xffffff00;
+		}
+		if ((mdec->buf[0] & 0x20) != 0) {
+			mdec->y |= 0xffffff00;
+		}
+		mdec->y = - mdec->y; /* マウスではy方向の符号が画面と反対 */
+		return 1;
+	}
+	return -1; /* ここに来ることはないはず */
+}
+```
+
+keybord.c
+```c
+/* キーボード関係 */
+
+#include "bootpack.h"
+
+struct FIFO32 *keyfifo;
+int keydata0;
+
+void inthandler21(int *esp)
+{
+	int data;
+	io_out8(PIC0_OCW2, 0x61);	/* IRQ-01受付完了をPICに通知 */
+	data = io_in8(PORT_KEYDAT);
+	fifo32_put(keyfifo, data + keydata0);
+	return;
+}
+
+#define PORT_KEYSTA				0x0064
+#define KEYSTA_SEND_NOTREADY	0x02
+#define KEYCMD_WRITE_MODE		0x60
+#define KBC_MODE				0x47
+
+void wait_KBC_sendready(void)
+{
+	/* キーボードコントローラがデータ送信可能になるのを待つ */
+	for (;;) {
+		if ((io_in8(PORT_KEYSTA) & KEYSTA_SEND_NOTREADY) == 0) {
+			break;
+		}
+	}
+	return;
+}
+
+void init_keyboard(struct FIFO32 *fifo, int data0)
+{
+	/* 書き込み先のFIFOバッファを記憶 */
+	keyfifo = fifo;
+	keydata0 = data0;
+	/* キーボードコントローラの初期化 */
+	wait_KBC_sendready();
+	io_out8(PORT_KEYCMD, KEYCMD_WRITE_MODE);
+	wait_KBC_sendready();
+	io_out8(PORT_KEYDAT, KBC_MODE);
+	return;
+}
+```
+
+fifo.c
+```c
+/* FIFOライブラリ */
+
+#include "bootpack.h"
+
+#define FLAGS_OVERRUN		0x0001
+
+void fifo32_init(struct FIFO32 *fifo, int size, int *buf)
+/* FIFOバッファの初期化 */
+{
+	fifo->size = size;
+	fifo->buf = buf;
+	fifo->free = size; /* 空き */
+	fifo->flags = 0;
+	fifo->p = 0; /* 書き込み位置 */
+	fifo->q = 0; /* 読み込み位置 */
+	return;
+}
+
+int fifo32_put(struct FIFO32 *fifo, int data)
+/* FIFOへデータを送り込んで蓄える */
+{
+	if (fifo->free == 0) {
+		/* 空きがなくてあふれた */
+		fifo->flags |= FLAGS_OVERRUN;
+		return -1;
+	}
+	fifo->buf[fifo->p] = data;
+	fifo->p++;
+	if (fifo->p == fifo->size) {
+		fifo->p = 0;
+	}
+	fifo->free--;
+	return 0;
+}
+
+int fifo32_get(struct FIFO32 *fifo)
+/* FIFOからデータを一つとってくる */
+{
+	int data;
+	if (fifo->free == fifo->size) {
+		/* バッファが空っぽのときは、とりあえず-1が返される */
+		return -1;
+	}
+	data = fifo->buf[fifo->q];
+	fifo->q++;
+	if (fifo->q == fifo->size) {
+		fifo->q = 0;
+	}
+	fifo->free++;
+	return data;
+}
+
+int fifo32_status(struct FIFO32 *fifo)
+/* どのくらいデータが溜まっているかを報告する */
+{
+	return fifo->size - fifo->free;
+}
+```
+
+bootpack.h
+```h
+/* fifo.c */
+struct FIFO32 {
+	int *buf;
+	int p, q, size, free, flags;
+};
+void fifo32_init(struct FIFO32 *fifo, int size, int *buf);
+int fifo32_put(struct FIFO32 *fifo, int data);
+int fifo32_get(struct FIFO32 *fifo);
+int fifo32_status(struct FIFO32 *fifo);
+
+(中略)
+/* keyboard.c */
+void inthandler21(int *esp);
+void wait_KBC_sendready(void);
+void init_keyboard(struct FIFO32 *fifo, int data0);
+#define PORT_KEYDAT		0x0060
+#define PORT_KEYCMD		0x0064
+
+(中略)
+/* mouse.c */
+struct MOUSE_DEC {
+	unsigned char buf[3], phase;
+	int x, y, btn;
+};
+void inthandler2c(int *esp);
+void enable_mouse(struct FIFO32 *fifo, int data0, struct MOUSE_DEC *mdec);
+int mouse_decode(struct MOUSE_DEC *mdec, unsigned char dat);
+
+(中略)
+/* timer.c */
+#define MAX_TIMER		500
+struct TIMER {
+	unsigned int timeout, flags;
+	struct FIFO32 *fifo;
+	int data;
+};
+struct TIMERCTL {
+	unsigned int count, next, using;
+	struct TIMER *timers[MAX_TIMER];
+	struct TIMER timers0[MAX_TIMER];
+};
+extern struct TIMERCTL timerctl;
+void init_pit(void);
+struct TIMER *timer_alloc(void);
+void timer_free(struct TIMER *timer);
+void timer_init(struct TIMER *timer, struct FIFO32 *fifo, int data);
+void timer_settime(struct TIMER *timer, unsigned int timeout);
+void inthandler20(int *esp);
+```
+
+この改造をおこなうことで割り込みの速度も早くなりました。
+
+**実装過程**   
+・　[0fd5c03332195a404214e9953cc1471a5320e933](0fd5c03332195a404214e9953cc1471a5320e933)
