@@ -11164,3 +11164,389 @@ void task_b_main(void)
 
 **実装過程**   
 ・　[ddeb14d5b2418078840fc794c1308f627ea9cf5c](ddeb14d5b2418078840fc794c1308f627ea9cf5c)
+
+## day16
+今回はタスクBに一回切り替えた後またタスクAに切り替える処理を作ります。   
+bootpack.h 
+```h
+void taskswitch3(void);
+```
+
+naskfunc.nas
+```
+GLOBAL	_taskswitch3, _taskswitch4
+```
+
+```
+_taskswitch3:	; void taskswitch3(void);
+		JMP		3*8:0
+		RET
+```
+
+bootpack.c
+```c
+void task_b_main(void)
+{
+	struct FIFO32 fifo;
+	struct TIMER *timer;
+	int i, fifobuf[128];
+
+	fifo32_init(&fifo, 128, fifobuf);
+	timer = timer_alloc();
+	timer_init(timer, &fifo, 1);
+	timer_settime(timer, 500);
+
+	for (;;) {
+		io_cli();
+		if (fifo32_status(&fifo) == 0) {
+			io_sti();
+			io_hlt();
+		} else {
+			i = fifo32_get(&fifo);
+			io_sti();
+			if (i == 1) { /* 5秒タイムアウト */
+				taskswitch3(); /* タスクAにもどる */
+			}
+		}
+	}
+}
+```
+
+これでタスクが切り替わりました。   
+taskswitchが二つもあるのは邪魔なので一つの関数で複数のタスクを切り替えられる関数を作ります。   
+bootpack.h
+```h
+/* naskfunc.nas */
+void io_hlt(void);
+void io_cli(void);
+void io_sti(void);
+void io_stihlt(void);
+int io_in8(int port);
+void io_out8(int port, int data);
+int io_load_eflags(void);
+void io_store_eflags(int eflags);
+void load_gdtr(int limit, int addr);
+void load_idtr(int limit, int addr);
+int load_cr0(void);
+void store_cr0(int cr0);
+void load_tr(int tr);
+void asm_inthandler20(void);
+void asm_inthandler21(void);
+void asm_inthandler27(void);
+void asm_inthandler2c(void);
+unsigned int memtest_sub(unsigned int start, unsigned int end);
+void farjmp(int eip, int cs);
+```
+
+naskfunc.nask
+```
+GLOBAL	_memtest_sub
+GLOBAL	_farjmp
+EXTERN	_inthandler20, _inthandler21
+```
+
+```
+_farjmp:		; void farjmp(int eip, int cs);
+		JMP		FAR	[ESP+4]				; eip, cs
+		RET
+```
+
+bootpack.c
+```c
+struct TIMER *timer, *timer2, *timer3, *timer_ts;
+```
+
+```c
+timer_ts = timer_alloc();
+timer_init(timer_ts, &fifo, 2);
+timer_settime(timer_ts, 2);
+```
+
+```c
+for (;;) {
+		io_cli();
+		if (fifo32_status(&fifo) == 0) {
+			io_stihlt();
+		} else {
+			i = fifo32_get(&fifo);
+			io_sti();
+			if (i == 2) {
+				farjmp(0, 4 * 8);
+				timer_settime(timer_ts, 2);
+			} else if (256 <= i && i <= 511) { /* キーボードデータ */
+				sprintf(s, "%02X", i - 256);
+				putfonts8_asc_sht(sht_back, 0, 16, COL8_FFFFFF, COL8_008484, s, 2);
+				if (i < 0x54 + 256) {
+					if (keytable[i - 256] != 0 && cursor_x < 144) { /* 通常文字 */
+						/* 一文字表示してから、カーソルを1つ進める */
+						s[0] = keytable[i - 256];
+						s[1] = 0;
+						putfonts8_asc_sht(sht_win, cursor_x, 28, COL8_000000, COL8_FFFFFF, s, 1);
+						cursor_x += 8;
+					}
+				}
+				if (i == 256 + 0x0e && cursor_x > 8) { /* バックスペース */
+					/* カーソルをスペースで消してから、カーソルを1つ戻す */
+					putfonts8_asc_sht(sht_win, cursor_x, 28, COL8_000000, COL8_FFFFFF, " ", 1);
+					cursor_x -= 8;
+				}
+				/* カーソルの再表示 */
+				boxfill8(sht_win->buf, sht_win->bxsize, cursor_c, cursor_x, 28, cursor_x + 7, 43);
+				sheet_refresh(sht_win, cursor_x, 28, cursor_x + 8, 44);
+			} else if (512 <= i && i <= 767) { /* マウスデータ */
+				if (mouse_decode(&mdec, i - 512) != 0) {
+					/* データが3バイト揃ったので表示 */
+					sprintf(s, "[lcr %4d %4d]", mdec.x, mdec.y);
+					if ((mdec.btn & 0x01) != 0) {
+						s[1] = 'L';
+					}
+					if ((mdec.btn & 0x02) != 0) {
+						s[3] = 'R';
+					}
+					if ((mdec.btn & 0x04) != 0) {
+						s[2] = 'C';
+					}
+					putfonts8_asc_sht(sht_back, 32, 16, COL8_FFFFFF, COL8_008484, s, 15);
+					/* マウスカーソルの移動 */
+					mx += mdec.x;
+					my += mdec.y;
+					if (mx < 0) {
+						mx = 0;
+					}
+					if (my < 0) {
+						my = 0;
+					}
+					if (mx > binfo->scrnx - 1) {
+						mx = binfo->scrnx - 1;
+					}
+					if (my > binfo->scrny - 1) {
+						my = binfo->scrny - 1;
+					}
+					sprintf(s, "(%3d, %3d)", mx, my);
+					putfonts8_asc_sht(sht_back, 0, 0, COL8_FFFFFF, COL8_008484, s, 10);
+					sheet_slide(sht_mouse, mx, my);
+					if ((mdec.btn & 0x01) != 0) {
+						/* 左ボタンを押していたら、sht_winを動かす */
+						sheet_slide(sht_win, mx - 80, my - 8);
+					}
+				}
+			} else if (i == 10) { /* 10秒タイマ */
+				putfonts8_asc_sht(sht_back, 0, 64, COL8_FFFFFF, COL8_008484, "10[sec]", 7);
+			} else if (i == 3) { /* 3秒タイマ */
+				putfonts8_asc_sht(sht_back, 0, 80, COL8_FFFFFF, COL8_008484, "3[sec]", 6);
+			} else if (i <= 1) { /* カーソル用タイマ */
+				if (i != 0) {
+					timer_init(timer3, &fifo, 0); /* 次は0を */
+					cursor_c = COL8_000000;
+				} else {
+					timer_init(timer3, &fifo, 1); /* 次は1を */
+					cursor_c = COL8_FFFFFF;
+				}
+				timer_settime(timer3, 50);
+				boxfill8(sht_win->buf, sht_win->bxsize, cursor_c, cursor_x, 28, cursor_x + 7, 43);
+				sheet_refresh(sht_win, cursor_x, 28, cursor_x + 8, 44);
+			}
+		}
+	}
+```
+
+```c
+void task_b_main(void)
+{
+	struct FIFO32 fifo;
+	struct TIMER *timer_ts;
+	int i, fifobuf[128];
+
+	fifo32_init(&fifo, 128, fifobuf);
+	timer_ts = timer_alloc();
+	timer_init(timer_ts, &fifo, 1);
+	timer_settime(timer_ts, 2);
+
+	for (;;) {
+		io_cli();
+		if (fifo32_status(&fifo) == 0) {
+			io_sti();
+			io_hlt();
+		} else {
+			i = fifo32_get(&fifo);
+			io_sti();
+			if (i == 1) { /* タスクスイッチ */
+				farjmp(0, 3 * 8);
+				timer_settime(timer_ts, 2);
+			}
+		}
+	}
+}
+```
+
+タスクが切り替わってるかよくわかりませんが正常に切り替わったのでよしとします。
+
+本当にマルチタスクができているか確かめてみます。   
+bootpack.c
+```c
+tss_b.gs = 1 * 8;
+*((int *) 0x0fec) = (int) sht_back;
+```
+
+```c
+void task_b_main(void)
+{
+	struct FIFO32 fifo;
+	struct TIMER *timer_ts;
+	int i, fifobuf[128], count = 0;
+	char s[11];
+	struct SHEET *sht_back;
+
+	fifo32_init(&fifo, 128, fifobuf);
+	timer_ts = timer_alloc();
+	timer_init(timer_ts, &fifo, 1);
+	timer_settime(timer_ts, 2);
+	sht_back = (struct SHEET *) *((int *) 0x0fec);
+
+	for (;;) {
+		count++;
+		sprintf(s, "%10d", count);
+		putfonts8_asc_sht(sht_back, 0, 144, COL8_FFFFFF, COL8_008484, s, 10);
+		io_cli();
+		if (fifo32_status(&fifo) == 0) {
+			io_sti();
+		} else {
+			i = fifo32_get(&fifo);
+			io_sti();
+			if (i == 1) { /* タスクスイッチ */
+				farjmp(0, 3 * 8);
+				timer_settime(timer_ts, 2);
+			}
+		}
+	}
+}
+```
+
+マウスを動かしたり入力してる傍ら数字をカウントをしています!! 素晴らしい進歩です。   
+
+今度はカウントをさらにスピードアップさせてみます。   
+
+bootpack.c
+```c
+void task_b_main(struct SHEET *sht_back);
+```
+
+```c
+tss_a.ldtr = 0;
+tss_a.iomap = 0x40000000;
+tss_b.ldtr = 0;
+tss_b.iomap = 0x40000000;
+set_segmdesc(gdt + 3, 103, (int) &tss_a, AR_TSS32);
+set_segmdesc(gdt + 4, 103, (int) &tss_b, AR_TSS32);
+load_tr(3 * 8);
+task_b_esp = memman_alloc_4k(memman, 64 * 1024) + 64 * 1024 - 8;
+tss_b.eip = (int) &task_b_main;
+tss_b.eflags = 0x00000202; /* IF = 1; */
+tss_b.eax = 0;
+tss_b.ecx = 0;
+tss_b.edx = 0;
+tss_b.ebx = 0;
+tss_b.esp = task_b_esp;
+tss_b.ebp = 0;
+tss_b.esi = 0;
+tss_b.edi = 0;
+tss_b.es = 1 * 8;
+tss_b.cs = 2 * 8;
+tss_b.ss = 1 * 8;
+tss_b.ds = 1 * 8;
+tss_b.fs = 1 * 8;
+tss_b.gs = 1 * 8;
+*((int *) (task_b_esp + 4)) = (int) sht_back;
+```
+
+```c
+void task_b_main(struct SHEET *sht_back)
+{
+	struct FIFO32 fifo;
+	struct TIMER *timer_ts, *timer_put;
+	int i, fifobuf[128], count = 0;
+	char s[12];
+
+	fifo32_init(&fifo, 128, fifobuf);
+	timer_ts = timer_alloc();
+	timer_init(timer_ts, &fifo, 2);
+	timer_settime(timer_ts, 2);
+	timer_put = timer_alloc();
+	timer_init(timer_put, &fifo, 1);
+	timer_settime(timer_put, 1);
+
+	for (;;) {
+		count++;
+		io_cli();
+		if (fifo32_status(&fifo) == 0) {
+			io_sti();
+		} else {
+			i = fifo32_get(&fifo);
+			io_sti();
+			if (i == 1) {
+				sprintf(s, "%11d", count);
+				putfonts8_asc_sht(sht_back, 0, 144, COL8_FFFFFF, COL8_008484, s, 11);
+				timer_settime(timer_put, 1);
+			} else if (i == 2) {
+				farjmp(0, 3 * 8);
+				timer_settime(timer_ts, 2);
+			}
+		}
+	}
+}
+```
+
+起動してみると確かにカウントが前よりも増えていますね。   
+
+スピードも上がったことなのでスピードの計測してみたいと思います。
+
+bootpack.c
+```c
+void task_b_main(struct SHEET *sht_back)
+{
+	struct FIFO32 fifo;
+	struct TIMER *timer_ts, *timer_put, *timer_1s;
+	int i, fifobuf[128], count = 0, count0 = 0;
+	char s[12];
+
+	fifo32_init(&fifo, 128, fifobuf);
+	timer_ts = timer_alloc();
+	timer_init(timer_ts, &fifo, 2);
+	timer_settime(timer_ts, 2);
+	timer_put = timer_alloc();
+	timer_init(timer_put, &fifo, 1);
+	timer_settime(timer_put, 1);
+	timer_1s = timer_alloc();
+	timer_init(timer_1s, &fifo, 100);
+	timer_settime(timer_1s, 100);
+
+	for (;;) {
+		count++;
+		io_cli();
+		if (fifo32_status(&fifo) == 0) {
+			io_sti();
+		} else {
+			i = fifo32_get(&fifo);
+			io_sti();
+			if (i == 1) {
+				sprintf(s, "%11d", count);
+				putfonts8_asc_sht(sht_back, 0, 144, COL8_FFFFFF, COL8_008484, s, 11);
+				timer_settime(timer_put, 1);
+			} else if (i == 2) {
+				farjmp(0, 3 * 8);
+				timer_settime(timer_ts, 2);
+			} else if (i == 100) {
+				sprintf(s, "%11d", count - count0);
+				putfonts8_asc_sht(sht_back, 0, 128, COL8_FFFFFF, COL8_008484, s, 11);
+				count0 = count;
+				timer_settime(timer_1s, 100);
+			}
+		}
+	}
+}
+```
+
+これで時間二つ表示されて時間を策定することができるようになりました。
+
+**実装過程**   
+・　[92bd4785bb730dbf0b9114625b6820e9b12b9db6](92bd4785bb730dbf0b9114625b6820e9b12b9db6)
