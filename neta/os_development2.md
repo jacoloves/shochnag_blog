@@ -18691,3 +18691,1366 @@ next:
 
 **実装過程**   
 ・　[9d4755649f1e8f03f864d161f63a7743d7eb24e7](9d4755649f1e8f03f864d161f63a7743d7eb24e7)
+
+## day24
+1文字表示させるAPIを作っていきます。   
+naskfunk.nas
+```nasm
+		GLOBAL	_io_hlt, _io_cli, _io_sti, _io_stihlt
+		GLOBAL	_io_in8,  _io_in16,  _io_in32
+		GLOBAL	_io_out8, _io_out16, _io_out32
+		GLOBAL	_io_load_eflags, _io_store_eflags
+		GLOBAL	_load_gdtr, _load_idtr
+		GLOBAL	_load_cr0, _store_cr0
+		GLOBAL	_load_tr
+		GLOBAL	_asm_inthandler20, _asm_inthandler21
+		GLOBAL	_asm_inthandler27, _asm_inthandler2c
+		GLOBAL	_memtest_sub
+		GLOBAL	_farjmp
+		GLOBAL	_asm_cons_putchar
+		EXTERN	_inthandler20, _inthandler21
+		EXTERN	_inthandler27, _inthandler2c
+		EXTERN	_cons_putchar
+```
+
+```nasm
+_asm_cons_putchar:
+		PUSH	1
+		AND		EAX,0xff	; AHやEAXの上位を0にして、EAXに文字コードが入った状態にする。
+		PUSH	EAX
+		PUSH	DWORD [0x0fec]	; メモリの内容を読み込んでその値をPUSHする
+		CALL	_cons_putchar
+		ADD		ESP,12		; スタックに積んだデータを捨てる
+		RET
+```
+
+console.c
+```c
+void console_task(struct SHEET *sheet, unsigned int memtotal)
+{
+	struct TIMER *timer;
+	struct TASK *task = task_now();
+	struct MEMMAN *memman = (struct MEMMAN *) MEMMAN_ADDR;
+	int i, fifobuf[128], *fat = (int *) memman_alloc_4k(memman, 4 * 2880);
+	struct CONSOLE cons;
+	char cmdline[30];
+	cons.sht = sheet;
+	cons.cur_x =  8;
+	cons.cur_y = 28;
+	cons.cur_c = -1;
+	*((int *) 0x0fec) = (int) &cons;
+```
+
+hlt.nas
+```nasm
+[BITS 32]
+        MOV		AL,'A'
+        CALL    0xbe3
+fin:
+        HLT
+        JMP		fin
+```
+
+エミュレーターが動かなくなってしまって動くように直します
+hlt.nas
+```nasm
+[BITS 32]
+        MOV		AL,'A'
+        CALL            2*8:0xbe3
+fin:
+        HLT
+        JMP		fin
+```
+
+naskfunc.nas
+```nasm
+_asm_cons_putchar:
+		PUSH	1
+		AND		EAX,0xff	; AHやEAXの上位を0にして、EAXに文字コードが入った状態にする。
+		PUSH	EAX
+		PUSH	DWORD [0x0fec]	; メモリの内容を読み込んでその値をPUSHする
+		CALL	_cons_putchar
+		ADD		ESP,12		; スタックに積んだデータを捨てる
+		RET
+		RETF
+```
+
+アプリケーションに終了処理を作ってみたいと思います。   
+naskfunc.nas
+```nasm
+GLOBAL	_farjmp, _farcall
+```
+
+```nasm
+_farcall:		; void farcall(int eip, int cs);
+		CALL	FAR	[ESP+4]				; eip, cs
+		RET
+
+_asm_cons_putchar:
+		PUSH	1
+		AND		EAX,0xff	; AHやEAXの上位を0にして、EAXに文字コードが入った状態にする。
+		PUSH	EAX
+		PUSH	DWORD [0x0fec]	; メモリの内容を読み込んでその値をPUSHする
+		CALL	_cons_putchar
+		ADD		ESP,12		; スタックに積んだデータを捨てる
+		RETF
+```
+
+console.c
+```c
+void cmd_hlt(struct CONSOLE *cons, int *fat)
+{
+	struct MEMMAN *memman = (struct MEMMAN *) MEMMAN_ADDR;
+	struct FILEINFO *finfo = file_search("HLT.HRB", (struct FILEINFO *) (ADR_DISKIMG + 0x002600), 224);
+	struct SEGMENT_DESCRIPTOR *gdt = (struct SEGMENT_DESCRIPTOR *) ADR_GDT;
+	char *p;
+	if (finfo != 0) {
+		/* ファイルが見つかった場合 */
+		p = (char *) memman_alloc_4k(memman, finfo->size);
+		file_loadfile(finfo->clustno, finfo->size, p, fat, (char *) (ADR_DISKIMG + 0x003e00));
+		set_segmdesc(gdt + 1003, finfo->size - 1, (int) p, AR_CODE32_ER);
+		farcall(0, 1003 * 8);
+		memman_free_4k(memman, (int) p, finfo->size);
+	} else {
+		/* ファイルが見つからなかった場合 */
+		putfonts8_asc_sht(cons->sht, 8, cons->cur_y, COL8_FFFFFF, COL8_000000, "File not found.", 15);
+		cons_newline(cons);
+	}
+	cons_newline(cons);
+	return;
+}
+```
+
+bootpack.h
+```h
+void farcall(int eip, int cs);
+void asm_cons_putchar(void);
+```
+
+hlt.nas
+```nasm
+[BITS 32]
+        MOV		AL,'h'
+        CALL		2*8:0xbe8
+        MOV             AL,'e'
+        CALL            2*8:0xbe8
+        MOV             AL,'l'
+        CALL            2*8:0xbe8
+        MOV             AL,'l'
+        CALL            2*8:0xbe8
+        MOV             AL,'o'
+        CALL            2*8:0xbe8
+        RETF
+```
+
+hlt.hrbのアプリサイズを小さくしてみます。   
+dsctbl.c
+```c
+void init_gdtidt(void)
+{
+	struct SEGMENT_DESCRIPTOR *gdt = (struct SEGMENT_DESCRIPTOR *) ADR_GDT;
+	struct GATE_DESCRIPTOR    *idt = (struct GATE_DESCRIPTOR    *) ADR_IDT;
+	int i;
+
+	/* GDTの初期化 */
+	for (i = 0; i <= LIMIT_GDT / 8; i++) {
+		set_segmdesc(gdt + i, 0, 0, 0);
+	}
+	set_segmdesc(gdt + 1, 0xffffffff,   0x00000000, AR_DATA32_RW);
+	set_segmdesc(gdt + 2, LIMIT_BOTPAK, ADR_BOTPAK, AR_CODE32_ER);
+	load_gdtr(LIMIT_GDT, ADR_GDT);
+
+	/* IDTの初期化 */
+	for (i = 0; i <= LIMIT_IDT / 8; i++) {
+		set_gatedesc(idt + i, 0, 0, 0);
+	}
+	load_idtr(LIMIT_IDT, ADR_IDT);
+
+	/* IDTの設定 */
+	set_gatedesc(idt + 0x20, (int) asm_inthandler20, 2 * 8, AR_INTGATE32);
+	set_gatedesc(idt + 0x21, (int) asm_inthandler21, 2 * 8, AR_INTGATE32);
+	set_gatedesc(idt + 0x27, (int) asm_inthandler27, 2 * 8, AR_INTGATE32);
+	set_gatedesc(idt + 0x2c, (int) asm_inthandler2c, 2 * 8, AR_INTGATE32);
+	set_gatedesc(idt + 0x40, (int) asm_cons_putchar, 2 * 8, AR_INTGATE32);
+
+	return;
+}
+```
+
+hlt.nas
+```nasm
+[BITS 32]
+        MOV		AL,'h'
+        INT		0x40
+        MOV             AL,'e'
+        INT            0x40
+        MOV             AL,'l'
+        INT            0x40
+        MOV             AL,'l'
+        INT            0x40
+        MOV             AL,'o'
+        INT            0x40
+        RETF
+        
+```
+
+naskfunc.nas
+```nasm
+_asm_cons_putchar:
+		STI
+		PUSH	1
+		AND		EAX,0xff	; AHやEAXの上位を0にして、EAXに文字コードが入った状態にする。
+		PUSH	EAX
+		PUSH	DWORD [0x0fec]	; メモリの内容を読み込んでその値をPUSHする
+		CALL	_cons_putchar
+		ADD		ESP,12		; スタックに積んだデータを捨てる
+		IRETD
+```
+
+アプリケーション名を変更しようと思います。   
+bootpack.h
+```h
+/* console.c */
+struct CONSOLE {
+	struct SHEET *sht;
+	int cur_x, cur_y, cur_c;
+};
+void console_task(struct SHEET *sheet, unsigned int memtotal);
+void cons_putchar(struct CONSOLE *cons, int chr, char move);
+void cons_newline(struct CONSOLE *cons);
+void cons_runcmd(char *cmdline, struct CONSOLE *cons, int *fat, unsigned int memtotal);
+void cmd_mem(struct CONSOLE *cons, unsigned int memtotal);
+void cmd_cls(struct CONSOLE *cons);
+void cmd_dir(struct CONSOLE *cons);
+void cmd_type(struct CONSOLE *cons, int *fat, char *cmdline);
+int cmd_app(struct CONSOLE *cons, int *fat, char *cmdline);
+```
+
+console.c
+```c
+void cons_runcmd(char *cmdline, struct CONSOLE *cons, int *fat, unsigned int memtotal)
+{
+	if (strcmp(cmdline, "mem") == 0) {
+		cmd_mem(cons, memtotal);
+	} else if (strcmp(cmdline, "cls") == 0) {
+		cmd_cls(cons);
+	} else if (strcmp(cmdline, "dir") == 0) {
+		cmd_dir(cons);
+	} else if (strncmp(cmdline, "type ", 5) == 0) {
+		cmd_type(cons, fat, cmdline);
+	} else if (cmdline[0] != 0) {
+		if (cmd_app(cons, fat, cmdline) == 0) {
+			/* コマンドではなく、アプリでもなく、さらに空行でもない */
+			putfonts8_asc_sht(cons->sht, 8, cons->cur_y, COL8_FFFFFF, COL8_000000, "Bad command.", 12);
+			cons_newline(cons);
+			cons_newline(cons);
+		}
+	}
+	return;
+}
+```
+
+```c
+int cmd_app(struct CONSOLE *cons, int *fat, char *cmdline)
+{
+	struct MEMMAN *memman = (struct MEMMAN *) MEMMAN_ADDR;
+	struct FILEINFO *finfo;
+	struct SEGMENT_DESCRIPTOR *gdt = (struct SEGMENT_DESCRIPTOR *) ADR_GDT;
+	char name[18], *p;
+	int i;
+
+	/* コマンドラインからファイル名を生成 */
+	for (i = 0; i < 13; i++) {
+		if (cmdline[i] <= ' ') {
+			break;
+		}
+		name[i] = cmdline[i];
+	}
+	name[i] = 0; /* とりあえずファイル名の後ろを0にする */
+
+	/* ファイルを探す */
+	finfo = file_search(name, (struct FILEINFO *) (ADR_DISKIMG + 0x002600), 224);
+	if (finfo == 0 && name[i - 1] != '.') {
+		/* 見つからなかったので後ろに".HRB"をつけてもう一度探してみる */
+		name[i    ] = '.';
+		name[i + 1] = 'H';
+		name[i + 2] = 'R';
+		name[i + 3] = 'B';
+		name[i + 4] = 0;
+		finfo = file_search(name, (struct FILEINFO *) (ADR_DISKIMG + 0x002600), 224);
+	}
+
+	if (finfo != 0) {
+		/* ファイルが見つかった場合 */
+		p = (char *) memman_alloc_4k(memman, finfo->size);
+		file_loadfile(finfo->clustno, finfo->size, p, fat, (char *) (ADR_DISKIMG + 0x003e00));
+		set_segmdesc(gdt + 1003, finfo->size - 1, (int) p, AR_CODE32_ER);
+		farcall(0, 1003 * 8);
+		memman_free_4k(memman, (int) p, finfo->size);
+		cons_newline(cons);
+		return 1;
+	}
+	/* ファイルが見つからなかった場合 */
+	return 0;
+}
+```
+
+Makefile
+```Makefile
+hello.hrb : hello.nas Makefile
+	$(NASK) hello.nas hello.hrb hello.lst
+
+haribote.sys : asmhead.bin bootpack.hrb Makefile
+	cat asmhead.bin bootpack.hrb > haribote.sys
+
+haribote.img : ipl10.bin haribote.sys hello.hrb Makefile
+	$(EDIMG)   imgin:..\..\z_tools\fdimg0at.tek \
+		wbinimg src:ipl10.bin len:512 from:0 to:0 \
+		copy from:haribote.sys to:@: \
+		copy from:ipl10.nas to:@: \
+		copy from:make.bat to:@: \
+		copy from:hello.hrb to:@: \
+		imgout:haribote.img
+```
+
+hello.nas
+```nasm
+[BITS 32]
+        MOV		AL,'h'
+        INT		0x40
+        MOV             AL,'e'
+        INT            0x40
+        MOV             AL,'l'
+        INT            0x40
+        MOV             AL,'l'
+        INT            0x40
+        MOV             AL,'o'
+        INT            0x40
+        RETF
+```
+
+hello.hrbをさらに小さくしてみます（結局ここでは小さくなりませんが）   
+hello.nas
+```nasm
+[INSTRSET "i486p"]
+[BITS 32]
+        MOV     ECX,msg
+putloop:
+        MOV     AL,[CS:ECX]
+        CMP     AL,0
+        JE      fin
+        INT     0x40
+        ADD     ECX,1
+        JMP     putloop
+fin:
+        RETF
+msg:
+        DB  "hello",0
+```
+
+naskfunc.nas
+```nasm
+_asm_cons_putchar:
+		STI
+		PUSHAD
+		PUSH	1
+		AND		EAX,0xff	; AHやEAXの上位を0にして、EAXに文字コードが入った状態にする。
+		PUSH	EAX
+		PUSH	DWORD [0x0fec]	; メモリの内容を読み込んでその値をPUSHする
+		CALL	_cons_putchar
+		ADD		ESP,12		; スタックに積んだデータを捨てる
+		POPAD
+		IRETD
+```
+
+文字列表示アプリを作ってみます。
+bootpack.h
+```h
+/* naskfunc.nas */
+void io_hlt(void);
+void io_cli(void);
+void io_sti(void);
+void io_stihlt(void);
+int io_in8(int port);
+void io_out8(int port, int data);
+int io_load_eflags(void);
+void io_store_eflags(int eflags);
+void load_gdtr(int limit, int addr);
+void load_idtr(int limit, int addr);
+int load_cr0(void);
+void store_cr0(int cr0);
+void load_tr(int tr);
+void asm_inthandler20(void);
+void asm_inthandler21(void);
+void asm_inthandler27(void);
+void asm_inthandler2c(void);
+unsigned int memtest_sub(unsigned int start, unsigned int end);
+void farjmp(int eip, int cs);
+void farcall(int eip, int cs);
+void asm_hrb_api(void);
+```
+
+```h
+/* console.c */
+struct CONSOLE {
+	struct SHEET *sht;
+	int cur_x, cur_y, cur_c;
+};
+void console_task(struct SHEET *sheet, unsigned int memtotal);
+void cons_putchar(struct CONSOLE *cons, int chr, char move);
+void cons_newline(struct CONSOLE *cons);
+void cons_putstr0(struct CONSOLE *cons, char *s);
+void cons_putstr1(struct CONSOLE *cons, char *s, int l);
+void cons_runcmd(char *cmdline, struct CONSOLE *cons, int *fat, unsigned int memtotal);
+void cmd_mem(struct CONSOLE *cons, unsigned int memtotal);
+void cmd_cls(struct CONSOLE *cons);
+void cmd_dir(struct CONSOLE *cons);
+void cmd_type(struct CONSOLE *cons, int *fat, char *cmdline);
+int cmd_app(struct CONSOLE *cons, int *fat, char *cmdline);
+void hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int eax);
+```
+
+Makefile
+```Makefile
+hello.hrb : hello.nas Makefile
+	$(NASK) hello.nas hello.hrb hello.lst
+
+hello2.hrb : hello2.nas Makefile
+	$(NASK) hello2.nas hello2.hrb hello2.lst
+
+haribote.sys : asmhead.bin bootpack.hrb Makefile
+	cat asmhead.bin bootpack.hrb > haribote.sys
+
+haribote.img : ipl10.bin haribote.sys hello.hrb hello2.hrb Makefile
+	$(EDIMG)   imgin:..\..\z_tools\fdimg0at.tek \
+		wbinimg src:ipl10.bin len:512 from:0 to:0 \
+		copy from:haribote.sys to:@: \
+		copy from:ipl10.nas to:@: \
+		copy from:make.bat to:@: \
+		copy from:hello.hrb to:@: \
+		copy from:hello2.hrb to:@: \
+		imgout:haribote.img
+```
+
+console.c
+```c
+void cons_runcmd(char *cmdline, struct CONSOLE *cons, int *fat, unsigned int memtotal)
+{
+	if (strcmp(cmdline, "mem") == 0) {
+		cmd_mem(cons, memtotal);
+	} else if (strcmp(cmdline, "cls") == 0) {
+		cmd_cls(cons);
+	} else if (strcmp(cmdline, "dir") == 0) {
+		cmd_dir(cons);
+	} else if (strncmp(cmdline, "type ", 5) == 0) {
+		cmd_type(cons, fat, cmdline);
+	} else if (cmdline[0] != 0) {
+		if (cmd_app(cons, fat, cmdline) == 0) {
+			/* コマンドではなく、アプリでもなく、さらに空行でもない */
+			cons_putstr0(cons, "Bad command.\n\n");
+		}
+	}
+	return;
+}
+
+void cmd_mem(struct CONSOLE *cons, unsigned int memtotal)
+{
+	struct MEMMAN *memman = (struct MEMMAN *) MEMMAN_ADDR;
+	char s[60];
+	sprintf(s, "total   %dMB\nfree %dKB\n\n", memtotal / (1024 * 1024), memman_total(memman) / 1024);
+	cons_putstr0(cons, s);
+	return;
+} 
+
+```
+
+```c
+void cmd_dir(struct CONSOLE *cons)
+{
+	struct FILEINFO *finfo = (struct FILEINFO *) (ADR_DISKIMG + 0x002600);
+	int i, j;
+	char s[30];
+	for (i = 0; i < 224; i++) {
+		if (finfo[i].name[0] == 0x00) {
+			break;
+		}
+		if (finfo[i].name[0] != 0xe5) {
+			if ((finfo[i].type & 0x18) == 0) {
+				sprintf(s, "filename.ext   %7d\n", finfo[i].size);
+				for (j = 0; j < 8; j++) {
+					s[j] = finfo[i].name[j];
+				}
+				s[ 9] = finfo[i].ext[0];
+				s[10] = finfo[i].ext[1];
+				s[11] = finfo[i].ext[2];
+				cons_putstr0(cons, s);
+			}
+		}
+	}
+	cons_newline(cons);
+	return;
+}
+
+void cmd_type(struct CONSOLE *cons, int *fat, char *cmdline)
+{
+	struct MEMMAN *memman = (struct MEMMAN *) MEMMAN_ADDR;
+	struct FILEINFO *finfo = file_search(cmdline + 5, (struct FILEINFO *) (ADR_DISKIMG + 0x002600), 224);
+	char *p;
+	if (finfo != 0) {
+		/* ファイルが見つかった場合 */
+		p = (char *) memman_alloc_4k(memman, finfo->size);
+		file_loadfile(finfo->clustno, finfo->size, p, fat, (char *) (ADR_DISKIMG + 0x003e00));
+		cons_putstr1(cons, p, finfo->size);
+		memman_free_4k(memman, (int) p, finfo->size);
+	} else {
+		/* ファイルが見つからなかった場合 */
+		cons_putstr0(cons, "File not found.\n");
+	}
+	cons_newline(cons);
+	return;
+}
+
+```
+
+```c
+void hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int eax)
+{
+	struct CONSOLE *cons = (struct CONSOLE *) *((int *) 0x0fec);
+	if (edx == 1) {
+		cons_putchar(cons, eax & 0xff, 1);
+	} else if (edx == 2) {
+		cons_putstr0(cons, (char *) ebx);
+	} else if (edx == 3) {
+		cons_putstr1(cons, (char *) ebx, ecx);
+	}
+	return;
+}
+```
+
+naskfunc.nas
+```nasm
+	GLOBAL	_io_hlt, _io_cli, _io_sti, _io_stihlt
+		GLOBAL	_io_in8,  _io_in16,  _io_in32
+		GLOBAL	_io_out8, _io_out16, _io_out32
+		GLOBAL	_io_load_eflags, _io_store_eflags
+		GLOBAL	_load_gdtr, _load_idtr
+		GLOBAL	_load_cr0, _store_cr0
+		GLOBAL	_load_tr
+		GLOBAL	_asm_inthandler20, _asm_inthandler21
+		GLOBAL	_asm_inthandler27, _asm_inthandler2c
+		GLOBAL	_memtest_sub
+		GLOBAL	_farjmp, _farcall
+		GLOBAL	_asm_hrb_api
+		EXTERN	_inthandler20, _inthandler21
+		EXTERN	_inthandler27, _inthandler2c
+		EXTERN	_hrb_api
+```
+
+```nasm
+_asm_hrb_api:
+		STI
+		PUSHAD	; 保存のためのPUSH
+		PUSHAD	; hrb_apiに渡すためのPUSH
+		CALL	_hrb_api
+		ADD		ESP,32
+		POPAD
+		IRETD
+```
+
+dsctbl.c
+```c
+void init_gdtidt(void)
+{
+	struct SEGMENT_DESCRIPTOR *gdt = (struct SEGMENT_DESCRIPTOR *) ADR_GDT;
+	struct GATE_DESCRIPTOR    *idt = (struct GATE_DESCRIPTOR    *) ADR_IDT;
+	int i;
+
+	/* GDTの初期化 */
+	for (i = 0; i <= LIMIT_GDT / 8; i++) {
+		set_segmdesc(gdt + i, 0, 0, 0);
+	}
+	set_segmdesc(gdt + 1, 0xffffffff,   0x00000000, AR_DATA32_RW);
+	set_segmdesc(gdt + 2, LIMIT_BOTPAK, ADR_BOTPAK, AR_CODE32_ER);
+	load_gdtr(LIMIT_GDT, ADR_GDT);
+
+	/* IDTの初期化 */
+	for (i = 0; i <= LIMIT_IDT / 8; i++) {
+		set_gatedesc(idt + i, 0, 0, 0);
+	}
+	load_idtr(LIMIT_IDT, ADR_IDT);
+
+	/* IDTの設定 */
+	set_gatedesc(idt + 0x20, (int) asm_inthandler20, 2 * 8, AR_INTGATE32);
+	set_gatedesc(idt + 0x21, (int) asm_inthandler21, 2 * 8, AR_INTGATE32);
+	set_gatedesc(idt + 0x27, (int) asm_inthandler27, 2 * 8, AR_INTGATE32);
+	set_gatedesc(idt + 0x2c, (int) asm_inthandler2c, 2 * 8, AR_INTGATE32);
+	set_gatedesc(idt + 0x40, (int) asm_hrb_api,      2 * 8, AR_INTGATE32);
+
+	return;
+}
+```
+
+hello2.nas
+```nasm
+[INSTRSET "i486p"]
+[BITS 32]
+        MOV     EDX,2
+        MOV     EBX,msg
+        INT     0x40
+        RETF
+msg:
+        DB  "hello",0
+```
+
+hello.nas
+```nasm
+[INSTRSET "i486p"]
+[BITS 32]
+        MOV     ECX,msg
+        MOV     EDX,1
+putloop:
+        MOV     AL,[CS:ECX]
+        CMP     AL,0
+        JE      fin
+        INT     0x40
+        ADD     ECX,1
+        JMP     putloop
+fin:
+        RETF
+msg:
+        DB  "hello",0
+```
+
+**実装過程**   
+・　[37b33928e2fba0c8a51ab876c2f102d99cbebfc9](37b33928e2fba0c8a51ab876c2f102d99cbebfc9)
+
+## day25
+本では21日目に突入しました。   
+文字列表示APIを作成します。   
+console.c
+```c
+int cmd_app(struct CONSOLE *cons, int *fat, char *cmdline)
+{
+	struct MEMMAN *memman = (struct MEMMAN *) MEMMAN_ADDR;
+	struct FILEINFO *finfo;
+	struct SEGMENT_DESCRIPTOR *gdt = (struct SEGMENT_DESCRIPTOR *) ADR_GDT;
+	char name[18], *p;
+	int i;
+
+	/* コマンドラインからファイル名を生成 */
+	for (i = 0; i < 13; i++) {
+		if (cmdline[i] <= ' ') {
+			break;
+		}
+		name[i] = cmdline[i];
+	}
+	name[i] = 0; /* とりあえずファイル名の後ろを0にする */
+
+	/* ファイルを探す */
+	finfo = file_search(name, (struct FILEINFO *) (ADR_DISKIMG + 0x002600), 224);
+	if (finfo == 0 && name[i - 1] != '.') {
+		/* 見つからなかったので後ろに".HRB"をつけてもう一度探してみる */
+		name[i    ] = '.';
+		name[i + 1] = 'H';
+		name[i + 2] = 'R';
+		name[i + 3] = 'B';
+		name[i + 4] = 0;
+		finfo = file_search(name, (struct FILEINFO *) (ADR_DISKIMG + 0x002600), 224);
+	}
+
+	if (finfo != 0) {
+		/* ファイルが見つかった場合 */
+		p = (char *) memman_alloc_4k(memman, finfo->size);
+		*((int *) 0xfe8) = (int) p;
+		file_loadfile(finfo->clustno, finfo->size, p, fat, (char *) (ADR_DISKIMG + 0x003e00));
+		set_segmdesc(gdt + 1003, finfo->size - 1, (int) p, AR_CODE32_ER);
+		farcall(0, 1003 * 8);
+		memman_free_4k(memman, (int) p, finfo->size);
+		cons_newline(cons);
+		return 1;
+	}
+	/* ファイルが見つからなかった場合 */
+	return 0;
+}
+
+void hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int eax)
+{
+	int cs_base = *((int *) 0xfe8);
+	struct CONSOLE *cons = (struct CONSOLE *) *((int *) 0x0fec);
+	if (edx == 1) {
+		cons_putchar(cons, eax & 0xff, 1);
+	} else if (edx == 2) {
+		cons_putstr0(cons, (char *) ebx + cs_base);
+	} else if (edx == 3) {
+		cons_putstr1(cons, (char *) ebx + cs_base, ecx);
+	}
+	return;
+}
+```
+
+C言語でアプリケーションを作成してみたいと思います。   
+a.c
+```c
+void api_putchar(int c);
+
+void HariMain(void)
+{
+    api_putchar('A');
+    return;
+}
+```
+
+a_nask.nas
+```nasm
+[FORMAT "WCOFF"]                ; オブジェクトファイルを作るモード
+[INSTRSET "i486p"]				; 486の命令まで使いたいという記述
+[BITS 32]                       ; 32ビットモード用の機械語を作らせる
+[FILE "a_nask.nas"]             ; ソースファイル名情報
+
+        GLOBAL  _api_putchar
+
+[SECTION .text]
+
+_api_putchar:   ; void api_putchar(int c);
+        MOV     EDX,1
+        MOV     AL,[ESP+4]      ; c
+        INT     0x40
+        RET
+```
+
+Makefile
+```Makefile
+a.bim : a.obj a_nask.obj Makefile
+	$(OBJ2BIM) @$(RULEFILE) out:a.bim map:a.map a.obj a_nask.obj
+
+a.hrb : a.bim Makefile
+	$(BIM2HRB) a.bim a.hrb 0
+
+hello3.bim : hello3.obj a_nask.obj Makefile
+	$(OBJ2BIM) @$(RULEFILE) out:hello3.bim map:hello3.map hello3.obj a_nask.obj
+
+hello3.hrb : hello3.bim Makefile
+	$(BIM2HRB) hello3.bim hello3.hrb 0
+
+haribote.img : ipl10.bin haribote.sys Makefile \
+		hello.hrb hello2.hrb a.hrb hello3.hrb
+	$(EDIMG)   imgin:..\..\z_tools\fdimg0at.tek \
+		wbinimg src:ipl10.bin len:512 from:0 to:0 \
+		copy from:haribote.sys to:@: \
+		copy from:ipl10.nas to:@: \
+		copy from:make.bat to:@: \
+		copy from:hello.hrb to:@: \
+		copy from:hello2.hrb to:@: \
+		copy from:a.hrb to:@: \
+		copy from:hello3.hrb to:@: \
+		imgout:haribote.img
+
+# rules
+
+%.gas : %.c bootpack.h Makefile
+	$(CC1) -o $*.gas $*.c
+
+%.nas : %.gas Makefile
+	$(GAS2NASK) $*.gas $*.nas
+
+%.obj : %.nas Makefile
+	$(NASK) $*.nas $*.obj $*.lst
+
+# command
+
+img :
+	$(MAKE) haribote.img
+
+run :
+	$(MAKE) img
+	$(COPY) haribote.img ..\..\z_tools\qemu\fdimage0.bin
+	$(MAKE) -C ..\..\z_tools\qemu
+
+install :
+	$(MAKE) img
+	$(IMGTOL) w a: haribote.img
+
+clean :
+	-$(DEL) *.bin
+	-$(DEL) *.lst
+	-$(DEL) *.obj
+	-$(DEL) *.map
+	-$(DEL) *.bim
+	-$(DEL) *.hrb
+	-$(DEL) haribote.sys
+```
+
+hello3.c
+```c
+void api_putchar(int c);
+
+void HariMain(void)
+{
+    api_putchar('h');
+    api_putchar('e');
+    api_putchar('l');
+    api_putchar('l');
+    api_putchar('o');
+    return;
+}
+```
+
+console.c
+```c
+int cmd_app(struct CONSOLE *cons, int *fat, char *cmdline)
+{
+	struct MEMMAN *memman = (struct MEMMAN *) MEMMAN_ADDR;
+	struct FILEINFO *finfo;
+	struct SEGMENT_DESCRIPTOR *gdt = (struct SEGMENT_DESCRIPTOR *) ADR_GDT;
+	char name[18], *p;
+	int i;
+
+	/* コマンドラインからファイル名を生成 */
+	for (i = 0; i < 13; i++) {
+		if (cmdline[i] <= ' ') {
+			break;
+		}
+		name[i] = cmdline[i];
+	}
+	name[i] = 0; /* とりあえずファイル名の後ろを0にする */
+
+	/* ファイルを探す */
+	finfo = file_search(name, (struct FILEINFO *) (ADR_DISKIMG + 0x002600), 224);
+	if (finfo == 0 && name[i - 1] != '.') {
+		/* 見つからなかったので後ろに".HRB"をつけてもう一度探してみる */
+		name[i    ] = '.';
+		name[i + 1] = 'H';
+		name[i + 2] = 'R';
+		name[i + 3] = 'B';
+		name[i + 4] = 0;
+		finfo = file_search(name, (struct FILEINFO *) (ADR_DISKIMG + 0x002600), 224);
+	}
+
+	if (finfo != 0) {
+		/* ファイルが見つかった場合 */
+		p = (char *) memman_alloc_4k(memman, finfo->size);
+		*((int *) 0xfe8) = (int) p;
+		file_loadfile(finfo->clustno, finfo->size, p, fat, (char *) (ADR_DISKIMG + 0x003e00));
+		set_segmdesc(gdt + 1003, finfo->size - 1, (int) p, AR_CODE32_ER);
+		if (finfo->size >= 8 && strncmp(p + 4, "Hari", 4) == 0) {
+			p[0] = 0xe8;
+			p[1] = 0x16;
+			p[2] = 0x00;
+			p[3] = 0x00;
+			p[4] = 0x00;
+			p[5] = 0xcb;
+		}
+		farcall(0, 1003 * 8);
+		memman_free_4k(memman, (int) p, finfo->size);
+		cons_newline(cons);
+		return 1;
+	}
+	/* ファイルが見つからなかった場合 */
+	return 0;
+}
+```
+
+osを破壊してみるモジュールを作ってみます。   
+Makefile
+```Makefile
+crack1.bim : crack1.obj Makefile
+	$(OBJ2BIM) @$(RULEFILE) out:crack1.bim map:crack1.map crack1.obj
+
+crack1.hrb : crack1.bim Makefile
+	$(BIM2HRB) crack1.bim crack1.hrb 0
+
+haribote.img : ipl10.bin haribote.sys Makefile \
+		hello.hrb hello2.hrb a.hrb hello3.hrb crack1.hrb
+	$(EDIMG)   imgin:..\..\z_tools\fdimg0at.tek \
+		wbinimg src:ipl10.bin len:512 from:0 to:0 \
+		copy from:haribote.sys to:@: \
+		copy from:ipl10.nas to:@: \
+		copy from:make.bat to:@: \
+		copy from:hello.hrb to:@: \
+		copy from:hello2.hrb to:@: \
+		copy from:a.hrb to:@: \
+		copy from:hello3.hrb to:@: \
+		copy from:crack1.hrb to:@: \
+		imgout:haribote.img
+```
+
+crack1.c
+```c
+void HariMain(void)
+{
+    *((char *) 0x00102600) = 0;
+    return;
+}
+```
+
+アプリがOSの管理用のメモリにアクセスしないように改造します。
+console.c
+```c
+int cmd_app(struct CONSOLE *cons, int *fat, char *cmdline)
+{
+	struct MEMMAN *memman = (struct MEMMAN *) MEMMAN_ADDR;
+	struct FILEINFO *finfo;
+	struct SEGMENT_DESCRIPTOR *gdt = (struct SEGMENT_DESCRIPTOR *) ADR_GDT;
+	char name[18], *p, *q;
+	int i;
+
+	/* コマンドラインからファイル名を生成 */
+	for (i = 0; i < 13; i++) {
+		if (cmdline[i] <= ' ') {
+			break;
+		}
+		name[i] = cmdline[i];
+	}
+	name[i] = 0; /* とりあえずファイル名の後ろを0にする */
+
+	/* ファイルを探す */
+	finfo = file_search(name, (struct FILEINFO *) (ADR_DISKIMG + 0x002600), 224);
+	if (finfo == 0 && name[i - 1] != '.') {
+		/* 見つからなかったので後ろに".HRB"をつけてもう一度探してみる */
+		name[i    ] = '.';
+		name[i + 1] = 'H';
+		name[i + 2] = 'R';
+		name[i + 3] = 'B';
+		name[i + 4] = 0;
+		finfo = file_search(name, (struct FILEINFO *) (ADR_DISKIMG + 0x002600), 224);
+	}
+
+	if (finfo != 0) {
+		/* ファイルが見つかった場合 */
+		p = (char *) memman_alloc_4k(memman, finfo->size);
+		q = (char *) memman_alloc_4k(memman, 64 * 1024);
+		*((int *) 0xfe8) = (int) p;
+		file_loadfile(finfo->clustno, finfo->size, p, fat, (char *) (ADR_DISKIMG + 0x003e00));
+		set_segmdesc(gdt + 1003, finfo->size - 1, (int) p, AR_CODE32_ER);
+		set_segmdesc(gdt + 1004, 64 * 1024 - 1,   (int) q, AR_DATA32_RW);
+		if (finfo->size >= 8 && strncmp(p + 4, "Hari", 4) == 0) {
+			p[0] = 0xe8;
+			p[1] = 0x16;
+			p[2] = 0x00;
+			p[3] = 0x00;
+			p[4] = 0x00;
+			p[5] = 0xcb;
+		}
+		start_app(0, 1003 * 8, 64 * 1024, 1004 * 8);
+		memman_free_4k(memman, (int) p, finfo->size);
+		memman_free_4k(memman, (int) q, 64 * 1024);
+		cons_newline(cons);
+		return 1;
+	}
+	/* ファイルが見つからなかった場合 */
+	return 0;
+}
+```
+
+naskfunc.nas
+```nasm
+; naskfunc
+; TAB=4
+
+[FORMAT "WCOFF"]				; オブジェクトファイルを作るモード	
+[INSTRSET "i486p"]				; 486の命令まで使いたいという記述
+[BITS 32]						; 32ビットモード用の機械語を作らせる
+[FILE "naskfunc.nas"]			; ソースファイル名情報
+
+		GLOBAL	_io_hlt, _io_cli, _io_sti, _io_stihlt
+		GLOBAL	_io_in8,  _io_in16,  _io_in32
+		GLOBAL	_io_out8, _io_out16, _io_out32
+		GLOBAL	_io_load_eflags, _io_store_eflags
+		GLOBAL	_load_gdtr, _load_idtr
+		GLOBAL	_load_cr0, _store_cr0
+		GLOBAL	_load_tr
+		GLOBAL	_asm_inthandler20, _asm_inthandler21
+		GLOBAL	_asm_inthandler27, _asm_inthandler2c
+		GLOBAL	_memtest_sub
+		GLOBAL	_farjmp, _farcall
+		GLOBAL	_asm_hrb_api, _start_app
+		EXTERN	_inthandler20, _inthandler21
+		EXTERN	_inthandler27, _inthandler2c
+		EXTERN	_hrb_api
+
+[SECTION .text]
+
+_io_hlt:	; void io_hlt(void);
+		HLT
+		RET
+
+_io_cli:	; void io_cli(void);
+		CLI
+		RET
+
+_io_sti:	; void io_sti(void);
+		STI
+		RET
+
+_io_stihlt:	; void io_stihlt(void);
+		STI
+		HLT
+		RET
+
+_io_in8:	; int io_in8(int port);
+		MOV		EDX,[ESP+4]		; port
+		MOV		EAX,0
+		IN		AL,DX
+		RET
+
+_io_in16:	; int io_in16(int port);
+		MOV		EDX,[ESP+4]		; port
+		MOV		EAX,0
+		IN		AX,DX
+		RET
+
+_io_in32:	; int io_in32(int port);
+		MOV		EDX,[ESP+4]		; port
+		IN		EAX,DX
+		RET
+
+_io_out8:	; void io_out8(int port, int data);
+		MOV		EDX,[ESP+4]		; port
+		MOV		AL,[ESP+8]		; data
+		OUT		DX,AL
+		RET
+
+_io_out16:	; void io_out16(int port, int data);
+		MOV		EDX,[ESP+4]		; port
+		MOV		EAX,[ESP+8]		; data
+		OUT		DX,AX
+		RET
+
+_io_out32:	; void io_out32(int port, int data);
+		MOV		EDX,[ESP+4]		; port
+		MOV		EAX,[ESP+8]		; data
+		OUT		DX,EAX
+		RET
+
+_io_load_eflags:	; int io_load_eflags(void);
+		PUSHFD		; PUSH EFLAGS という意味
+		POP		EAX
+		RET
+
+_io_store_eflags:	; void io_store_eflags(int eflags);
+		MOV		EAX,[ESP+4]
+		PUSH	EAX
+		POPFD		; POP EFLAGS という意味
+		RET
+
+_load_gdtr:		; void load_gdtr(int limit, int addr);
+		MOV		AX,[ESP+4]		; limit
+		MOV		[ESP+6],AX
+		LGDT	[ESP+6]
+		RET
+
+_load_idtr:		; void load_idtr(int limit, int addr);
+		MOV		AX,[ESP+4]		; limit
+		MOV		[ESP+6],AX
+		LIDT	[ESP+6]
+		RET
+
+_load_cr0:		; int load_cr0(void);
+		MOV		EAX,CR0
+		RET
+
+_store_cr0:		; void store_cr0(int cr0);
+		MOV		EAX,[ESP+4]
+		MOV		CR0,EAX
+		RET
+
+_load_tr:		; void load_tr(int tr);
+		LTR		[ESP+4]			; tr
+		RET
+
+_asm_inthandler20:
+		PUSH	ES
+		PUSH	DS
+		PUSHAD
+		MOV		AX,SS
+		CMP		AX,1*8
+		JNE		.from_app
+;	OSが動いているときに割り込まれたのでほぼ今までどおり
+		MOV		EAX,ESP
+		PUSH	SS				; 割り込まれたときのSSを保存
+		PUSH	EAX				; 割り込まれたときのESPを保存
+		MOV		AX,SS
+		MOV		DS,AX
+		MOV		ES,AX
+		CALL	_inthandler20
+		ADD		ESP,8
+		POPAD
+		POP		DS
+		POP		ES
+		IRETD
+.from_app:
+;	アプリが動いているときに割り込まれた
+		MOV		EAX,1*8
+		MOV		DS,AX			; とりあえずDSだけOS用にする
+		MOV		ECX,[0xfe4]		; OSのESP
+		ADD		ECX,-8	
+		MOV		[ECX+4],SS		; 割り込まれたときのSSを保存
+		MOV		[ECX  ],ESP		; 割り込まれたときのESPを保存
+		MOV		SS,AX
+		MOV		ES,AX
+		MOV		ESP,ECX
+		CALL	_inthandler20
+		POP		ECX
+		POP		EAX
+		MOV		SS,AX			; SSをアプリ用に戻す
+		MOV		ESP,ECX			; ESPもアプリ用に戻す
+		POPAD
+		POP		DS
+		POP		ES
+		IRETD
+
+_asm_inthandler21:
+		PUSH	ES
+		PUSH	DS
+		PUSHAD
+		MOV		AX,SS
+		CMP		AX,1*8
+		JNE		.from_app
+;	OSが動いているときに割り込まれたのでほぼ今までどおり
+		MOV		EAX,ESP
+		PUSH	SS				; 割り込まれたときのSSを保存
+		PUSH	EAX				; 割り込まれたときのESPを保存
+		MOV		AX,SS
+		MOV		DS,AX
+		MOV		ES,AX
+		CALL	_inthandler21
+		ADD		ESP,8
+		POPAD
+		POP		DS
+		POP		ES
+		IRETD
+.from_app:
+;	アプリが動いているときに割り込まれた
+		MOV		EAX,1*8
+		MOV		DS,AX			; とりあえずDSだけOS用にする
+		MOV		ECX,[0xfe4]		; OSのESP
+		ADD		ECX,-8
+		MOV		[ECX+4],SS		; 割り込まれたときのSSを保存
+		MOV		[ECX  ],ESP		; 割り込まれたときのESPを保存
+		MOV		SS,AX
+		MOV		ES,AX
+		MOV		ESP,ECX
+		CALL	_inthandler21
+		POP		ECX
+		POP		EAX
+		MOV		SS,AX			; SSをアプリ用に戻す
+		MOV		ESP,ECX			; ESPもアプリ用に戻す
+		POPAD
+		POP		DS
+		POP		ES
+		IRETD
+
+_asm_inthandler27:
+		PUSH	ES
+		PUSH	DS
+		PUSHAD
+		MOV		AX,SS
+		CMP		AX,1*8
+		JNE		.from_app
+;	OSが動いているときに割り込まれたのでほぼ今までどおり
+		MOV		EAX,ESP
+		PUSH	SS				; 割り込まれたときのSSを保存
+		PUSH	EAX				; 割り込まれたときのESPを保存
+		MOV		AX,SS
+		MOV		DS,AX
+		MOV		ES,AX
+		CALL	_inthandler27
+		ADD		ESP,8
+		POPAD
+		POP		DS
+		POP		ES
+		IRETD
+.from_app:
+;	アプリが動いているときに割り込まれた
+		MOV		EAX,1*8
+		MOV		DS,AX			; とりあえずDSだけOS用にする
+		MOV		ECX,[0xfe4]		; OSのESP
+		ADD		ECX,-8
+		MOV		[ECX+4],SS		; 割り込まれたときのSSを保存
+		MOV		[ECX  ],ESP		; 割り込まれたときのESPを保存
+		MOV		SS,AX
+		MOV		ES,AX
+		MOV		ESP,ECX
+		CALL	_inthandler27
+		POP		ECX
+		POP		EAX
+		MOV		SS,AX			; SSをアプリ用に戻す
+		MOV		ESP,ECX			; ESPもアプリ用に戻す
+		POPAD
+		POP		DS
+		POP		ES
+		IRETD
+
+_asm_inthandler2c:
+		PUSH	ES
+		PUSH	DS
+		PUSHAD
+		MOV		AX,SS
+		CMP		AX,1*8
+		JNE		.from_app
+;	OSが動いているときに割り込まれたのでほぼ今までどおり
+		MOV		EAX,ESP
+		PUSH	SS				; 割り込まれたときのSSを保存
+		PUSH	EAX				; 割り込まれたときのESPを保存
+		MOV		AX,SS
+		MOV		DS,AX
+		MOV		ES,AX
+		CALL	_inthandler2c
+		ADD		ESP,8
+		POPAD
+		POP		DS
+		POP		ES
+		IRETD
+.from_app:
+;	アプリが動いているときに割り込まれた
+		MOV		EAX,1*8
+		MOV		DS,AX			; とりあえずDSだけOS用にする
+		MOV		ECX,[0xfe4]		; OSのESP
+		ADD		ECX,-8
+		MOV		[ECX+4],SS		; 割り込まれたときのSSを保存
+		MOV		[ECX  ],ESP		; 割り込まれたときのESPを保存
+		MOV		SS,AX
+		MOV		ES,AX
+		MOV		ESP,ECX
+		CALL	_inthandler2c
+		POP		ECX
+		POP		EAX
+		MOV		SS,AX			; SSをアプリ用に戻す
+		MOV		ESP,ECX			; ESPもアプリ用に戻す
+		POPAD
+		POP		DS
+		POP		ES
+		IRETD
+
+_memtest_sub:	; unsigned int memtest_sub(unsigned int start, unsigned int end)
+		PUSH	EDI						; （EBX, ESI, EDI も使いたいので）
+		PUSH	ESI
+		PUSH	EBX
+		MOV		ESI,0xaa55aa55			; pat0 = 0xaa55aa55;
+		MOV		EDI,0x55aa55aa			; pat1 = 0x55aa55aa;
+		MOV		EAX,[ESP+12+4]			; i = start;
+mts_loop:
+		MOV		EBX,EAX
+		ADD		EBX,0xffc				; p = i + 0xffc;
+		MOV		EDX,[EBX]				; old = *p;
+		MOV		[EBX],ESI				; *p = pat0;
+		XOR		DWORD [EBX],0xffffffff	; *p ^= 0xffffffff;
+		CMP		EDI,[EBX]				; if (*p != pat1) goto fin;
+		JNE		mts_fin
+		XOR		DWORD [EBX],0xffffffff	; *p ^= 0xffffffff;
+		CMP		ESI,[EBX]				; if (*p != pat0) goto fin;
+		JNE		mts_fin
+		MOV		[EBX],EDX				; *p = old;
+		ADD		EAX,0x1000				; i += 0x1000;
+		CMP		EAX,[ESP+12+8]			; if (i <= end) goto mts_loop;
+		JBE		mts_loop
+		POP		EBX
+		POP		ESI
+		POP		EDI
+		RET
+mts_fin:
+		MOV		[EBX],EDX				; *p = old;
+		POP		EBX
+		POP		ESI
+		POP		EDI
+		RET
+
+_farjmp:		; void farjmp(int eip, int cs);
+		JMP		FAR	[ESP+4]				; eip, cs
+		RET
+
+_farcall:		; void farcall(int eip, int cs);
+		CALL	FAR	[ESP+4]				; eip, cs
+		RET
+
+_asm_hrb_api:
+		; 都合のいいことに最初から割り込み禁止になっている
+		PUSH	DS
+		PUSH	ES
+		PUSHAD		; 保存のためのPUSH
+		MOV		EAX,1*8
+		MOV		DS,AX			; とりあえずDSだけOS用にする
+		MOV		ECX,[0xfe4]		; OSのESP
+		ADD		ECX,-40
+		MOV		[ECX+32],ESP	; アプリのESPを保存
+		MOV		[ECX+36],SS		; アプリのSSを保存
+
+; PUSHADした値をシステムのスタックにコピーする
+		MOV		EDX,[ESP   ]
+		MOV		EBX,[ESP+ 4]
+		MOV		[ECX   ],EDX	; hrb_apiに渡すためコピー
+		MOV		[ECX+ 4],EBX	; hrb_apiに渡すためコピー
+		MOV		EDX,[ESP+ 8]
+		MOV		EBX,[ESP+12]
+		MOV		[ECX+ 8],EDX	; hrb_apiに渡すためコピー
+		MOV		[ECX+12],EBX	; hrb_apiに渡すためコピー
+		MOV		EDX,[ESP+16]
+		MOV		EBX,[ESP+20]
+		MOV		[ECX+16],EDX	; hrb_apiに渡すためコピー
+		MOV		[ECX+20],EBX	; hrb_apiに渡すためコピー
+		MOV		EDX,[ESP+24]
+		MOV		EBX,[ESP+28]
+		MOV		[ECX+24],EDX	; hrb_apiに渡すためコピー
+		MOV		[ECX+28],EBX	; hrb_apiに渡すためコピー
+
+		MOV		ES,AX			; 残りのセグメントレジスタもOS用にする
+		MOV		SS,AX
+		MOV		ESP,ECX
+		STI			; やっと割り込み許可
+
+		CALL	_hrb_api
+
+		MOV		ECX,[ESP+32]	; アプリのESPを思い出す
+		MOV		EAX,[ESP+36]	; アプリのSSを思い出す
+		CLI
+		MOV		SS,AX
+		MOV		ESP,ECX
+		POPAD
+		POP		ES
+		POP		DS
+		IRETD		; この命令が自動でSTIしてくれる
+
+_start_app:		; void start_app(int eip, int cs, int esp, int ds);
+		PUSHAD		; 32ビットレジスタを全部保存しておく
+		MOV		EAX,[ESP+36]	; アプリ用のEIP
+		MOV		ECX,[ESP+40]	; アプリ用のCS
+		MOV		EDX,[ESP+44]	; アプリ用のESP
+		MOV		EBX,[ESP+48]	; アプリ用のDS/SS
+		MOV		[0xfe4],ESP		; OS用のESP
+		CLI			; 切り替え中に割り込みが起きてほしくないので禁止
+		MOV		ES,BX
+		MOV		SS,BX
+		MOV		DS,BX
+		MOV		FS,BX
+		MOV		GS,BX
+		MOV		ESP,EDX
+		STI			; 切り替え完了なので割り込み可能に戻す
+		PUSH	ECX				; far-CALLのためにPUSH（cs）
+		PUSH	EAX				; far-CALLのためにPUSH（eip）
+		CALL	FAR [ESP]		; アプリを呼び出す
+
+;	アプリが終了するとここに帰ってくる
+
+		MOV		EAX,1*8			; OS用のDS/SS
+		CLI			; また切り替えるので割り込み禁止
+		MOV		ES,AX
+		MOV		SS,AX
+		MOV		DS,AX
+		MOV		FS,AX
+		MOV		GS,AX
+		MOV		ESP,[0xfe4]
+		STI			; 切り替え完了なので割り込み可能に戻す
+		POPAD	; 保存しておいたレジスタを回復
+		RET
+```
+
+bootpack.h
+```h
+void asm_hrb_api(void);
+void start_app(int eip, int cs, int esp, int ds);
+```
+
+crack1を打って壊した後もdirは出るようになりました。
+
+**実装過程**   
+・　[9511499fa63c8d419d2ab85490516a65efb270b7](9511499fa63c8d419d2ab85490516a65efb270b7)
