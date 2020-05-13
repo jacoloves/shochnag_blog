@@ -20054,3 +20054,563 @@ crack1を打って壊した後もdirは出るようになりました。
 
 **実装過程**   
 ・　[9511499fa63c8d419d2ab85490516a65efb270b7](9511499fa63c8d419d2ab85490516a65efb270b7)
+
+## day26
+さらにOSのセキュリティを強化したいと思います。   
+bootpack.h
+```h
+void load_tr(int tr);
+void asm_inthandler0d(void);
+```
+
+naskfunc.nas
+```nasm
+		GLOBAL	_memtest_sub
+		GLOBAL	_farjmp, _farcall
+		GLOBAL	_asm_hrb_api, _start_app
+		EXTERN	_inthandler20, _inthandler21
+		EXTERN	_inthandler27, _inthandler2c
+		EXTERN	_inthandler0d
+		EXTERN	_hrb_api
+```
+
+```nasm
+_asm_inthandler0d:
+		STI
+		PUSH	ES
+		PUSH	DS
+		PUSHAD
+		MOV		AX,SS
+		CMP		AX,1*8
+		JNE		.from_app
+;	OSが動いているときに割り込まれたのでほぼ今までどおり
+		MOV		EAX,ESP
+		PUSH	SS				; 割り込まれたときのSSを保存
+		PUSH	EAX				; 割り込まれたときのESPを保存
+		MOV		AX,SS
+		MOV		DS,AX
+		MOV		ES,AX
+		CALL	_inthandler0d
+		ADD		ESP,8
+		POPAD
+		POP		DS
+		POP		ES
+		ADD		ESP,4			; INT 0x0d では、これが必要
+		IRETD
+.from_app:
+;	アプリが動いているときに割り込まれた
+		CLI
+		MOV		EAX,1*8
+		MOV		DS,AX			; とりあえずDSだけOS用にする
+		MOV		ECX,[0xfe4]		; OSのESP
+		ADD		ECX,-8
+		MOV		[ECX+4],SS		; 割り込まれたときのSSを保存
+		MOV		[ECX  ],ESP		; 割り込まれたときのESPを保存
+		MOV		SS,AX
+		MOV		ES,AX
+		MOV		ESP,ECX
+		STI
+		CALL	_inthandler0d
+		CLI
+		CMP		EAX,0
+		JNE		.kill
+		POP		ECX
+		POP		EAX
+		MOV		SS,AX			; SSをアプリ用に戻す
+		MOV		ESP,ECX			; ESPもアプリ用に戻す
+		POPAD
+		POP		DS
+		POP		ES
+		ADD		ESP,4			; INT 0x0d では、これが必要
+		IRETD
+.kill:
+;	アプリを異常終了させることにした
+		MOV		EAX,1*8			; OS用のDS/SS
+		MOV		ES,AX
+		MOV		SS,AX
+		MOV		DS,AX
+		MOV		FS,AX
+		MOV		GS,AX
+		MOV		ESP,[0xfe4]		; start_appのときのESPに無理やり戻す
+		STI			; 切り替え完了なので割り込み可能に戻す
+		POPAD	; 保存しておいたレジスタを回復
+		RET
+```
+
+console.c
+```c
+int inthandler0d(int *esp)
+{
+	struct CONSOLE *cons = (struct CONSOLE *) *((int *) 0x0fec);
+	cons_putstr0(cons, "\nINT 0D :\n General Protected Exception.\n");
+	return 1; /* 異常終了させる */
+}
+```
+
+dsctbl.c
+```c
+	/* IDTの設定 */
+	set_gatedesc(idt + 0x0d, (int) asm_inthandler0d, 2 * 8, AR_INTGATE32);
+	set_gatedesc(idt + 0x20, (int) asm_inthandler20, 2 * 8, AR_INTGATE32);
+	set_gatedesc(idt + 0x21, (int) asm_inthandler21, 2 * 8, AR_INTGATE32);
+	set_gatedesc(idt + 0x27, (int) asm_inthandler27, 2 * 8, AR_INTGATE32);
+	set_gatedesc(idt + 0x2c, (int) asm_inthandler2c, 2 * 8, AR_INTGATE32);
+	set_gatedesc(idt + 0x40, (int) asm_hrb_api,      2 * 8, AR_INTGATE32);
+```
+
+さらにOSを攻撃してみたいと思います。   
+crack2.nas
+```nasm
+[INSTRSET "i486p"]
+[BITS 32]
+        MOV		EAX,1*8			; OS用のセグメント番号
+        MOV		DS,AX			; これをDSにいれちゃう
+        MOV		BYTE [0x102600],0
+        RETF
+```
+
+Makefile
+```Makefile
+crack2.hrb : crack2.nas Makefile
+	$(NASK) crack2.nas crack2.hrb crack2.lst
+
+haribote.img : ipl10.bin haribote.sys Makefile \
+		hello.hrb hello2.hrb a.hrb hello3.hrb crack1.hrb crack2.hrb
+	$(EDIMG)   imgin:..\..\z_tools\fdimg0at.tek \
+		wbinimg src:ipl10.bin len:512 from:0 to:0 \
+		copy from:haribote.sys to:@: \
+		copy from:ipl10.nas to:@: \
+		copy from:make.bat to:@: \
+		copy from:hello.hrb to:@: \
+		copy from:hello2.hrb to:@: \
+		copy from:a.hrb to:@: \
+		copy from:hello3.hrb to:@: \
+		copy from:crack1.hrb to:@: \
+		copy from:crack2.hrb to:@: \
+		imgout:haribote.img
+```
+
+clack2実行後、dirが出なくなればせいこうです。   
+
+clack2を実行されてもOSを壊されないようにします。   
+console.c
+```c
+int cmd_app(struct CONSOLE *cons, int *fat, char *cmdline)
+{
+	struct MEMMAN *memman = (struct MEMMAN *) MEMMAN_ADDR;
+	struct FILEINFO *finfo;
+	struct SEGMENT_DESCRIPTOR *gdt = (struct SEGMENT_DESCRIPTOR *) ADR_GDT;
+	char name[18], *p, *q;
+	struct TASK *task = task_now();
+	int i;
+
+	/* コマンドラインからファイル名を生成 */
+	for (i = 0; i < 13; i++) {
+		if (cmdline[i] <= ' ') {
+			break;
+		}
+		name[i] = cmdline[i];
+	}
+	name[i] = 0; /* とりあえずファイル名の後ろを0にする */
+
+	/* ファイルを探す */
+	finfo = file_search(name, (struct FILEINFO *) (ADR_DISKIMG + 0x002600), 224);
+	if (finfo == 0 && name[i - 1] != '.') {
+		/* 見つからなかったので後ろに".HRB"をつけてもう一度探してみる */
+		name[i    ] = '.';
+		name[i + 1] = 'H';
+		name[i + 2] = 'R';
+		name[i + 3] = 'B';
+		name[i + 4] = 0;
+		finfo = file_search(name, (struct FILEINFO *) (ADR_DISKIMG + 0x002600), 224);
+	}
+
+	if (finfo != 0) {
+		/* ファイルが見つかった場合 */
+		p = (char *) memman_alloc_4k(memman, finfo->size);
+		q = (char *) memman_alloc_4k(memman, 64 * 1024);
+		*((int *) 0xfe8) = (int) p;
+		file_loadfile(finfo->clustno, finfo->size, p, fat, (char *) (ADR_DISKIMG + 0x003e00));
+		set_segmdesc(gdt + 1003, finfo->size - 1, (int) p, AR_CODE32_ER + 0x60);
+		set_segmdesc(gdt + 1004, 64 * 1024 - 1,   (int) q, AR_DATA32_RW + 0x60);
+		if (finfo->size >= 8 && strncmp(p + 4, "Hari", 4) == 0) {
+			p[0] = 0xe8;
+			p[1] = 0x16;
+			p[2] = 0x00;
+			p[3] = 0x00;
+			p[4] = 0x00;
+			p[5] = 0xcb;
+		}
+		start_app(0, 1003 * 8, 64 * 1024, 1004 * 8, &(task->tss.esp0));
+		memman_free_4k(memman, (int) p, finfo->size);
+		memman_free_4k(memman, (int) q, 64 * 1024);
+		cons_newline(cons);
+		return 1;
+	}
+	/* ファイルが見つからなかった場合 */
+	return 0;
+}
+```
+
+```c
+int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int eax)
+{
+	int cs_base = *((int *) 0xfe8);
+	struct TASK *task = task_now();
+	struct CONSOLE *cons = (struct CONSOLE *) *((int *) 0x0fec);
+	if (edx == 1) {
+		cons_putchar(cons, eax & 0xff, 1);
+	} else if (edx == 2) {
+		cons_putstr0(cons, (char *) ebx + cs_base);
+	} else if (edx == 3) {
+		cons_putstr1(cons, (char *) ebx + cs_base, ecx);
+	} else if (edx == 4) {
+		return &(task->tss.esp0);
+	}
+	return 0;
+}
+
+int *inthandler0d(int *esp)
+{
+	struct CONSOLE *cons = (struct CONSOLE *) *((int *) 0x0fec);
+	struct TASK *task = task_now();
+	cons_putstr0(cons, "\nINT 0D :\n General Protected Exception.\n");
+	return &(task->tss.esp0);	/* 異常終了させる */
+}
+```
+
+naskfunc.nas
+```nasm
+_asm_inthandler20:
+		PUSH	ES
+		PUSH	DS
+		PUSHAD
+		MOV		EAX,ESP
+		PUSH	EAX
+		MOV		AX,SS
+		MOV		DS,AX
+		MOV		ES,AX
+		CALL	_inthandler20
+		POP		EAX
+		POPAD
+		POP		DS
+		POP		ES
+		IRETD
+
+_asm_inthandler21:
+		PUSH	ES
+		PUSH	DS
+		PUSHAD
+		MOV		EAX,ESP
+		PUSH	EAX
+		MOV		AX,SS
+		MOV		DS,AX
+		MOV		ES,AX
+		CALL	_inthandler21
+		POP		EAX
+		POPAD
+		POP		DS
+		POP		ES
+		IRETD
+
+_asm_inthandler27:
+		PUSH	ES
+		PUSH	DS
+		PUSHAD
+		MOV		EAX,ESP
+		PUSH	EAX
+		MOV		AX,SS
+		MOV		DS,AX
+		MOV		ES,AX
+		CALL	_inthandler27
+		POP		EAX
+		POPAD
+		POP		DS
+		POP		ES
+		IRETD
+
+_asm_inthandler2c:
+		PUSH	ES
+		PUSH	DS
+		PUSHAD
+		MOV		EAX,ESP
+		PUSH	EAX
+		MOV		AX,SS
+		MOV		DS,AX
+		MOV		ES,AX
+		CALL	_inthandler2c
+		POP		EAX
+		POPAD
+		POP		DS
+		POP		ES
+		IRETD
+
+_asm_inthandler0d:
+		STI
+		PUSH	ES
+		PUSH	DS
+		PUSHAD
+		MOV		EAX,ESP
+		PUSH	EAX
+		MOV		AX,SS
+		MOV		DS,AX
+		MOV		ES,AX
+		CALL	_inthandler0d
+		CMP		EAX,0		; ここだけ違う
+		JNE		end_app		; ここだけ違う
+		POP		EAX
+		POPAD
+		POP		DS
+		POP		ES
+		ADD		ESP,4			; INT 0x0d では、これが必要
+		IRETD
+
+_memtest_sub:	; unsigned int memtest_sub(unsigned int start, unsigned int end)
+		PUSH	EDI						; （EBX, ESI, EDI も使いたいので）
+		PUSH	ESI
+		PUSH	EBX
+		MOV		ESI,0xaa55aa55			; pat0 = 0xaa55aa55;
+		MOV		EDI,0x55aa55aa			; pat1 = 0x55aa55aa;
+		MOV		EAX,[ESP+12+4]			; i = start;
+mts_loop:
+		MOV		EBX,EAX
+		ADD		EBX,0xffc				; p = i + 0xffc;
+		MOV		EDX,[EBX]				; old = *p;
+		MOV		[EBX],ESI				; *p = pat0;
+		XOR		DWORD [EBX],0xffffffff	; *p ^= 0xffffffff;
+		CMP		EDI,[EBX]				; if (*p != pat1) goto fin;
+		JNE		mts_fin
+		XOR		DWORD [EBX],0xffffffff	; *p ^= 0xffffffff;
+		CMP		ESI,[EBX]				; if (*p != pat0) goto fin;
+		JNE		mts_fin
+		MOV		[EBX],EDX				; *p = old;
+		ADD		EAX,0x1000				; i += 0x1000;
+		CMP		EAX,[ESP+12+8]			; if (i <= end) goto mts_loop;
+		JBE		mts_loop
+		POP		EBX
+		POP		ESI
+		POP		EDI
+		RET
+mts_fin:
+		MOV		[EBX],EDX				; *p = old;
+		POP		EBX
+		POP		ESI
+		POP		EDI
+		RET
+
+_farjmp:		; void farjmp(int eip, int cs);
+		JMP		FAR	[ESP+4]				; eip, cs
+		RET
+
+_farcall:		; void farcall(int eip, int cs);
+		CALL	FAR	[ESP+4]				; eip, cs
+		RET
+
+_asm_hrb_api:
+		STI
+		PUSH	DS
+		PUSH	ES
+		PUSHAD		; 保存のためのPUSH
+		PUSHAD		; hrb_apiにわたすためのPUSH
+		MOV		AX,SS
+		MOV		DS,AX		; OS用のセグメントをDSとESにも入れる
+		MOV		ES,AX
+		CALL	_hrb_api
+		CMP		EAX,0		; EAXが0でなければアプリ終了処理
+		JNE		end_app
+		ADD		ESP,32
+		POPAD
+		POP		ES
+		POP		DS
+		IRETD
+end_app:
+;	EAXはtss.esp0の番地
+		MOV		ESP,[EAX]
+		POPAD
+		RET					; cmd_appへ帰る
+
+_start_app:		; void start_app(int eip, int cs, int esp, int ds, int *tss_esp0);
+		PUSHAD		; 32ビットレジスタを全部保存しておく
+		MOV		EAX,[ESP+36]	; アプリ用のEIP
+		MOV		ECX,[ESP+40]	; アプリ用のCS
+		MOV		EDX,[ESP+44]	; アプリ用のESP
+		MOV		EBX,[ESP+48]	; アプリ用のDS/SS
+		MOV		EBP,[ESP+52]	; tss.esp0の番地
+		MOV		[EBP  ],ESP		; OS用のESPを保存
+		MOV		[EBP+4],SS		; OS用のSSを保存
+		MOV		ES,BX
+		MOV		DS,BX
+		MOV		FS,BX
+		MOV		GS,BX
+;	以下はRETFでアプリに行かせるためのスタック調整
+		OR		ECX,3			; アプリ用のセグメント番号に3をORする
+		OR		EBX,3			; アプリ用のセグメント番号に3をORする
+		PUSH	EBX				; アプリのSS
+		PUSH	EDX				; アプリのESP
+		PUSH	ECX				; アプリのCS
+		PUSH	EAX				; アプリのEIP
+		RETF
+;	アプリが終了してもここには来ない
+```
+
+bootpack.h
+```h
+void start_app(int eip, int cs, int esp, int ds, int *tss_esp0);
+```
+
+```h
+int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int eax);
+int *inthandler0d(int *esp);
+```
+
+dsctbl.c
+```c
+void init_gdtidt(void)
+{
+	struct SEGMENT_DESCRIPTOR *gdt = (struct SEGMENT_DESCRIPTOR *) ADR_GDT;
+	struct GATE_DESCRIPTOR    *idt = (struct GATE_DESCRIPTOR    *) ADR_IDT;
+	int i;
+
+	/* GDTの初期化 */
+	for (i = 0; i <= LIMIT_GDT / 8; i++) {
+		set_segmdesc(gdt + i, 0, 0, 0);
+	}
+	set_segmdesc(gdt + 1, 0xffffffff,   0x00000000, AR_DATA32_RW);
+	set_segmdesc(gdt + 2, LIMIT_BOTPAK, ADR_BOTPAK, AR_CODE32_ER);
+	load_gdtr(LIMIT_GDT, ADR_GDT);
+
+	/* IDTの初期化 */
+	for (i = 0; i <= LIMIT_IDT / 8; i++) {
+		set_gatedesc(idt + i, 0, 0, 0);
+	}
+	load_idtr(LIMIT_IDT, ADR_IDT);
+
+	/* IDTの設定 */
+	set_gatedesc(idt + 0x0d, (int) asm_inthandler0d, 2 * 8, AR_INTGATE32);
+	set_gatedesc(idt + 0x20, (int) asm_inthandler20, 2 * 8, AR_INTGATE32);
+	set_gatedesc(idt + 0x21, (int) asm_inthandler21, 2 * 8, AR_INTGATE32);
+	set_gatedesc(idt + 0x27, (int) asm_inthandler27, 2 * 8, AR_INTGATE32);
+	set_gatedesc(idt + 0x2c, (int) asm_inthandler2c, 2 * 8, AR_INTGATE32);
+	set_gatedesc(idt + 0x40, (int) asm_hrb_api,      2 * 8, AR_INTGATE32 + 0x60);
+
+	return;
+}
+```
+
+hello.nas
+```nasm
+[INSTRSET "i486p"]
+[BITS 32]
+        MOV     ECX,msg
+        MOV     EDX,1
+putloop:
+        MOV     AL,[CS:ECX]
+        CMP     AL,0
+        JE      fin
+        INT     0x40
+        ADD     ECX,1
+        JMP     putloop
+fin:
+        MOV     EDX,4
+        INT     0x40
+msg:
+        DB  "hello",0
+```
+
+hello2.nas
+```nasm
+[INSTRSET "i486p"]
+[BITS 32]
+        MOV     EDX,2
+        MOV     EBX,msg
+        INT     0x40
+        MOV     EDX,4
+        INT     0x40
+msg:
+        DB  "hello",0
+```
+
+a.c
+```c
+void api_putchar(int c);
+void api_end(void);
+
+void HariMain(void)
+{
+    api_putchar('A');
+    api_end();
+}
+```
+
+a_nask.nas
+```nasm
+[FORMAT "WCOFF"]                ; オブジェクトファイルを作るモード
+[INSTRSET "i486p"]				; 486の命令まで使いたいという記述
+[BITS 32]                       ; 32ビットモード用の機械語を作らせる
+[FILE "a_nask.nas"]             ; ソースファイル名情報
+
+        GLOBAL  _api_putchar
+        GLOBAL  _api_end
+
+[SECTION .text]
+
+_api_putchar:   ; void api_putchar(int c);
+        MOV     EDX,1
+        MOV     AL,[ESP+4]      ; c
+        INT     0x40
+        RET
+        
+_api_end:       ; void api_end(void);
+        MOV     EDX,4
+        INT     0x40
+```
+
+hello3.c
+```c
+void api_putchar(int c);
+void api_end(void);
+
+void HariMain(void)
+{
+    api_putchar('h');
+    api_putchar('e');
+    api_putchar('l');
+    api_putchar('l');
+    api_putchar('o');
+    api_end();
+}
+```
+
+crack1.c
+```c
+void api_end(void);
+
+void HariMain(void)
+{
+    *((char *) 0x00102600) = 0;
+    api_end();
+}
+```
+
+crack2.nas
+```nasm
+[INSTRSET "i486p"]
+[BITS 32]
+        MOV		EAX,1*8			; OS用のセグメント番号
+        MOV		DS,AX			; これをDSにいれちゃう
+        MOV		BYTE [0x102600],0
+        MOV             EDX,4
+        INT             0x40
+```
+
+Makefile
+```Makefile
+crack1.bim : crack1.obj Makefile
+	$(OBJ2BIM) @$(RULEFILE) out:crack1.bim map:crack1.map crack1.obj a_nask.obj
+```
+
+crack2実行したら例外が発生しました。   
+これで多少はOSを守れたかもです。
+
+**実装過程**   
+・　[3d97373e0604b960722a78ac42233f835da4303d](3d97373e0604b960722a78ac42233f835da4303d)a
