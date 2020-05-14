@@ -20613,4 +20613,313 @@ crack2実行したら例外が発生しました。
 これで多少はOSを守れたかもです。
 
 **実装過程**   
-・　[3d97373e0604b960722a78ac42233f835da4303d](3d97373e0604b960722a78ac42233f835da4303d)a
+・　[3d97373e0604b960722a78ac42233f835da4303d](3d97373e0604b960722a78ac42233f835da4303d)
+
+## day27
+本で22日目に突入です。   
+OSを攻撃してみてさらに改善できる場所を探してみましょう。    
+
+Makefile
+```Makefile
+crack3.hrb : crack3.nas Makefile
+	$(NASK) crack3.nas crack3.hrb crack3.lst
+
+crack4.hrb : crack4.nas Makefile
+	$(NASK) crack4.nas crack4.hrb crack4.lst
+
+crack5.hrb : crack5.nas Makefile
+	$(NASK) crack5.nas crack5.hrb crack5.lst
+
+crack6.hrb : crack6.nas Makefile
+	$(NASK) crack6.nas crack6.hrb crack6.lst
+
+haribote.img : ipl10.bin haribote.sys Makefile \
+		hello.hrb hello2.hrb a.hrb hello3.hrb crack1.hrb crack2.hrb crack3.hrb \
+		crack4.hrb crack5.hrb crack6.hrb
+	$(EDIMG)   imgin:..\..\z_tools\fdimg0at.tek \
+		wbinimg src:ipl10.bin len:512 from:0 to:0 \
+		copy from:haribote.sys to:@: \
+		copy from:ipl10.nas to:@: \
+		copy from:make.bat to:@: \
+		copy from:hello.hrb to:@: \
+		copy from:hello2.hrb to:@: \
+		copy from:a.hrb to:@: \
+		copy from:hello3.hrb to:@: \
+		copy from:crack1.hrb to:@: \
+		copy from:crack2.hrb to:@: \
+		copy from:crack3.hrb to:@: \
+		copy from:crack4.hrb to:@: \
+		copy from:crack5.hrb to:@: \
+		copy from:crack6.hrb to:@: \
+		imgout:haribote.img
+```
+
+crack3.nas
+```nasm
+[INSTRSET "i486p"]
+[BITS 32]
+        MOV     AL,0x34
+        OUT     0x43,AL
+        MOV     AL,0xff
+        OUT     0x40,AL
+        MOV     AL,0xff
+        OUT     0x40,AL
+
+; 	↑これは以下のプログラムに相当
+;	io_out8(PIT_CTRL, 0x34);
+;	io_out8(PIT_CNT0, 0xff);
+;	io_out8(PIT_CNT0, 0xff);
+
+        MOV     EDX,4
+        INT     0x40
+```
+
+crack4.nas
+```nasm
+[INSTRSET "i486p"]
+[BITS 32]
+        CLI
+fin:
+        HLT
+        JMP     fin
+```
+
+crack5.nas
+```nasm
+[INSTRSET "i486p"]
+[BITS 32]
+        CALL    2*8:0xac1
+        MOV     EDX,4
+        INT     0x40
+```
+
+console.c
+```c
+int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int eax)
+{
+	int cs_base = *((int *) 0xfe8);
+	struct TASK *task = task_now();
+	struct CONSOLE *cons = (struct CONSOLE *) *((int *) 0x0fec);
+	if (edx == 1) {
+		cons_putchar(cons, eax & 0xff, 1);
+	} else if (edx == 2) {
+		cons_putstr0(cons, (char *) ebx + cs_base);
+	} else if (edx == 3) {
+		cons_putstr1(cons, (char *) ebx + cs_base, ecx);
+	} else if (edx == 4) {
+		return &(task->tss.esp0);
+	} else if (edx == 123456789) {
+		*((char *) 0x00102600) = 0;
+	}
+	return 0;
+}
+```
+
+crack6.nas
+```nasm
+[INSTRSET "i486p"]
+[BITS 32]
+        MOV     EDX,123456789
+        INT     0x40
+        MOV     EDX,4
+        INT     0x40
+```
+
+バグを見つけたら例外を出してあげるようにしましょう   
+Makefile
+```Makefile
+bug1.bim : bug1.obj Makefile
+	$(OBJ2BIM) @$(RULEFILE) out:bug1.bim map:bug1.map bug1.obj a_nask.obj
+
+bug1.hrb : bug1.bim Makefile
+	$(BIM2HRB) bug1.bim bug1.hrb 0
+
+haribote.img : ipl10.bin haribote.sys Makefile \
+		hello.hrb hello2.hrb a.hrb hello3.hrb bug1.hrb
+	$(EDIMG)   imgin:..\..\z_tools\fdimg0at.tek \
+		wbinimg src:ipl10.bin len:512 from:0 to:0 \
+		copy from:haribote.sys to:@: \
+		copy from:ipl10.nas to:@: \
+		copy from:make.bat to:@: \
+		copy from:hello.hrb to:@: \
+		copy from:hello2.hrb to:@: \
+		copy from:a.hrb to:@: \
+		copy from:hello3.hrb to:@: \
+		copy from:bug1.hrb to:@: \
+		imgout:haribote.img
+```
+
+bug1.c
+```c
+void api_putchar(int c);
+void api_end(void);
+
+void HariMain(void)
+{
+    char a[100];
+    a[10] = 'A';
+    api_putchar(a[10]);
+    a[102] = 'B';
+    api_putchar(a[102]);
+    a[123] = 'C';
+    api_putchar(a[123]);
+    api_end();
+}
+```
+
+naskfunc.nas
+```nasm
+GLOBAL	_asm_inthandler0c, _asm_inthandler0d
+		GLOBAL	_memtest_sub
+		GLOBAL	_farjmp, _farcall
+		GLOBAL	_asm_hrb_api, _start_app
+		EXTERN	_inthandler20, _inthandler21
+		EXTERN	_inthandler27, _inthandler2c
+		EXTERN	_inthandler0c, _inthandler0d
+```
+
+```nasm
+_asm_inthandler0c:
+		STI
+		PUSH	ES
+		PUSH	DS
+		PUSHAD
+		MOV		EAX,ESP
+		PUSH	EAX
+		MOV		AX,SS
+		MOV		DS,AX
+		MOV		ES,AX
+		CALL	_inthandler0c
+		CMP		EAX,0
+		JNE		end_app
+		POP		EAX
+		POPAD
+		POP		DS
+		POP		ES
+		ADD		ESP,4			; INT 0x0c でも、これが必要
+		IRETD
+```
+
+console.c
+```c
+int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int eax)
+{
+	int cs_base = *((int *) 0xfe8);
+	struct TASK *task = task_now();
+	struct CONSOLE *cons = (struct CONSOLE *) *((int *) 0x0fec);
+	if (edx == 1) {
+		cons_putchar(cons, eax & 0xff, 1);
+	} else if (edx == 2) {
+		cons_putstr0(cons, (char *) ebx + cs_base);
+	} else if (edx == 3) {
+		cons_putstr1(cons, (char *) ebx + cs_base, ecx);
+	} else if (edx == 4) {
+		return &(task->tss.esp0);
+	}
+	return 0;
+}
+
+int *inthandler0c(int *esp)
+{
+	struct CONSOLE *cons = (struct CONSOLE *) *((int *) 0x0fec);
+	struct TASK *task = task_now();
+	char s[30];
+	cons_putstr0(cons, "\nINT 0C :\n Stack Exception.\n");
+	sprintf(s, "EIP = %08X\n", esp[11]);
+	cons_putstr0(cons, s);
+	return &(task->tss.esp0);	/* 異常終了させる */
+}
+
+int *inthandler0d(int *esp)
+{
+	struct CONSOLE *cons = (struct CONSOLE *) *((int *) 0x0fec);
+	struct TASK *task = task_now();
+	char s[30];
+	cons_putstr0(cons, "\nINT 0D :\n General Protected Exception.\n");
+	sprintf(s, "EIP = %08X\n", esp[11]);
+	cons_putstr0(cons, s);
+	return &(task->tss.esp0);	/* 異常終了させる */
+}
+```
+
+dsctbl.c
+```c
+void init_gdtidt(void)
+{
+	struct SEGMENT_DESCRIPTOR *gdt = (struct SEGMENT_DESCRIPTOR *) ADR_GDT;
+	struct GATE_DESCRIPTOR    *idt = (struct GATE_DESCRIPTOR    *) ADR_IDT;
+	int i;
+
+	/* GDTの初期化 */
+	for (i = 0; i <= LIMIT_GDT / 8; i++) {
+		set_segmdesc(gdt + i, 0, 0, 0);
+	}
+	set_segmdesc(gdt + 1, 0xffffffff,   0x00000000, AR_DATA32_RW);
+	set_segmdesc(gdt + 2, LIMIT_BOTPAK, ADR_BOTPAK, AR_CODE32_ER);
+	load_gdtr(LIMIT_GDT, ADR_GDT);
+
+	/* IDTの初期化 */
+	for (i = 0; i <= LIMIT_IDT / 8; i++) {
+		set_gatedesc(idt + i, 0, 0, 0);
+	}
+	load_idtr(LIMIT_IDT, ADR_IDT);
+
+	/* IDTの設定 */
+	set_gatedesc(idt + 0x0c, (int) asm_inthandler0c, 2 * 8, AR_INTGATE32);
+	set_gatedesc(idt + 0x0d, (int) asm_inthandler0d, 2 * 8, AR_INTGATE32);
+	set_gatedesc(idt + 0x20, (int) asm_inthandler20, 2 * 8, AR_INTGATE32);
+	set_gatedesc(idt + 0x21, (int) asm_inthandler21, 2 * 8, AR_INTGATE32);
+	set_gatedesc(idt + 0x27, (int) asm_inthandler27, 2 * 8, AR_INTGATE32);
+	set_gatedesc(idt + 0x2c, (int) asm_inthandler2c, 2 * 8, AR_INTGATE32);
+	set_gatedesc(idt + 0x40, (int) asm_hrb_api,      2 * 8, AR_INTGATE32 + 0x60);
+
+	return;
+}
+```
+
+bootpack.h
+```h
+/* naskfunc.nas */
+void io_hlt(void);
+void io_cli(void);
+void io_sti(void);
+void io_stihlt(void);
+int io_in8(int port);
+void io_out8(int port, int data);
+int io_load_eflags(void);
+void io_store_eflags(int eflags);
+void load_gdtr(int limit, int addr);
+void load_idtr(int limit, int addr);
+int load_cr0(void);
+void store_cr0(int cr0);
+void load_tr(int tr);
+void asm_inthandler0c(void);
+void asm_inthandler0d(void);
+void asm_inthandler20(void);
+void asm_inthandler21(void);
+```
+
+```h
+/* console.c */
+struct CONSOLE {
+	struct SHEET *sht;
+	int cur_x, cur_y, cur_c;
+};
+void console_task(struct SHEET *sheet, unsigned int memtotal);
+void cons_putchar(struct CONSOLE *cons, int chr, char move);
+void cons_newline(struct CONSOLE *cons);
+void cons_putstr0(struct CONSOLE *cons, char *s);
+void cons_putstr1(struct CONSOLE *cons, char *s, int l);
+void cons_runcmd(char *cmdline, struct CONSOLE *cons, int *fat, unsigned int memtotal);
+void cmd_mem(struct CONSOLE *cons, unsigned int memtotal);
+void cmd_cls(struct CONSOLE *cons);
+void cmd_dir(struct CONSOLE *cons);
+void cmd_type(struct CONSOLE *cons, int *fat, char *cmdline);
+int cmd_app(struct CONSOLE *cons, int *fat, char *cmdline);
+int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int eax);
+int *inthandler0d(int *esp);
+int *inthandler0c(int *esp);
+```
+
+**実装過程**   
+・　[ec6811fe67623470ae675e1d7d9b81b3d28a11d4](ec6811fe67623470ae675e1d7d9b81b3d28a11d4)
