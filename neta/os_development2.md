@@ -20923,3 +20923,759 @@ int *inthandler0c(int *esp);
 
 **実装過程**   
 ・　[ec6811fe67623470ae675e1d7d9b81b3d28a11d4](ec6811fe67623470ae675e1d7d9b81b3d28a11d4)
+
+## day28
+アプリを強制終了させるように改造してみましょう。   
+Makefile
+```Makefile
+bug2.bim : bug2.obj Makefile
+	$(OBJ2BIM) @$(RULEFILE) out:bug2.bim map:bug2.map bug2.obj
+
+bug2.hrb : bug2.bim Makefile
+	$(BIM2HRB) bug2.bim bug2.hrb 0
+
+bug3.bim : bug3.obj Makefile
+	$(OBJ2BIM) @$(RULEFILE) out:bug3.bim map:bug3.map bug3.obj a_nask.obj
+
+bug3.hrb : bug3.bim Makefile
+	$(BIM2HRB) bug3.bim bug3.hrb 0
+
+haribote.img : ipl10.bin haribote.sys Makefile \
+		hello.hrb hello2.hrb a.hrb hello3.hrb bug1.hrb bug2.hrb bug3.hrb
+	$(EDIMG)   imgin:..\..\z_tools\fdimg0at.tek \
+		wbinimg src:ipl10.bin len:512 from:0 to:0 \
+		copy from:haribote.sys to:@: \
+		copy from:ipl10.nas to:@: \
+		copy from:make.bat to:@: \
+		copy from:hello.hrb to:@: \
+		copy from:hello2.hrb to:@: \
+		copy from:a.hrb to:@: \
+		copy from:hello3.hrb to:@: \
+		copy from:bug1.hrb to:@: \
+		copy from:bug2.hrb to:@: \
+		copy from:bug3.hrb to:@: \
+		imgout:haribote.img
+```
+
+bag2.c
+```c
+void HariMain(void)
+{
+    for (;;) { }
+}
+```
+
+bootpack.c
+```c
+int key_to = 0, key_shift = 0, key_leds = (binfo->leds >> 4) & 7, keycmd_wait = -1;
+	struct CONSOLE *cons;
+
+	init_gdtidt();
+```
+
+```c
+if (i == 256 + 0x2a) {	/* 左シフト ON */
+					key_shift |= 1;
+				}
+				if (i == 256 + 0x36) {	/* 右シフト ON */
+					key_shift |= 2;
+				}
+				if (i == 256 + 0xaa) {	/* 左シフト OFF */
+					key_shift &= ~1;
+				}
+				if (i == 256 + 0xb6) {	/* 右シフト OFF */
+					key_shift &= ~2;
+				}
+				if (i == 256 + 0x3a) {	/* CapsLock */
+					key_leds ^= 4;
+					fifo32_put(&keycmd, KEYCMD_LED);
+					fifo32_put(&keycmd, key_leds);
+				}
+				if (i == 256 + 0x45) {	/* NumLock */
+					key_leds ^= 2;
+					fifo32_put(&keycmd, KEYCMD_LED);
+					fifo32_put(&keycmd, key_leds);
+				}
+				if (i == 256 + 0x46) {	/* ScrollLock */
+					key_leds ^= 1;
+					fifo32_put(&keycmd, KEYCMD_LED);
+					fifo32_put(&keycmd, key_leds);
+				}
+				if (i == 256 + 0x3b && key_shift != 0 && task_cons->tss.ss0 != 0) {	/* Shift+F1 */
+					cons = (struct CONSOLE *) *((int *) 0x0fec);
+					cons_putstr0(cons, "\nBreak(key) :\n");
+					io_cli();	/* 強制終了処理中にタスクが変わると困るから */
+					task_cons->tss.eax = (int) &(task_cons->tss.esp0);
+					task_cons->tss.eip = (int) asm_end_app;
+					io_sti();
+				}
+				if (i == 256 + 0xfa) {	/* キーボードがデータを無事に受け取った */
+					keycmd_wait = -1;
+				}
+				if (i == 256 + 0xfe) {	/* キーボードがデータを無事に受け取れなかった */
+					wait_KBC_sendready();
+					io_out8(PORT_KEYDAT, keycmd_wait);
+				}
+				/* カーソルの再表示 */
+				if (cursor_c >= 0) {
+					boxfill8(sht_win->buf, sht_win->bxsize, cursor_c, cursor_x, 28, cursor_x + 7, 43);
+				}
+				sheet_refresh(sht_win, cursor_x, 28, cursor_x + 8, 44);
+```
+
+bootpack.h
+```h
+void asm_end_app(void);
+```
+
+naskfunc.nas
+```nasm
+GLOBAL	_asm_end_app, _memtest_sub
+```
+
+```nasm
+_asm_inthandler0c:
+		STI
+		PUSH	ES
+		PUSH	DS
+		PUSHAD
+		MOV		EAX,ESP
+		PUSH	EAX
+		MOV		AX,SS
+		MOV		DS,AX
+		MOV		ES,AX
+		CALL	_inthandler0c
+		CMP		EAX,0
+		JNE		_asm_end_app
+		POP		EAX
+		POPAD
+		POP		DS
+		POP		ES
+		ADD		ESP,4			; INT 0x0c でも、これが必要
+		IRETD
+
+_asm_inthandler0d:
+		STI
+		PUSH	ES
+		PUSH	DS
+		PUSHAD
+		MOV		EAX,ESP
+		PUSH	EAX
+		MOV		AX,SS
+		MOV		DS,AX
+		MOV		ES,AX
+		CALL	_inthandler0d
+		CMP		EAX,0			; ここだけ違う
+		JNE		_asm_end_app	; ここだけ違う
+		POP		EAX
+		POPAD
+		POP		DS
+		POP		ES
+		ADD		ESP,4			; INT 0x0d では、これが必要
+```
+
+```nasm
+_asm_end_app:
+;	EAXはtss.esp0の番地
+		MOV		ESP,[EAX]
+		MOV		DWORD [EAX+4],0
+		POPAD
+		RET					; cmd_appへ帰る
+```
+
+mtask.c
+```c
+struct TASK *task_alloc(void)
+{
+	int i;
+	struct TASK *task;
+	for (i = 0; i < MAX_TASKS; i++) {
+		if (taskctl->tasks0[i].flags == 0) {
+			task = &taskctl->tasks0[i];
+			task->flags = 1; /* 使用中マーク */
+			task->tss.eflags = 0x00000202; /* IF = 1; */
+			task->tss.eax = 0; /* とりあえず0にしておくことにする */
+			task->tss.ecx = 0;
+			task->tss.edx = 0;
+			task->tss.ebx = 0;
+			task->tss.ebp = 0;
+			task->tss.esi = 0;
+			task->tss.edi = 0;
+			task->tss.es = 0;
+			task->tss.ds = 0;
+			task->tss.fs = 0;
+			task->tss.gs = 0;
+			task->tss.ldtr = 0;
+			task->tss.iomap = 0x40000000;
+			task->tss.ss0 = 0;
+			return task;
+		}
+	}
+	return 0; /* もう全部使用中 */
+}
+```
+
+文字列表示をさせるAPIを使います。   
+a_nask.nas
+```nasm
+_api_putstr0:   ; void api_putstr0(char *s);
+        PUSH    EBX
+        MOV     EDX,2
+        MOV     EBX,[ESP+8]     ; s
+        INT     0x40
+        POP     EBX
+        RET
+```
+
+hello4.c
+```c
+void api_putstr0(char *a);
+void api_end(void);
+
+void HariMain(void)
+{
+    api_putstr0("hello, world\n");
+    api_end();
+}
+```
+
+Makefile
+```Makefile
+hello4.bim : hello4.obj a_nask.obj Makefile
+	$(OBJ2BIM) @$(RULEFILE) out:hello4.bim stack:1k map:hello4.map \
+		hello4.obj a_nask.obj
+
+hello4.hrb : hello4.bim Makefile
+	$(BIM2HRB) hello4.bim hello4.hrb 0
+```
+
+```Makefile
+haribote.img : ipl10.bin haribote.sys Makefile \
+		hello.hrb hello2.hrb a.hrb hello3.hrb bug1.hrb bug2.hrb bug3.hrb \
+		hello4.hrb
+	$(EDIMG)   imgin:..\..\z_tools\fdimg0at.tek \
+		wbinimg src:ipl10.bin len:512 from:0 to:0 \
+		copy from:haribote.sys to:@: \
+		copy from:ipl10.nas to:@: \
+		copy from:make.bat to:@: \
+		copy from:hello.hrb to:@: \
+		copy from:hello2.hrb to:@: \
+		copy from:a.hrb to:@: \
+		copy from:hello3.hrb to:@: \
+		copy from:bug1.hrb to:@: \
+		copy from:bug2.hrb to:@: \
+		copy from:bug3.hrb to:@: \
+		copy from:hello4.hrb to:@: \
+		imgout:haribote.img
+```
+
+console.c
+```c
+int cmd_app(struct CONSOLE *cons, int *fat, char *cmdline)
+{
+	struct MEMMAN *memman = (struct MEMMAN *) MEMMAN_ADDR;
+	struct FILEINFO *finfo;
+	struct SEGMENT_DESCRIPTOR *gdt = (struct SEGMENT_DESCRIPTOR *) ADR_GDT;
+	char name[18], *p, *q;
+	struct TASK *task = task_now();
+	int i;
+
+	/* コマンドラインからファイル名を生成 */
+	for (i = 0; i < 13; i++) {
+		if (cmdline[i] <= ' ') {
+			break;
+		}
+		name[i] = cmdline[i];
+	}
+	name[i] = 0; /* とりあえずファイル名の後ろを0にする */
+
+	/* ファイルを探す */
+	finfo = file_search(name, (struct FILEINFO *) (ADR_DISKIMG + 0x002600), 224);
+	if (finfo == 0 && name[i - 1] != '.') {
+		/* 見つからなかったので後ろに".HRB"をつけてもう一度探してみる */
+		name[i    ] = '.';
+		name[i + 1] = 'H';
+		name[i + 2] = 'R';
+		name[i + 3] = 'B';
+		name[i + 4] = 0;
+		finfo = file_search(name, (struct FILEINFO *) (ADR_DISKIMG + 0x002600), 224);
+	}
+
+	if (finfo != 0) {
+		/* ファイルが見つかった場合 */
+		p = (char *) memman_alloc_4k(memman, finfo->size);
+		q = (char *) memman_alloc_4k(memman, 64 * 1024);
+		*((int *) 0xfe8) = (int) p;
+		file_loadfile(finfo->clustno, finfo->size, p, fat, (char *) (ADR_DISKIMG + 0x003e00));
+		set_segmdesc(gdt + 1003, finfo->size - 1, (int) p, AR_CODE32_ER + 0x60);
+		set_segmdesc(gdt + 1004, 64 * 1024 - 1,   (int) q, AR_DATA32_RW + 0x60);
+		if (finfo->size >= 8 && strncmp(p + 4, "Hari", 4) == 0) {
+			start_app(0x1b, 1003 * 8, 64 * 1024, 1004 * 8, &(task->tss.esp0));
+		} else {
+			start_app(0, 1003 * 8, 64 * 1024, 1004 * 8, &(task->tss.esp0));
+		}
+		memman_free_4k(memman, (int) p, finfo->size);
+		memman_free_4k(memman, (int) q, 64 * 1024);
+		cons_newline(cons);
+		return 1;
+	}
+	/* ファイルが見つからなかった場合 */
+	return 0;
+}
+```
+
+hello4が動かないですね。   
+次はhello4を動かせるように頑張って改造します。   
+
+Makefile
+```Makefile
+hello5.bim : hello5.obj Makefile
+	$(OBJ2BIM) @$(RULEFILE) out:hello5.bim stack:1k map:hello5.map hello5.obj
+
+hello5.hrb : hello5.bim Makefile
+	$(BIM2HRB) hello5.bim hello5.hrb 0
+```
+
+```Makefile
+haribote.img : ipl10.bin haribote.sys Makefile \
+		hello.hrb hello2.hrb a.hrb hello3.hrb bug1.hrb bug2.hrb bug3.hrb \
+		hello4.hrb hello5.hrb
+	$(EDIMG)   imgin:..\..\z_tools\fdimg0at.tek \
+		wbinimg src:ipl10.bin len:512 from:0 to:0 \
+		copy from:haribote.sys to:@: \
+		copy from:ipl10.nas to:@: \
+		copy from:make.bat to:@: \
+		copy from:hello.hrb to:@: \
+		copy from:hello2.hrb to:@: \
+		copy from:a.hrb to:@: \
+		copy from:hello3.hrb to:@: \
+		copy from:bug1.hrb to:@: \
+		copy from:bug2.hrb to:@: \
+		copy from:bug3.hrb to:@: \
+		copy from:hello4.hrb to:@: \
+		copy from:hello5.hrb to:@: \
+		imgout:haribote.img
+```
+
+console.c
+```c
+int cmd_app(struct CONSOLE *cons, int *fat, char *cmdline)
+{
+	struct MEMMAN *memman = (struct MEMMAN *) MEMMAN_ADDR;
+	struct FILEINFO *finfo;
+	struct SEGMENT_DESCRIPTOR *gdt = (struct SEGMENT_DESCRIPTOR *) ADR_GDT;
+	char name[18], *p, *q;
+	struct TASK *task = task_now();
+	int i, segsiz, datsiz, esp, dathrb;
+
+	/* コマンドラインからファイル名を生成 */
+	for (i = 0; i < 13; i++) {
+		if (cmdline[i] <= ' ') {
+			break;
+		}
+		name[i] = cmdline[i];
+	}
+	name[i] = 0; /* とりあえずファイル名の後ろを0にする */
+
+	/* ファイルを探す */
+	finfo = file_search(name, (struct FILEINFO *) (ADR_DISKIMG + 0x002600), 224);
+	if (finfo == 0 && name[i - 1] != '.') {
+		/* 見つからなかったので後ろに".HRB"をつけてもう一度探してみる */
+		name[i    ] = '.';
+		name[i + 1] = 'H';
+		name[i + 2] = 'R';
+		name[i + 3] = 'B';
+		name[i + 4] = 0;
+		finfo = file_search(name, (struct FILEINFO *) (ADR_DISKIMG + 0x002600), 224);
+	}
+
+	if (finfo != 0) {
+		/* ファイルが見つかった場合 */
+		p = (char *) memman_alloc_4k(memman, finfo->size);
+		file_loadfile(finfo->clustno, finfo->size, p, fat, (char *) (ADR_DISKIMG + 0x003e00));
+		if (finfo->size >= 36 && strncmp(p + 4, "Hari", 4) == 0 && *p == 0x00) {
+			segsiz = *((int *) (p + 0x0000));
+			esp    = *((int *) (p + 0x000c));
+			datsiz = *((int *) (p + 0x0010));
+			dathrb = *((int *) (p + 0x0014));
+			q = (char *) memman_alloc_4k(memman, segsiz);
+			*((int *) 0xfe8) = (int) q;
+			set_segmdesc(gdt + 1003, finfo->size - 1, (int) p, AR_CODE32_ER + 0x60);
+			set_segmdesc(gdt + 1004, segsiz - 1,      (int) q, AR_DATA32_RW + 0x60);
+			for (i = 0; i < datsiz; i++) {
+				q[esp + i] = p[dathrb + i];
+			}
+			start_app(0x1b, 1003 * 8, esp, 1004 * 8, &(task->tss.esp0));
+			memman_free_4k(memman, (int) q, segsiz);
+		} else {
+			cons_putstr0(cons, ".hrb file format error.\n");
+		}
+		memman_free_4k(memman, (int) p, finfo->size);
+		cons_newline(cons);
+		return 1;
+	}
+	/* ファイルが見つからなかった場合 */
+	return 0;
+}
+
+int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int eax)
+{
+	int ds_base = *((int *) 0xfe8);
+	struct TASK *task = task_now();
+	struct CONSOLE *cons = (struct CONSOLE *) *((int *) 0x0fec);
+	if (edx == 1) {
+		cons_putchar(cons, eax & 0xff, 1);
+	} else if (edx == 2) {
+		cons_putstr0(cons, (char *) ebx + ds_base);
+	} else if (edx == 3) {
+		cons_putstr1(cons, (char *) ebx + ds_base, ecx);
+	} else if (edx == 4) {
+		return &(task->tss.esp0);
+	}
+	return 0;
+}
+```
+
+hello5.nas
+```nasm
+[FORMAT "WCOFF"]
+[INSTRSET "i486p"]
+[BITS 32]
+[FILE "hello5.nas"]
+
+        GLOBAL  _HariMain
+
+[SECTION .text]
+
+_HariMain:
+        MOV     EDX,2
+        MOV     EBX,msg
+        INT     0x40
+        MOV     EDX,4
+        INT     0x40
+
+[SECTION .data]
+
+msg:
+        DB  "hello, world", 0x0a, 0
+```
+
+ウィンドウをだすAPIを作ってみましょう   
+console.c
+```c
+int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int eax)
+{
+	int ds_base = *((int *) 0xfe8);
+	struct TASK *task = task_now();
+	struct CONSOLE *cons = (struct CONSOLE *) *((int *) 0x0fec);
+	struct SHTCTL *shtctl = (struct SHTCTL *) *((int *) 0x0fe4);
+	struct SHEET *sht;
+	int *reg = &eax + 1;	/* eaxの次の番地 */
+		/* 保存のためのPUSHADを強引に書き換える */
+		/* reg[0] : EDI,   reg[1] : ESI,   reg[2] : EBP,   reg[3] : ESP */
+		/* reg[4] : EBX,   reg[5] : EDX,   reg[6] : ECX,   reg[7] : EAX */
+
+	if (edx == 1) {
+		cons_putchar(cons, eax & 0xff, 1);
+	} else if (edx == 2) {
+		cons_putstr0(cons, (char *) ebx + ds_base);
+	} else if (edx == 3) {
+		cons_putstr1(cons, (char *) ebx + ds_base, ecx);
+	} else if (edx == 4) {
+		return &(task->tss.esp0);
+	} else if (edx == 5) {
+		sht = sheet_alloc(shtctl);
+		sheet_setbuf(sht, (char *) ebx + ds_base, esi, edi, eax);
+		make_window8((char *) ebx + ds_base, esi, edi, (char *) ecx + ds_base, 0);
+		sheet_slide(sht, 100, 50);
+		sheet_updown(sht, 3);	/* 3という高さはtask_aの上 */
+		reg[7] = (int) sht;
+	}
+	return 0;
+}
+```
+
+bootpack.c
+```c
+	fifo.task = task_a;
+	task_run(task_a, 1, 2);
+	*((int *) 0x0fe4) = (int) shtctl;
+```
+
+a_nask.nas
+```nasm
+[FORMAT "WCOFF"]                ; オブジェクトファイルを作るモード
+[INSTRSET "i486p"]				; 486の命令まで使いたいという記述
+[BITS 32]                       ; 32ビットモード用の機械語を作らせる
+[FILE "a_nask.nas"]             ; ソースファイル名情報
+
+        GLOBAL  _api_putchar
+        GLOBAL  _api_putstr0
+        GLOBAL  _api_end
+        GLOBAL  _api_openwin
+
+[SECTION .text]
+
+_api_putchar:   ; void api_putchar(int c);
+        MOV     EDX,1
+        MOV     AL,[ESP+4]      ; c
+        INT     0x40
+        RET
+
+_api_putstr0:   ; void api_putstr0(char *s);
+        PUSH    EBX
+        MOV     EDX,2
+        MOV     EBX,[ESP+8]     ; s
+        INT     0x40
+        POP     EBX
+        RET
+        
+_api_end:       ; void api_end(void);
+        MOV     EDX,4
+        INT     0x40
+
+_api_openwin:    ; int api_openwin(char *buf, int xsiz, int ysiz, int col_inv, char *title);
+        PUSH    EDI
+        PUSH    ESI
+        PUSH    EBX
+        MOV     EDX,5
+        MOV     EBX,[ESP+16]    ; buf
+        MOV     ESI,[ESP+20]    ; xsiz
+        MOV     EDI,[ESP+24]    ; ysiz
+        MOV     EAX,[ESP+28]    ; col_inv
+        MOV     ECX,[ESP+32]    ; title
+        INT     0x40
+        POP     EBX
+        POP     ESI
+        POP     EDI
+        RET
+```
+
+Makefile
+```Makefile
+winhelo.bim : winhelo.obj a_nask.obj Makefile
+	$(OBJ2BIM) @$(RULEFILE) out:winhelo.bim stack:1k map:winhelo.map \
+		winhelo.obj a_nask.obj
+
+winhelo.hrb : winhelo.bim Makefile
+	$(BIM2HRB) winhelo.bim winhelo.hrb 0
+```
+
+```Makefile
+haribote.img : ipl10.bin haribote.sys Makefile \
+		hello.hrb hello2.hrb a.hrb hello3.hrb bug1.hrb bug2.hrb bug3.hrb \
+		hello4.hrb hello5.hrb winhelo.hrb
+	$(EDIMG)   imgin:..\..\z_tools\fdimg0at.tek \
+		wbinimg src:ipl10.bin len:512 from:0 to:0 \
+		copy from:haribote.sys to:@: \
+		copy from:ipl10.nas to:@: \
+		copy from:make.bat to:@: \
+		copy from:hello.hrb to:@: \
+		copy from:hello2.hrb to:@: \
+		copy from:a.hrb to:@: \
+		copy from:hello3.hrb to:@: \
+		copy from:bug1.hrb to:@: \
+		copy from:bug2.hrb to:@: \
+		copy from:bug3.hrb to:@: \
+		copy from:hello4.hrb to:@: \
+		copy from:hello5.hrb to:@: \
+		copy from:winhelo.hrb to:@: \
+		imgout:haribote.img
+```
+
+winhelo.c
+```c
+int api_openwin(char *buf, int xsiz, int ysiz, int col_inv, char *title);
+void api_end(void);
+
+char buf[150 * 50];
+
+void HariMain(void)
+{
+    int win;
+    win = api_openwin(buf, 150, 50, -1, "hello");
+    api_end();
+}
+```
+
+さらにウィンドウを出すようにしましょう。   
+console.c
+```c
+int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int eax)
+{
+	int ds_base = *((int *) 0xfe8);
+	struct TASK *task = task_now();
+	struct CONSOLE *cons = (struct CONSOLE *) *((int *) 0x0fec);
+	struct SHTCTL *shtctl = (struct SHTCTL *) *((int *) 0x0fe4);
+	struct SHEET *sht;
+	int *reg = &eax + 1;	/* eaxの次の番地 */
+		/* 保存のためのPUSHADを強引に書き換える */
+		/* reg[0] : EDI,   reg[1] : ESI,   reg[2] : EBP,   reg[3] : ESP */
+		/* reg[4] : EBX,   reg[5] : EDX,   reg[6] : ECX,   reg[7] : EAX */
+
+	if (edx == 1) {
+		cons_putchar(cons, eax & 0xff, 1);
+	} else if (edx == 2) {
+		cons_putstr0(cons, (char *) ebx + ds_base);
+	} else if (edx == 3) {
+		cons_putstr1(cons, (char *) ebx + ds_base, ecx);
+	} else if (edx == 4) {
+		return &(task->tss.esp0);
+	} else if (edx == 5) {
+		sht = sheet_alloc(shtctl);
+		sheet_setbuf(sht, (char *) ebx + ds_base, esi, edi, eax);
+		make_window8((char *) ebx + ds_base, esi, edi, (char *) ecx + ds_base, 0);
+		sheet_slide(sht, 100, 50);
+		sheet_updown(sht, 3);	/* 3という高さはtask_aの上 */
+		reg[7] = (int) sht;
+	} else if (edx == 6) {
+		sht = (struct SHEET *) ebx;
+		putfonts8_asc(sht->buf, sht->bxsize, esi, edi, eax, (char *) ebp + ds_base);
+		sheet_refresh(sht, esi, edi, esi + ecx * 8, edi + 16);
+	} else if (edx == 7) {
+		sht = (struct SHEET *) ebx;
+		boxfill8(sht->buf, sht->bxsize, ebp, eax, ecx, esi, edi);
+		sheet_refresh(sht, eax, ecx, esi + 1, edi + 1);
+	}
+	return 0;
+}
+```
+
+a_nask.nas
+```nasm
+[FORMAT "WCOFF"]                ; オブジェクトファイルを作るモード
+[INSTRSET "i486p"]				; 486の命令まで使いたいという記述
+[BITS 32]                       ; 32ビットモード用の機械語を作らせる
+[FILE "a_nask.nas"]             ; ソースファイル名情報
+
+        GLOBAL  _api_putchar
+        GLOBAL  _api_putstr0
+        GLOBAL  _api_end
+        GLOBAL  _api_openwin
+        GLOBAL  _api_putstrwin
+        GLOBAL  _api_boxfilwin
+
+[SECTION .text]
+
+_api_putchar:   ; void api_putchar(int c);
+        MOV     EDX,1
+        MOV     AL,[ESP+4]      ; c
+        INT     0x40
+        RET
+
+_api_putstr0:   ; void api_putstr0(char *s);
+        PUSH    EBX
+        MOV     EDX,2
+        MOV     EBX,[ESP+8]     ; s
+        INT     0x40
+        POP     EBX
+        RET
+        
+_api_end:       ; void api_end(void);
+        MOV     EDX,4
+        INT     0x40
+
+_api_openwin:    ; int api_openwin(char *buf, int xsiz, int ysiz, int col_inv, char *title);
+        PUSH    EDI
+        PUSH    ESI
+        PUSH    EBX
+        MOV     EDX,5
+        MOV     EBX,[ESP+16]    ; buf
+        MOV     ESI,[ESP+20]    ; xsiz
+        MOV     EDI,[ESP+24]    ; ysiz
+        MOV     EAX,[ESP+28]    ; col_inv
+        MOV     ECX,[ESP+32]    ; title
+        INT     0x40
+        POP     EBX
+        POP     ESI
+        POP     EDI
+        RET
+
+_api_putstrwin: ; void api_putstrwin(int win, int x, int y, int col, int len, char *str);
+        PUSH    EDI
+        PUSH    ESI
+        PUSH    EBP
+        PUSH    EBX
+        MOV     EDX,6
+        MOV     EBX,[ESP+20]    ; win
+        MOV     ESI,[ESP+24]    ; x
+        MOV     EDI,[ESP+28]    ; y
+        MOV     EAX,[ESP+32]    ; col
+        MOV     ECX,[ESP+36]    ; len
+        MOV     EBP,[ESP+40]    ; str
+        INT     0x40
+        POP     EBX
+        POP     EBP
+        POP     ESI
+        POP     EDI
+        RET
+
+_api_boxfilwin: ; void api_boxfilwin(int win, int x0, int y0, int x1, int y1, int col);
+        PUSH    EDI
+        PUSH    ESI
+        PUSH    EBP
+        PUSH    EBX
+        MOV     EDX,7
+        MOV     EBX,[ESP+20]    ; win
+        MOV     EAX,[ESP+24]    ; x0
+        MOV     ECX,[ESP+28]    ; y0
+        MOV     ESI,[ESP+32]    ; x1
+        MOV     EDI,[ESP+36]    ; y1
+        MOV     EBP,[ESP+40]    ; col
+        INT     0x40
+        POP     EBX
+        POP     EBP
+        POP     ESI
+        POP     EDI
+        RET
+```
+
+Makefile
+```Makefile
+winhelo2.bim : winhelo2.obj a_nask.obj Makefile
+	$(OBJ2BIM) @$(RULEFILE) out:winhelo2.bim stack:1k map:winhelo2.map \
+		winhelo2.obj a_nask.obj
+
+winhelo2.hrb : winhelo2.bim Makefile
+	$(BIM2HRB) winhelo2.bim winhelo2.hrb 0
+
+haribote.img : ipl10.bin haribote.sys Makefile \
+		hello.hrb hello2.hrb a.hrb hello3.hrb hello4.hrb hello5.hrb \
+		winhelo.hrb winhelo2.hrb
+	$(EDIMG)   imgin:..\..\z_tools\fdimg0at.tek \
+		wbinimg src:ipl10.bin len:512 from:0 to:0 \
+		copy from:haribote.sys to:@: \
+		copy from:ipl10.nas to:@: \
+		copy from:make.bat to:@: \
+		copy from:hello.hrb to:@: \
+		copy from:hello2.hrb to:@: \
+		copy from:a.hrb to:@: \
+		copy from:hello3.hrb to:@: \
+		copy from:hello4.hrb to:@: \
+		copy from:hello5.hrb to:@: \
+		copy from:winhelo.hrb to:@: \
+		copy from:winhelo2.hrb to:@: \
+		imgout:haribote.img
+```
+
+winhelo2.c
+```c
+int api_openwin(char *buf, int xsiz, int ysiz, int col_inv, char *title);
+void api_putstrwin(int win, int x, int y, int col, int len, char *str);
+void api_boxfilwin(int win, int x0, int y0, int x1, int y1, int col);
+void api_end(void);
+
+char buf[150 * 50];
+
+void HariMain(void)
+{
+    int win;
+    win = api_openwin(buf, 150, 50, -1, "hello");
+    api_boxfilwin(win,  8, 36, 141, 43, 3 /* ‰© */);
+    api_putstrwin(win, 28, 28, 0 /* • */, 12, "hello, world");
+    api_end();
+}
+```
+
+**実装過程**   
+・　[5e3771d332cad8ca4137fdffa593fd9f2dc82e25](5e3771d332cad8ca4137fdffa593fd9f2dc82e25)
