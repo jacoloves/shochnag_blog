@@ -21681,3 +21681,796 @@ void HariMain(void)
 ・　[5e3771d332cad8ca4137fdffa593fd9f2dc82e25](5e3771d332cad8ca4137fdffa593fd9f2dc82e25)
 
 ## day29
+本では23日目になりました。   
+まずはmallocを作ってみます。   
+console.c
+```c
+int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int eax)
+{
+	int ds_base = *((int *) 0xfe8);
+	struct TASK *task = task_now();
+	struct CONSOLE *cons = (struct CONSOLE *) *((int *) 0x0fec);
+	struct SHTCTL *shtctl = (struct SHTCTL *) *((int *) 0x0fe4);
+	struct SHEET *sht;
+	int *reg = &eax + 1;	/* eaxの次の番地 */
+		/* 保存のためのPUSHADを強引に書き換える */
+		/* reg[0] : EDI,   reg[1] : ESI,   reg[2] : EBP,   reg[3] : ESP */
+		/* reg[4] : EBX,   reg[5] : EDX,   reg[6] : ECX,   reg[7] : EAX */
+
+	if (edx == 1) {
+		cons_putchar(cons, eax & 0xff, 1);
+	} else if (edx == 2) {
+		cons_putstr0(cons, (char *) ebx + ds_base);
+	} else if (edx == 3) {
+		cons_putstr1(cons, (char *) ebx + ds_base, ecx);
+	} else if (edx == 4) {
+		return &(task->tss.esp0);
+	} else if (edx == 5) {
+		sht = sheet_alloc(shtctl);
+		sheet_setbuf(sht, (char *) ebx + ds_base, esi, edi, eax);
+		make_window8((char *) ebx + ds_base, esi, edi, (char *) ecx + ds_base, 0);
+		sheet_slide(sht, 100, 50);
+		sheet_updown(sht, 3);	/* 3という高さはtask_aの上 */
+		reg[7] = (int) sht;
+	} else if (edx == 6) {
+		sht = (struct SHEET *) ebx;
+		putfonts8_asc(sht->buf, sht->bxsize, esi, edi, eax, (char *) ebp + ds_base);
+		sheet_refresh(sht, esi, edi, esi + ecx * 8, edi + 16);
+	} else if (edx == 7) {
+		sht = (struct SHEET *) ebx;
+		boxfill8(sht->buf, sht->bxsize, ebp, eax, ecx, esi, edi);
+		sheet_refresh(sht, eax, ecx, esi + 1, edi + 1);
+	} else if (edx == 8) {
+		memman_init((struct MEMMAN *) (ebx + ds_base));
+		ecx &= 0xfffffff0;	/* 16バイト単位に */
+		memman_free((struct MEMMAN *) (ebx + ds_base), eax, ecx);
+	} else if (edx == 9) {
+		ecx = (ecx + 0x0f) & 0xfffffff0; /* 16バイト単位に切り上げ */
+		reg[7] = memman_alloc((struct MEMMAN *) (ebx + ds_base), ecx);
+	} else if (edx == 10) {
+		ecx = (ecx + 0x0f) & 0xfffffff0; /* 16バイト単位に切り上げ */
+		memman_free((struct MEMMAN *) (ebx + ds_base), eax, ecx);
+	}
+	return 0;
+}
+```
+
+a_nask.nas
+```nasm
+GLOBAL	_api_initmalloc
+		GLOBAL	_api_malloc
+		GLOBAL	_api_free
+```
+
+```nasm
+_api_initmalloc:	; void api_initmalloc(void);
+		PUSH	EBX
+		MOV		EDX,8
+		MOV		EBX,[CS:0x0020]		; malloc領域の番地
+		MOV		EAX,EBX
+		ADD		EAX,32*1024			; 32KBを足す
+		MOV		ECX,[CS:0x0000]		; データセグメントの大きさ
+		SUB		ECX,EAX
+		INT		0x40
+		POP		EBX
+		RET
+
+_api_malloc:		; char *api_malloc(int size);
+		PUSH	EBX
+		MOV		EDX,9
+		MOV		EBX,[CS:0x0020]
+		MOV		ECX,[ESP+8]			; size
+		INT		0x40
+		POP		EBX
+		RET
+
+_api_free:			; void api_free(char *addr, int size);
+		PUSH	EBX
+		MOV		EDX,10
+		MOV		EBX,[CS:0x0020]
+		MOV		EAX,[ESP+ 8]		; addr
+		MOV		ECX,[ESP+12]		; size
+		INT		0x40
+		POP		EBX
+		RET
+```
+
+Makefile
+```Makefile
+winhelo3.bim : winhelo3.obj a_nask.obj Makefile
+	$(OBJ2BIM) @$(RULEFILE) out:winhelo3.bim stack:1k map:winhelo3.map \
+		winhelo3.obj a_nask.obj
+
+winhelo3.hrb : winhelo3.bim Makefile
+	$(BIM2HRB) winhelo3.bim winhelo3.hrb 40k
+
+haribote.img : ipl10.bin haribote.sys Makefile \
+		hello.hrb hello2.hrb a.hrb hello3.hrb hello4.hrb hello5.hrb \
+		winhelo.hrb winhelo2.hrb winhelo3.hrb
+	$(EDIMG)   imgin:..\..\z_tools\fdimg0at.tek \
+		wbinimg src:ipl10.bin len:512 from:0 to:0 \
+		copy from:haribote.sys to:@: \
+		copy from:ipl10.nas to:@: \
+		copy from:make.bat to:@: \
+		copy from:hello.hrb to:@: \
+		copy from:hello2.hrb to:@: \
+		copy from:a.hrb to:@: \
+		copy from:hello3.hrb to:@: \
+		copy from:hello4.hrb to:@: \
+		copy from:hello5.hrb to:@: \
+		copy from:winhelo.hrb to:@: \
+		copy from:winhelo2.hrb to:@: \
+		copy from:winhelo3.hrb to:@: \
+		imgout:haribote.img
+```
+
+winhelo3.c
+```c
+int api_openwin(char *buf, int xsiz, int ysiz, int col_inv, char *title);
+void api_putstrwin(int win, int x, int y, int col, int len, char *str);
+void api_boxfilwin(int win, int x0, int y0, int x1, int y1, int col);
+void api_initmalloc(void);
+char *api_malloc(int size);
+void api_end(void);
+
+void HariMain(void)
+{
+    char *buf;
+    int win;
+
+    api_initmalloc();
+    buf = api_malloc(150 * 50);
+    win = api_openwin(buf, 150, 50, -1, "hello");
+    api_boxfilwin(win,  8, 36, 141, 43, 6 /* …F */);
+    api_putstrwin(win, 28, 28, 0 /* • */, 12, "hello, world");
+    api_end();
+}
+```
+
+点を描画できるようにしたいとおもいます。   
+console.c
+```c
+int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int eax)
+{
+	int ds_base = *((int *) 0xfe8);
+	struct TASK *task = task_now();
+	struct CONSOLE *cons = (struct CONSOLE *) *((int *) 0x0fec);
+	struct SHTCTL *shtctl = (struct SHTCTL *) *((int *) 0x0fe4);
+	struct SHEET *sht;
+	int *reg = &eax + 1;	/* eaxの次の番地 */
+		/* 保存のためのPUSHADを強引に書き換える */
+		/* reg[0] : EDI,   reg[1] : ESI,   reg[2] : EBP,   reg[3] : ESP */
+		/* reg[4] : EBX,   reg[5] : EDX,   reg[6] : ECX,   reg[7] : EAX */
+
+	if (edx == 1) {
+		cons_putchar(cons, eax & 0xff, 1);
+	} else if (edx == 2) {
+		cons_putstr0(cons, (char *) ebx + ds_base);
+	} else if (edx == 3) {
+		cons_putstr1(cons, (char *) ebx + ds_base, ecx);
+	} else if (edx == 4) {
+		return &(task->tss.esp0);
+	} else if (edx == 5) {
+		sht = sheet_alloc(shtctl);
+		sheet_setbuf(sht, (char *) ebx + ds_base, esi, edi, eax);
+		make_window8((char *) ebx + ds_base, esi, edi, (char *) ecx + ds_base, 0);
+		sheet_slide(sht, 100, 50);
+		sheet_updown(sht, 3);	/* 3という高さはtask_aの上 */
+		reg[7] = (int) sht;
+	} else if (edx == 6) {
+		sht = (struct SHEET *) ebx;
+		putfonts8_asc(sht->buf, sht->bxsize, esi, edi, eax, (char *) ebp + ds_base);
+		sheet_refresh(sht, esi, edi, esi + ecx * 8, edi + 16);
+	} else if (edx == 7) {
+		sht = (struct SHEET *) ebx;
+		boxfill8(sht->buf, sht->bxsize, ebp, eax, ecx, esi, edi);
+		sheet_refresh(sht, eax, ecx, esi + 1, edi + 1);
+	} else if (edx == 8) {
+		memman_init((struct MEMMAN *) (ebx + ds_base));
+		ecx &= 0xfffffff0;	/* 16バイト単位に */
+		memman_free((struct MEMMAN *) (ebx + ds_base), eax, ecx);
+	} else if (edx == 9) {
+		ecx = (ecx + 0x0f) & 0xfffffff0; /* 16バイト単位に切り上げ */
+		reg[7] = memman_alloc((struct MEMMAN *) (ebx + ds_base), ecx);
+	} else if (edx == 10) {
+		ecx = (ecx + 0x0f) & 0xfffffff0; /* 16バイト単位に切り上げ */
+		memman_free((struct MEMMAN *) (ebx + ds_base), eax, ecx);
+	} else if (edx == 11) {
+		sht = (struct SHEET *) ebx;
+		sht->buf[sht->bxsize * edi + esi] = eax;
+		sheet_refresh(sht, esi, edi, esi + 1, edi + 1);
+	}
+	return 0;
+}
+```
+
+a_nask.nas
+```nasm
+GLOBAL	_api_point
+```
+
+```nasm
+_api_point:		; void api_point(int win, int x, int y, int col);
+		PUSH	EDI
+		PUSH	ESI
+		PUSH	EBX
+		MOV		EDX,11
+		MOV		EBX,[ESP+16]	; win
+		MOV		ESI,[ESP+20]	; x
+		MOV		EDI,[ESP+24]	; y
+		MOV		EAX,[ESP+28]	; col
+		INT		0x40
+		POP		EBX
+		POP		ESI
+		POP		EDI
+		RET
+```
+
+Makefile
+```Makefile
+star1.bim : star1.obj a_nask.obj Makefile
+	$(OBJ2BIM) @$(RULEFILE) out:star1.bim stack:1k map:star1.map \
+		star1.obj a_nask.obj
+
+star1.hrb : star1.bim Makefile
+	$(BIM2HRB) star1.bim star1.hrb 47k
+
+stars.bim : stars.obj a_nask.obj Makefile
+	$(OBJ2BIM) @$(RULEFILE) out:stars.bim stack:1k map:stars.map \
+		stars.obj a_nask.obj
+
+stars.hrb : stars.bim Makefile
+	$(BIM2HRB) stars.bim stars.hrb 47k
+
+haribote.img : ipl10.bin haribote.sys Makefile \
+		hello.hrb hello2.hrb a.hrb hello3.hrb hello4.hrb hello5.hrb \
+		winhelo.hrb winhelo2.hrb winhelo3.hrb star1.hrb stars.hrb 
+	$(EDIMG)   imgin:..\..\z_tools\fdimg0at.tek \
+		wbinimg src:ipl10.bin len:512 from:0 to:0 \
+		copy from:haribote.sys to:@: \
+		copy from:ipl10.nas to:@: \
+		copy from:make.bat to:@: \
+		copy from:hello.hrb to:@: \
+		copy from:hello2.hrb to:@: \
+		copy from:a.hrb to:@: \
+		copy from:hello3.hrb to:@: \
+		copy from:hello4.hrb to:@: \
+		copy from:hello5.hrb to:@: \
+		copy from:winhelo.hrb to:@: \
+		copy from:winhelo2.hrb to:@: \
+		copy from:winhelo3.hrb to:@: \
+		copy from:star1.hrb to:@: \
+		copy from:stars.hrb to:@: \
+		imgout:haribote.img
+```
+
+star1.c
+```c
+int api_openwin(char *buf, int xsiz, int ysiz, int col_inv, char *title);
+void api_boxfilwin(int win, int x0, int y0, int x1, int y1, int col);
+void api_initmalloc(void);
+char *api_malloc(int size);
+void api_point(int win, int x, int y, int col);
+void api_end(void);
+
+void HariMain(void)
+{
+    char *buf;
+    int win;
+    api_initmalloc();
+    buf = api_malloc(150 * 100);
+    win = api_openwin(buf, 150, 100, -1, "star1");
+    api_boxfilwin(win,  6, 26, 143, 93, 0 /* • */);
+    api_point(win, 75, 59, 3 /* ‰© */);
+    api_end();
+}
+```
+
+stars.c
+```c
+int api_openwin(char *buf, int xsiz, int ysiz, int col_inv, char *title);
+void api_boxfilwin(int win, int x0, int y0, int x1, int y1, int col);
+void api_initmalloc(void);
+char *api_malloc(int size);
+void api_point(int win, int x, int y, int col);
+void api_end(void);
+
+int rand(void);		/* 0～32767の範囲で乱数を発生 */
+
+void HariMain(void)
+{
+    char *buf;
+    int win, i, x, y;
+    api_initmalloc();
+    buf = api_malloc(150 * 100);
+    win = api_openwin(buf, 150, 100, -1, "stars");
+    api_boxfilwin(win,  6, 26, 143, 93, 0 /* 黒 */);
+    for (i = 0; i < 50; i++) {
+        x = (rand() % 137) +  6;
+        y = (rand() %  67) + 26;
+        api_point(win, x, y, 3 /* 黄 */);
+    }
+    api_end();
+}
+```
+
+リフレッシュだけをするAPIを作ってみます。   
+console.c
+```c
+int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int eax)
+{
+	int ds_base = *((int *) 0xfe8);
+	struct TASK *task = task_now();
+	struct CONSOLE *cons = (struct CONSOLE *) *((int *) 0x0fec);
+	struct SHTCTL *shtctl = (struct SHTCTL *) *((int *) 0x0fe4);
+	struct SHEET *sht;
+	int *reg = &eax + 1;	/* eaxの次の番地 */
+		/* 保存のためのPUSHADを強引に書き換える */
+		/* reg[0] : EDI,   reg[1] : ESI,   reg[2] : EBP,   reg[3] : ESP */
+		/* reg[4] : EBX,   reg[5] : EDX,   reg[6] : ECX,   reg[7] : EAX */
+
+	if (edx == 1) {
+		cons_putchar(cons, eax & 0xff, 1);
+	} else if (edx == 2) {
+		cons_putstr0(cons, (char *) ebx + ds_base);
+	} else if (edx == 3) {
+		cons_putstr1(cons, (char *) ebx + ds_base, ecx);
+	} else if (edx == 4) {
+		return &(task->tss.esp0);
+	} else if (edx == 5) {
+		sht = sheet_alloc(shtctl);
+		sheet_setbuf(sht, (char *) ebx + ds_base, esi, edi, eax);
+		make_window8((char *) ebx + ds_base, esi, edi, (char *) ecx + ds_base, 0);
+		sheet_slide(sht, 100, 50);
+		sheet_updown(sht, 3);	/* 3という高さはtask_aの上 */
+		reg[7] = (int) sht;
+	} else if (edx == 6) {
+		sht = (struct SHEET *) (ebx & 0xfffffffe);
+		putfonts8_asc(sht->buf, sht->bxsize, esi, edi, eax, (char *) ebp + ds_base);
+		if ((ebx & 1) == 0) {
+			sheet_refresh(sht, esi, edi, esi + ecx * 8, edi + 16);
+		}
+	} else if (edx == 7) {
+		sht = (struct SHEET *) (ebx & 0xfffffffe);
+		boxfill8(sht->buf, sht->bxsize, ebp, eax, ecx, esi, edi);
+		if ((ebx & 1) == 0) {
+			sheet_refresh(sht, eax, ecx, esi + 1, edi + 1);
+		}
+	} else if (edx == 8) {
+		memman_init((struct MEMMAN *) (ebx + ds_base));
+		ecx &= 0xfffffff0;	/* 16バイト単位に */
+		memman_free((struct MEMMAN *) (ebx + ds_base), eax, ecx);
+	} else if (edx == 9) {
+		ecx = (ecx + 0x0f) & 0xfffffff0; /* 16バイト単位に切り上げ */
+		reg[7] = memman_alloc((struct MEMMAN *) (ebx + ds_base), ecx);
+	} else if (edx == 10) {
+		ecx = (ecx + 0x0f) & 0xfffffff0; /* 16バイト単位に切り上げ */
+		memman_free((struct MEMMAN *) (ebx + ds_base), eax, ecx);
+	} else if (edx == 11) {
+		sht = (struct SHEET *) (ebx & 0xfffffffe);
+		sht->buf[sht->bxsize * edi + esi] = eax;
+		if ((ebx & 1) == 0) {
+			sheet_refresh(sht, esi, edi, esi + 1, edi + 1);
+		}
+	} else if (edx == 12) {
+		sht = (struct SHEET *) ebx;
+		sheet_refresh(sht, eax, ecx, esi, edi);
+	}
+	return 0;
+}
+```
+
+a_nask.nas
+```nasm
+		GLOBAL	_api_refreshwin
+```
+
+```nasm
+_api_refreshwin:	; void api_refreshwin(int win, int x0, int y0, int x1, int y1);
+		PUSH	EDI
+		PUSH	ESI
+		PUSH	EBX
+		MOV		EDX,12
+		MOV		EBX,[ESP+16]	; win
+		MOV		EAX,[ESP+20]	; x0
+		MOV		ECX,[ESP+24]	; y0
+		MOV		ESI,[ESP+28]	; x1
+		MOV		EDI,[ESP+32]	; y1
+		INT		0x40
+		POP		EBX
+		POP		ESI
+		POP		EDI
+		RET
+```
+
+Makefile
+```Makefile
+stars2.bim : stars2.obj a_nask.obj Makefile
+	$(OBJ2BIM) @$(RULEFILE) out:stars2.bim stack:1k map:stars2.map \
+		stars2.obj a_nask.obj
+
+stars2.hrb : stars2.bim Makefile
+	$(BIM2HRB) stars2.bim stars2.hrb 47k
+
+haribote.img : ipl10.bin haribote.sys Makefile \
+		hello.hrb hello2.hrb a.hrb hello3.hrb hello4.hrb hello5.hrb \
+		winhelo.hrb winhelo2.hrb winhelo3.hrb star1.hrb stars.hrb stars2.hrb
+	$(EDIMG)   imgin:..\..\z_tools\fdimg0at.tek \
+		wbinimg src:ipl10.bin len:512 from:0 to:0 \
+		copy from:haribote.sys to:@: \
+		copy from:ipl10.nas to:@: \
+		copy from:make.bat to:@: \
+		copy from:hello.hrb to:@: \
+		copy from:hello2.hrb to:@: \
+		copy from:a.hrb to:@: \
+		copy from:hello3.hrb to:@: \
+		copy from:hello4.hrb to:@: \
+		copy from:hello5.hrb to:@: \
+		copy from:winhelo.hrb to:@: \
+		copy from:winhelo2.hrb to:@: \
+		copy from:winhelo3.hrb to:@: \
+		copy from:star1.hrb to:@: \
+		copy from:stars.hrb to:@: \
+		copy from:stars2.hrb to:@: \
+		imgout:haribote.img
+```
+
+stars2.c
+```c
+int api_openwin(char *buf, int xsiz, int ysiz, int col_inv, char *title);
+void api_boxfilwin(int win, int x0, int y0, int x1, int y1, int col);
+void api_initmalloc(void);
+char *api_malloc(int size);
+void api_point(int win, int x, int y, int col);
+void api_refreshwin(int win, int x0, int y0, int x1, int y1);
+void api_end(void);
+
+int rand(void);		/* 0～32767の範囲で乱数を発生 */
+
+void HariMain(void)
+{
+    char *buf;
+    int win, i, x, y;
+    api_initmalloc();
+    buf = api_malloc(150 * 100);
+    win = api_openwin(buf, 150, 100, -1, "stars2");
+    api_boxfilwin(win + 1,  6, 26, 143, 93, 0 /* 黒 */);
+    for (i = 0; i < 50; i++) {
+        x = (rand() % 137) +  6;
+        y = (rand() %  67) + 26;
+        api_point(win + 1, x, y, 3 /* 黄 */);
+    }
+    api_refreshwin(win,  6, 26, 144, 94);
+    api_end();
+}
+```
+
+線を引けるようにしてみましょう。
+console.c
+```c
+int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int eax)
+{
+	int ds_base = *((int *) 0xfe8);
+	struct TASK *task = task_now();
+	struct CONSOLE *cons = (struct CONSOLE *) *((int *) 0x0fec);
+	struct SHTCTL *shtctl = (struct SHTCTL *) *((int *) 0x0fe4);
+	struct SHEET *sht;
+	int *reg = &eax + 1;	/* eaxの次の番地 */
+		/* 保存のためのPUSHADを強引に書き換える */
+		/* reg[0] : EDI,   reg[1] : ESI,   reg[2] : EBP,   reg[3] : ESP */
+		/* reg[4] : EBX,   reg[5] : EDX,   reg[6] : ECX,   reg[7] : EAX */
+
+	if (edx == 1) {
+		cons_putchar(cons, eax & 0xff, 1);
+	} else if (edx == 2) {
+		cons_putstr0(cons, (char *) ebx + ds_base);
+	} else if (edx == 3) {
+		cons_putstr1(cons, (char *) ebx + ds_base, ecx);
+	} else if (edx == 4) {
+		return &(task->tss.esp0);
+	} else if (edx == 5) {
+		sht = sheet_alloc(shtctl);
+		sheet_setbuf(sht, (char *) ebx + ds_base, esi, edi, eax);
+		make_window8((char *) ebx + ds_base, esi, edi, (char *) ecx + ds_base, 0);
+		sheet_slide(sht, 100, 50);
+		sheet_updown(sht, 3);	/* 3という高さはtask_aの上 */
+		reg[7] = (int) sht;
+	} else if (edx == 6) {
+		sht = (struct SHEET *) (ebx & 0xfffffffe);
+		putfonts8_asc(sht->buf, sht->bxsize, esi, edi, eax, (char *) ebp + ds_base);
+		if ((ebx & 1) == 0) {
+			sheet_refresh(sht, esi, edi, esi + ecx * 8, edi + 16);
+		}
+	} else if (edx == 7) {
+		sht = (struct SHEET *) (ebx & 0xfffffffe);
+		boxfill8(sht->buf, sht->bxsize, ebp, eax, ecx, esi, edi);
+		if ((ebx & 1) == 0) {
+			sheet_refresh(sht, eax, ecx, esi + 1, edi + 1);
+		}
+	} else if (edx == 8) {
+		memman_init((struct MEMMAN *) (ebx + ds_base));
+		ecx &= 0xfffffff0;	/* 16バイト単位に */
+		memman_free((struct MEMMAN *) (ebx + ds_base), eax, ecx);
+	} else if (edx == 9) {
+		ecx = (ecx + 0x0f) & 0xfffffff0; /* 16バイト単位に切り上げ */
+		reg[7] = memman_alloc((struct MEMMAN *) (ebx + ds_base), ecx);
+	} else if (edx == 10) {
+		ecx = (ecx + 0x0f) & 0xfffffff0; /* 16バイト単位に切り上げ */
+		memman_free((struct MEMMAN *) (ebx + ds_base), eax, ecx);
+	} else if (edx == 11) {
+		sht = (struct SHEET *) (ebx & 0xfffffffe);
+		sht->buf[sht->bxsize * edi + esi] = eax;
+		if ((ebx & 1) == 0) {
+			sheet_refresh(sht, esi, edi, esi + 1, edi + 1);
+		}
+	} else if (edx == 12) {
+		sht = (struct SHEET *) ebx;
+		sheet_refresh(sht, eax, ecx, esi, edi);
+	} else if (edx == 13) {
+		sht = (struct SHEET *) (ebx & 0xfffffffe);
+		hrb_api_linewin(sht, eax, ecx, esi, edi, ebp);
+		if ((ebx & 1) == 0) {
+			sheet_refresh(sht, eax, ecx, esi + 1, edi + 1);
+		}
+	}
+	return 0;
+}
+```
+
+```c
+void hrb_api_linewin(struct SHEET *sht, int x0, int y0, int x1, int y1, int col)
+{
+	int i, x, y, len, dx, dy;
+
+	dx = x1 - x0;
+	dy = y1 - y0;
+	x = x0 << 10;
+	y = y0 << 10;
+	if (dx < 0) {
+		dx = - dx;
+	}
+	if (dy < 0) {
+		dy = - dy;
+	}
+	if (dx >= dy) {
+		len = dx + 1;
+		if (x0 > x1) {
+			dx = -1024;
+		} else {
+			dx =  1024;
+		}
+		if (y0 <= y1) {
+			dy = ((y1 - y0 + 1) << 10) / len;
+		} else {
+			dy = ((y1 - y0 - 1) << 10) / len;
+		}
+	} else {
+		len = dy + 1;
+		if (y0 > y1) {
+			dy = -1024;
+		} else {
+			dy =  1024;
+		}
+		if (x0 <= x1) {
+			dx = ((x1 - x0 + 1) << 10) / len;
+		} else {
+			dx = ((x1 - x0 - 1) << 10) / len;
+		}
+	}
+
+	for (i = 0; i < len; i++) {
+		sht->buf[(y >> 10) * sht->bxsize + (x >> 10)] = col;
+		x += dx;
+		y += dy;
+	}
+
+	return;
+}
+```
+
+a_nask.nas
+```nasm
+GLOBAL	_api_linewin
+```
+
+```nasm
+_api_linewin:		; void api_linewin(int win, int x0, int y0, int x1, int y1, int col);
+		PUSH	EDI
+		PUSH	ESI
+		PUSH	EBP
+		PUSH	EBX
+		MOV		EDX,13
+		MOV		EBX,[ESP+20]	; win
+		MOV		EAX,[ESP+24]	; x0
+		MOV		ECX,[ESP+28]	; y0
+		MOV		ESI,[ESP+32]	; x1
+		MOV		EDI,[ESP+36]	; y1
+		MOV		EBP,[ESP+40]	; col
+		INT		0x40
+		POP		EBX
+		POP		EBP
+		POP		ESI
+		POP		EDI
+		RET
+```
+
+Makefile
+```Makefile
+lines.bim : lines.obj a_nask.obj Makefile
+	$(OBJ2BIM) @$(RULEFILE) out:lines.bim stack:1k map:lines.map \
+		lines.obj a_nask.obj
+
+lines.hrb : lines.bim Makefile
+	$(BIM2HRB) lines.bim lines.hrb 48k
+
+haribote.img : ipl10.bin haribote.sys Makefile \
+		hello.hrb hello2.hrb a.hrb hello3.hrb hello4.hrb hello5.hrb \
+		winhelo.hrb winhelo2.hrb winhelo3.hrb star1.hrb stars.hrb stars2.hrb \
+		lines.hrb
+	$(EDIMG)   imgin:..\..\z_tools\fdimg0at.tek \
+		wbinimg src:ipl10.bin len:512 from:0 to:0 \
+		copy from:haribote.sys to:@: \
+		copy from:ipl10.nas to:@: \
+		copy from:make.bat to:@: \
+		copy from:hello.hrb to:@: \
+		copy from:hello2.hrb to:@: \
+		copy from:a.hrb to:@: \
+		copy from:hello3.hrb to:@: \
+		copy from:hello4.hrb to:@: \
+		copy from:hello5.hrb to:@: \
+		copy from:winhelo.hrb to:@: \
+		copy from:winhelo2.hrb to:@: \
+		copy from:winhelo3.hrb to:@: \
+		copy from:star1.hrb to:@: \
+		copy from:stars.hrb to:@: \
+		copy from:stars2.hrb to:@: \
+		copy from:lines.hrb to:@: \
+		imgout:haribote.img
+```
+
+lines.c
+```c
+int api_openwin(char *buf, int xsiz, int ysiz, int col_inv, char *title);
+void api_initmalloc(void);
+char *api_malloc(int size);
+void api_refreshwin(int win, int x0, int y0, int x1, int y1);
+void api_linewin(int win, int x0, int y0, int x1, int y1, int col);
+void api_end(void);
+
+void HariMain(void)
+{
+    char *buf;
+    int win, i;
+    api_initmalloc();
+    buf = api_malloc(160 * 100);
+    win = api_openwin(buf, 160, 100, -1, "lines");
+    for (i = 0; i < 8; i++) {
+        api_linewin(win + 1,  8, 26, 77, i * 9 + 26, i);
+        api_linewin(win + 1, 88, 26, i * 9 + 88, 89, i);
+    }
+    api_refreshwin(win,  6, 26, 154, 90);
+    api_end();
+}
+```
+
+ウィンドウをクローズできるようにしましょう。   
+console.c
+```c
+int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int eax)
+{
+	int ds_base = *((int *) 0xfe8);
+	struct TASK *task = task_now();
+	struct CONSOLE *cons = (struct CONSOLE *) *((int *) 0x0fec);
+	struct SHTCTL *shtctl = (struct SHTCTL *) *((int *) 0x0fe4);
+	struct SHEET *sht;
+	int *reg = &eax + 1;	/* eaxの次の番地 */
+		/* 保存のためのPUSHADを強引に書き換える */
+		/* reg[0] : EDI,   reg[1] : ESI,   reg[2] : EBP,   reg[3] : ESP */
+		/* reg[4] : EBX,   reg[5] : EDX,   reg[6] : ECX,   reg[7] : EAX */
+
+	if (edx == 1) {
+		cons_putchar(cons, eax & 0xff, 1);
+	} else if (edx == 2) {
+		cons_putstr0(cons, (char *) ebx + ds_base);
+	} else if (edx == 3) {
+		cons_putstr1(cons, (char *) ebx + ds_base, ecx);
+	} else if (edx == 4) {
+		return &(task->tss.esp0);
+	} else if (edx == 5) {
+		sht = sheet_alloc(shtctl);
+		sheet_setbuf(sht, (char *) ebx + ds_base, esi, edi, eax);
+		make_window8((char *) ebx + ds_base, esi, edi, (char *) ecx + ds_base, 0);
+		sheet_slide(sht, 100, 50);
+		sheet_updown(sht, 3);	/* 3という高さはtask_aの上 */
+		reg[7] = (int) sht;
+	} else if (edx == 6) {
+		sht = (struct SHEET *) (ebx & 0xfffffffe);
+		putfonts8_asc(sht->buf, sht->bxsize, esi, edi, eax, (char *) ebp + ds_base);
+		if ((ebx & 1) == 0) {
+			sheet_refresh(sht, esi, edi, esi + ecx * 8, edi + 16);
+		}
+	} else if (edx == 7) {
+		sht = (struct SHEET *) (ebx & 0xfffffffe);
+		boxfill8(sht->buf, sht->bxsize, ebp, eax, ecx, esi, edi);
+		if ((ebx & 1) == 0) {
+			sheet_refresh(sht, eax, ecx, esi + 1, edi + 1);
+		}
+	} else if (edx == 8) {
+		memman_init((struct MEMMAN *) (ebx + ds_base));
+		ecx &= 0xfffffff0;	/* 16バイト単位に */
+		memman_free((struct MEMMAN *) (ebx + ds_base), eax, ecx);
+	} else if (edx == 9) {
+		ecx = (ecx + 0x0f) & 0xfffffff0; /* 16バイト単位に切り上げ */
+		reg[7] = memman_alloc((struct MEMMAN *) (ebx + ds_base), ecx);
+	} else if (edx == 10) {
+		ecx = (ecx + 0x0f) & 0xfffffff0; /* 16バイト単位に切り上げ */
+		memman_free((struct MEMMAN *) (ebx + ds_base), eax, ecx);
+	} else if (edx == 11) {
+		sht = (struct SHEET *) (ebx & 0xfffffffe);
+		sht->buf[sht->bxsize * edi + esi] = eax;
+		if ((ebx & 1) == 0) {
+			sheet_refresh(sht, esi, edi, esi + 1, edi + 1);
+		}
+	} else if (edx == 12) {
+		sht = (struct SHEET *) ebx;
+		sheet_refresh(sht, eax, ecx, esi, edi);
+	} else if (edx == 13) {
+		sht = (struct SHEET *) (ebx & 0xfffffffe);
+		hrb_api_linewin(sht, eax, ecx, esi, edi, ebp);
+		if ((ebx & 1) == 0) {
+			sheet_refresh(sht, eax, ecx, esi + 1, edi + 1);
+		}
+	} else if (edx == 14) {
+		sheet_free((struct SHEET *) ebx);
+	}
+	return 0;
+}
+```
+
+a_nask.nas
+```nasm
+GLOBAL	_api_closewin
+```
+
+```nasm
+_api_closewin:		; void api_closewin(int win);
+		PUSH	EBX
+		MOV		EDX,14
+		MOV		EBX,[ESP+8]	; win
+		INT		0x40
+		POP		EBX
+		RET
+```
+
+lines.c
+```c
+int api_openwin(char *buf, int xsiz, int ysiz, int col_inv, char *title);
+void api_initmalloc(void);
+char *api_malloc(int size);
+void api_refreshwin(int win, int x0, int y0, int x1, int y1);
+void api_linewin(int win, int x0, int y0, int x1, int y1, int col);
+void api_closewin(int win);
+void api_end(void);
+
+void HariMain(void)
+{
+    char *buf;
+    int win, i;
+    api_initmalloc();
+    buf = api_malloc(160 * 100);
+    win = api_openwin(buf, 160, 100, -1, "lines");
+    for (i = 0; i < 8; i++) {
+        api_linewin(win + 1,  8, 26, 77, i * 9 + 26, i);
+        api_linewin(win + 1, 88, 26, i * 9 + 88, 89, i);
+    }
+    api_refreshwin(win,  6, 26, 154, 90);
+    api_closewin(win);
+    api_end();
+}
+```
+
+表示されませんがこれはウィンドウをクローズするタスクがはやすぎるだけなのです。   
+
+
+**実装過程**   
+・　[10b6c0c963d49dc54566876b8c7eb8fea6437edb](10b6c0c963d49dc54566876b8c7eb8fea6437edb)
