@@ -24681,3 +24681,838 @@ if ((mdec.btn & 0x01) != 0) {
 
 **実装過程**   
 ・　[5b111dd9f86317da47be04112af2ba6bad70a7ff](5b111dd9f86317da47be04112af2ba6bad70a7ff)
+
+## day31
+タイマーを作っていきます。   
+console.c
+```c
+int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int eax)
+{
+	int ds_base = *((int *) 0xfe8);
+	struct TASK *task = task_now();
+	struct CONSOLE *cons = (struct CONSOLE *) *((int *) 0x0fec);
+	struct SHTCTL *shtctl = (struct SHTCTL *) *((int *) 0x0fe4);
+	struct SHEET *sht;
+	int *reg = &eax + 1;	/* eaxの次の番地 */
+		/* 保存のためのPUSHADを強引に書き換える */
+		/* reg[0] : EDI,   reg[1] : ESI,   reg[2] : EBP,   reg[3] : ESP */
+		/* reg[4] : EBX,   reg[5] : EDX,   reg[6] : ECX,   reg[7] : EAX */
+	int i;
+
+	if (edx == 1) {
+		cons_putchar(cons, eax & 0xff, 1);
+	} else if (edx == 2) {
+		cons_putstr0(cons, (char *) ebx + ds_base);
+	} else if (edx == 3) {
+		cons_putstr1(cons, (char *) ebx + ds_base, ecx);
+	} else if (edx == 4) {
+		return &(task->tss.esp0);
+	} else if (edx == 5) {
+		sht = sheet_alloc(shtctl);
+		sht->task = task;
+		sht->flags |= 0x10;
+		sheet_setbuf(sht, (char *) ebx + ds_base, esi, edi, eax);
+		make_window8((char *) ebx + ds_base, esi, edi, (char *) ecx + ds_base, 0);
+		sheet_slide(sht, 100, 50);
+		sheet_updown(sht, 3);	/* 3という高さはtask_aの上 */
+		reg[7] = (int) sht;
+	} else if (edx == 6) {
+		sht = (struct SHEET *) (ebx & 0xfffffffe);
+		putfonts8_asc(sht->buf, sht->bxsize, esi, edi, eax, (char *) ebp + ds_base);
+		if ((ebx & 1) == 0) {
+			sheet_refresh(sht, esi, edi, esi + ecx * 8, edi + 16);
+		}
+	} else if (edx == 7) {
+		sht = (struct SHEET *) (ebx & 0xfffffffe);
+		boxfill8(sht->buf, sht->bxsize, ebp, eax, ecx, esi, edi);
+		if ((ebx & 1) == 0) {
+			sheet_refresh(sht, eax, ecx, esi + 1, edi + 1);
+		}
+	} else if (edx == 8) {
+		memman_init((struct MEMMAN *) (ebx + ds_base));
+		ecx &= 0xfffffff0;	/* 16バイト単位に */
+		memman_free((struct MEMMAN *) (ebx + ds_base), eax, ecx);
+	} else if (edx == 9) {
+		ecx = (ecx + 0x0f) & 0xfffffff0; /* 16バイト単位に切り上げ */
+		reg[7] = memman_alloc((struct MEMMAN *) (ebx + ds_base), ecx);
+	} else if (edx == 10) {
+		ecx = (ecx + 0x0f) & 0xfffffff0; /* 16バイト単位に切り上げ */
+		memman_free((struct MEMMAN *) (ebx + ds_base), eax, ecx);
+	} else if (edx == 11) {
+		sht = (struct SHEET *) (ebx & 0xfffffffe);
+		sht->buf[sht->bxsize * edi + esi] = eax;
+		if ((ebx & 1) == 0) {
+			sheet_refresh(sht, esi, edi, esi + 1, edi + 1);
+		}
+	} else if (edx == 12) {
+		sht = (struct SHEET *) ebx;
+		sheet_refresh(sht, eax, ecx, esi, edi);
+	} else if (edx == 13) {
+		sht = (struct SHEET *) (ebx & 0xfffffffe);
+		hrb_api_linewin(sht, eax, ecx, esi, edi, ebp);
+		if ((ebx & 1) == 0) {
+			sheet_refresh(sht, eax, ecx, esi + 1, edi + 1);
+		}
+	} else if (edx == 14) {
+		sheet_free((struct SHEET *) ebx);
+	} else if (edx == 15) {
+		for (;;) {
+			io_cli();
+			if (fifo32_status(&task->fifo) == 0) {
+				if (eax != 0) {
+					task_sleep(task);	/* FIFOが空なので寝て待つ */
+				} else {
+					io_sti();
+					reg[7] = -1;
+					return 0;
+				}
+			}
+			i = fifo32_get(&task->fifo);
+			io_sti();
+			if (i <= 1) { /* カーソル用タイマ */
+				/* アプリ実行中はカーソルが出ないので、いつも次は表示用の1を注文しておく */
+				timer_init(cons->timer, &task->fifo, 1); /* 次は1を */
+				timer_settime(cons->timer, 50);
+			}
+			if (i == 2) {	/* カーソルON */
+				cons->cur_c = COL8_FFFFFF;
+			}
+			if (i == 3) {	/* カーソルOFF */
+			cons->cur_c = -1;
+			}
+			if (i >= 256) { /* キーボードデータ（タスクA経由）など */
+				reg[7] = i - 256;
+				return 0;
+			}
+		}
+	} else if (edx == 16) {
+		reg[7] = (int) timer_alloc();
+	} else if (edx == 17) {
+		timer_init((struct TIMER *) ebx, &task->fifo, eax + 256);
+	} else if (edx == 18) {
+		timer_settime((struct TIMER *) ebx, eax);
+	} else if (edx == 19) {
+		timer_free((struct TIMER *) ebx);
+	}
+	return 0;
+}
+```
+
+a_nask.nas
+```nasm
+		GLOBAL	_api_alloctimer
+		GLOBAL	_api_inittimer
+		GLOBAL	_api_settimer
+		GLOBAL	_api_freetimer
+```
+
+```nasm
+_api_alloctimer:	; int api_alloctimer(void);
+		MOV		EDX,16
+		INT		0x40
+		RET
+
+_api_inittimer:		; void api_inittimer(int timer, int data);
+		PUSH	EBX
+		MOV		EDX,17
+		MOV		EBX,[ESP+ 8]		; timer
+		MOV		EAX,[ESP+12]		; data
+		INT		0x40
+		POP		EBX
+		RET
+
+_api_settimer:		; void api_settimer(int timer, int time);
+		PUSH	EBX
+		MOV		EDX,18
+		MOV		EBX,[ESP+ 8]		; timer
+		MOV		EAX,[ESP+12]		; time
+		INT		0x40
+		POP		EBX
+		RET
+
+_api_freetimer:		; void api_freetimer(int timer);
+		PUSH	EBX
+		MOV		EDX,19
+		MOV		EBX,[ESP+ 8]		; timer
+		INT		0x40
+		POP		EBX
+		RET
+```
+
+Makefile
+```Makefile
+noodle.bim : noodle.obj a_nask.obj Makefile
+	$(OBJ2BIM) @$(RULEFILE) out:noodle.bim stack:1k map:noodle.map \
+		noodle.obj a_nask.obj
+
+noodle.hrb : noodle.bim Makefile
+	$(BIM2HRB) noodle.bim noodle.hrb 40k
+
+haribote.img : ipl10.bin haribote.sys Makefile \
+		hello.hrb hello2.hrb a.hrb hello3.hrb hello4.hrb hello5.hrb \
+		winhelo.hrb winhelo2.hrb winhelo3.hrb star1.hrb stars.hrb stars2.hrb \
+		lines.hrb walk.hrb noodle.hrb
+	$(EDIMG)   imgin:..\..\z_tools\fdimg0at.tek \
+		wbinimg src:ipl10.bin len:512 from:0 to:0 \
+		copy from:haribote.sys to:@: \
+		copy from:ipl10.nas to:@: \
+		copy from:make.bat to:@: \
+		copy from:hello.hrb to:@: \
+		copy from:hello2.hrb to:@: \
+		copy from:a.hrb to:@: \
+		copy from:hello3.hrb to:@: \
+		copy from:hello4.hrb to:@: \
+		copy from:hello5.hrb to:@: \
+		copy from:winhelo.hrb to:@: \
+		copy from:winhelo2.hrb to:@: \
+		copy from:winhelo3.hrb to:@: \
+		copy from:star1.hrb to:@: \
+		copy from:stars.hrb to:@: \
+		copy from:stars2.hrb to:@: \
+		copy from:lines.hrb to:@: \
+		copy from:walk.hrb to:@: \
+		copy from:noodle.hrb to:@: \
+		imgout:haribote.img
+```
+
+noodle.c
+```c
+#include <stdio.h>
+
+int api_openwin(char *buf, int xsiz, int ysiz, int col_inv, char *title);
+void api_putstrwin(int win, int x, int y, int col, int len, char *str);
+void api_boxfilwin(int win, int x0, int y0, int x1, int y1, int col);
+void api_initmalloc(void);
+char *api_malloc(int size);
+int api_getkey(int mode);
+int api_alloctimer(void);
+void api_inittimer(int timer, int data);
+void api_settimer(int timer, int time);
+void api_end(void);
+
+void HariMain(void)
+{
+    char *buf, s[12];
+    int win, timer, sec = 0, min = 0, hou = 0;
+    api_initmalloc();
+    buf = api_malloc(150 * 50);
+    win = api_openwin(buf, 150, 50, -1, "noodle");
+    timer = api_alloctimer();
+    api_inittimer(timer, 128);
+    for (;;) {
+        sprintf(s, "%5d:%02d:%02d", hou, min, sec);
+        api_boxfilwin(win, 28, 27, 115, 41, 7 /* ”’ */);
+        api_putstrwin(win, 28, 27, 0 /* • */, 11, s);
+        api_settimer(timer, 100);	/* 1•bŠÔ */
+        if (api_getkey(1) != 128) {
+            break;
+        }
+        sec++;
+        if (sec == 60) {
+            sec = 0;
+            min++;
+            if (min == 60) {
+                min = 0;
+                hou++;
+            }
+        }
+    }
+    api_end();
+}
+```
+
+さらにタイマー改造していきます。   
+timer.c
+```c
+struct TIMER *timer_alloc(void)
+{
+	int i;
+	for (i = 0; i < MAX_TIMER; i++) {
+		if (timerctl.timers0[i].flags == 0) {
+			timerctl.timers0[i].flags = TIMER_FLAGS_ALLOC;
+			timerctl.timers0[i].flags2 = 0;
+			return &timerctl.timers0[i];
+		}
+	}
+	return 0; /* 見つからなかった */
+}
+```
+
+```c
+int timer_cancel(struct TIMER *timer)
+{
+	int e;
+	struct TIMER *t;
+	e = io_load_eflags();
+	io_cli();	/* 設定中にタイマの状態が変化しないようにするため */
+	if (timer->flags == TIMER_FLAGS_USING) {	/* 取り消し処理は必要か？ */
+		if (timer == timerctl.t0) {
+			/* 先頭だった場合の取り消し処理 */
+			t = timer->next;
+			timerctl.t0 = t;
+			timerctl.next = t->timeout;
+		} else {
+			/* 先頭以外の場合の取り消し処理 */
+			/* timerの一つ前を探す */
+			t = timerctl.t0;
+			for (;;) {
+				if (t->next == timer) {
+					break;
+				}
+				t = t->next;
+			}
+			t->next = timer->next; /* 「timerの直前」の次が、「timerの次」を指すようにする */
+		}
+		timer->flags = TIMER_FLAGS_ALLOC;
+		io_store_eflags(e);
+		return 1;	/* キャンセル処理成功 */
+	}
+	io_store_eflags(e);
+	return 0; /* キャンセル処理は不要だった */
+}
+
+void timer_cancelall(struct FIFO32 *fifo)
+{
+	int e, i;
+	struct TIMER *t;
+	e = io_load_eflags();
+	io_cli();	/* 設定中にタイマの状態が変化しないようにするため */
+	for (i = 0; i < MAX_TIMER; i++) {
+		t = &timerctl.timers0[i];
+		if (t->flags != 0 && t->flags2 != 0 && t->fifo == fifo) {
+			timer_cancel(t);
+			timer_free(t);
+		} 
+	}
+	io_store_eflags(e);
+	return;
+}
+```
+
+bootpack.h
+```h
+/* timer.c */
+#define MAX_TIMER		500
+struct TIMER {
+	struct TIMER *next;
+	unsigned int timeout;
+	char flags, flags2;
+	struct FIFO32 *fifo;
+	int data;
+};
+struct TIMERCTL {
+	unsigned int count, next;
+	struct TIMER *t0;
+	struct TIMER timers0[MAX_TIMER];
+};
+extern struct TIMERCTL timerctl;
+void init_pit(void);
+struct TIMER *timer_alloc(void);
+void timer_free(struct TIMER *timer);
+void timer_init(struct TIMER *timer, struct FIFO32 *fifo, int data);
+void timer_settime(struct TIMER *timer, unsigned int timeout);
+void inthandler20(int *esp);
+int timer_cancel(struct TIMER *timer);
+void timer_cancelall(struct FIFO32 *fifo);
+```
+
+console.c
+```c
+int cmd_app(struct CONSOLE *cons, int *fat, char *cmdline)
+{
+	struct MEMMAN *memman = (struct MEMMAN *) MEMMAN_ADDR;
+	struct FILEINFO *finfo;
+	struct SEGMENT_DESCRIPTOR *gdt = (struct SEGMENT_DESCRIPTOR *) ADR_GDT;
+	char name[18], *p, *q;
+	struct TASK *task = task_now();
+	int i, segsiz, datsiz, esp, dathrb;
+	struct SHTCTL *shtctl;
+	struct SHEET *sht;
+
+	/* コマンドラインからファイル名を生成 */
+	for (i = 0; i < 13; i++) {
+		if (cmdline[i] <= ' ') {
+			break;
+		}
+		name[i] = cmdline[i];
+	}
+	name[i] = 0; /* とりあえずファイル名の後ろを0にする */
+
+	/* ファイルを探す */
+	finfo = file_search(name, (struct FILEINFO *) (ADR_DISKIMG + 0x002600), 224);
+	if (finfo == 0 && name[i - 1] != '.') {
+		/* 見つからなかったので後ろに".HRB"をつけてもう一度探してみる */
+		name[i    ] = '.';
+		name[i + 1] = 'H';
+		name[i + 2] = 'R';
+		name[i + 3] = 'B';
+		name[i + 4] = 0;
+		finfo = file_search(name, (struct FILEINFO *) (ADR_DISKIMG + 0x002600), 224);
+	}
+
+	if (finfo != 0) {
+		/* ファイルが見つかった場合 */
+		p = (char *) memman_alloc_4k(memman, finfo->size);
+		file_loadfile(finfo->clustno, finfo->size, p, fat, (char *) (ADR_DISKIMG + 0x003e00));
+		if (finfo->size >= 36 && strncmp(p + 4, "Hari", 4) == 0 && *p == 0x00) {
+			segsiz = *((int *) (p + 0x0000));
+			esp    = *((int *) (p + 0x000c));
+			datsiz = *((int *) (p + 0x0010));
+			dathrb = *((int *) (p + 0x0014));
+			q = (char *) memman_alloc_4k(memman, segsiz);
+			*((int *) 0xfe8) = (int) q;
+			set_segmdesc(gdt + 1003, finfo->size - 1, (int) p, AR_CODE32_ER + 0x60);
+			set_segmdesc(gdt + 1004, segsiz - 1,      (int) q, AR_DATA32_RW + 0x60);
+			for (i = 0; i < datsiz; i++) {
+				q[esp + i] = p[dathrb + i];
+			}
+			start_app(0x1b, 1003 * 8, esp, 1004 * 8, &(task->tss.esp0));
+			shtctl = (struct SHTCTL *) *((int *) 0x0fe4);
+			for (i = 0; i < MAX_SHEETS; i++) {
+				sht = &(shtctl->sheets0[i]);
+				if ((sht->flags & 0x11) == 0x11 && sht->task == task) {
+					/* アプリが開きっぱなしにした下じきを発見 */
+					sheet_free(sht);	/* 閉じる */
+				}
+			}
+			timer_cancelall(&task->fifo);
+			memman_free_4k(memman, (int) q, segsiz);
+		} else {
+			cons_putstr0(cons, ".hrb file format error.\n");
+		}
+		memman_free_4k(memman, (int) p, finfo->size);
+		cons_newline(cons);
+		return 1;
+	}
+	/* ファイルが見つからなかった場合 */
+	return 0;
+}
+```
+
+```c
+int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int eax)
+{
+	int ds_base = *((int *) 0xfe8);
+	struct TASK *task = task_now();
+	struct CONSOLE *cons = (struct CONSOLE *) *((int *) 0x0fec);
+	struct SHTCTL *shtctl = (struct SHTCTL *) *((int *) 0x0fe4);
+	struct SHEET *sht;
+	int *reg = &eax + 1;	/* eaxの次の番地 */
+		/* 保存のためのPUSHADを強引に書き換える */
+		/* reg[0] : EDI,   reg[1] : ESI,   reg[2] : EBP,   reg[3] : ESP */
+		/* reg[4] : EBX,   reg[5] : EDX,   reg[6] : ECX,   reg[7] : EAX */
+	int i;
+
+	if (edx == 1) {
+		cons_putchar(cons, eax & 0xff, 1);
+	} else if (edx == 2) {
+		cons_putstr0(cons, (char *) ebx + ds_base);
+	} else if (edx == 3) {
+		cons_putstr1(cons, (char *) ebx + ds_base, ecx);
+	} else if (edx == 4) {
+		return &(task->tss.esp0);
+	} else if (edx == 5) {
+		sht = sheet_alloc(shtctl);
+		sht->task = task;
+		sht->flags |= 0x10;
+		sheet_setbuf(sht, (char *) ebx + ds_base, esi, edi, eax);
+		make_window8((char *) ebx + ds_base, esi, edi, (char *) ecx + ds_base, 0);
+		sheet_slide(sht, 100, 50);
+		sheet_updown(sht, 3);	/* 3という高さはtask_aの上 */
+		reg[7] = (int) sht;
+	} else if (edx == 6) {
+		sht = (struct SHEET *) (ebx & 0xfffffffe);
+		putfonts8_asc(sht->buf, sht->bxsize, esi, edi, eax, (char *) ebp + ds_base);
+		if ((ebx & 1) == 0) {
+			sheet_refresh(sht, esi, edi, esi + ecx * 8, edi + 16);
+		}
+	} else if (edx == 7) {
+		sht = (struct SHEET *) (ebx & 0xfffffffe);
+		boxfill8(sht->buf, sht->bxsize, ebp, eax, ecx, esi, edi);
+		if ((ebx & 1) == 0) {
+			sheet_refresh(sht, eax, ecx, esi + 1, edi + 1);
+		}
+	} else if (edx == 8) {
+		memman_init((struct MEMMAN *) (ebx + ds_base));
+		ecx &= 0xfffffff0;	/* 16バイト単位に */
+		memman_free((struct MEMMAN *) (ebx + ds_base), eax, ecx);
+	} else if (edx == 9) {
+		ecx = (ecx + 0x0f) & 0xfffffff0; /* 16バイト単位に切り上げ */
+		reg[7] = memman_alloc((struct MEMMAN *) (ebx + ds_base), ecx);
+	} else if (edx == 10) {
+		ecx = (ecx + 0x0f) & 0xfffffff0; /* 16バイト単位に切り上げ */
+		memman_free((struct MEMMAN *) (ebx + ds_base), eax, ecx);
+	} else if (edx == 11) {
+		sht = (struct SHEET *) (ebx & 0xfffffffe);
+		sht->buf[sht->bxsize * edi + esi] = eax;
+		if ((ebx & 1) == 0) {
+			sheet_refresh(sht, esi, edi, esi + 1, edi + 1);
+		}
+	} else if (edx == 12) {
+		sht = (struct SHEET *) ebx;
+		sheet_refresh(sht, eax, ecx, esi, edi);
+	} else if (edx == 13) {
+		sht = (struct SHEET *) (ebx & 0xfffffffe);
+		hrb_api_linewin(sht, eax, ecx, esi, edi, ebp);
+		if ((ebx & 1) == 0) {
+			sheet_refresh(sht, eax, ecx, esi + 1, edi + 1);
+		}
+	} else if (edx == 14) {
+		sheet_free((struct SHEET *) ebx);
+	} else if (edx == 15) {
+		for (;;) {
+			io_cli();
+			if (fifo32_status(&task->fifo) == 0) {
+				if (eax != 0) {
+					task_sleep(task);	/* FIFOが空なので寝て待つ */
+				} else {
+					io_sti();
+					reg[7] = -1;
+					return 0;
+				}
+			}
+			i = fifo32_get(&task->fifo);
+			io_sti();
+			if (i <= 1) { /* カーソル用タイマ */
+				/* アプリ実行中はカーソルが出ないので、いつも次は表示用の1を注文しておく */
+				timer_init(cons->timer, &task->fifo, 1); /* 次は1を */
+				timer_settime(cons->timer, 50);
+			}
+			if (i == 2) {	/* カーソルON */
+				cons->cur_c = COL8_FFFFFF;
+			}
+			if (i == 3) {	/* カーソルOFF */
+			cons->cur_c = -1;
+			}
+			if (i >= 256) { /* キーボードデータ（タスクA経由）など */
+				reg[7] = i - 256;
+				return 0;
+			}
+		}
+	} else if (edx == 16) {
+		reg[7] = (int) timer_alloc();
+		((struct TIMER *) reg[7])->flags2 = 1;	/* 自動キャンセル有効 */
+	} else if (edx == 17) {
+		timer_init((struct TIMER *) ebx, &task->fifo, eax + 256);
+	} else if (edx == 18) {
+		timer_settime((struct TIMER *) ebx, eax);
+	} else if (edx == 19) {
+		timer_free((struct TIMER *) ebx);
+	}
+	return 0;
+}
+```
+
+本では25日目に突入しました。   
+ビープ音を出してみたいと思います。   
+console.c
+```c
+int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int eax)
+{
+	int ds_base = *((int *) 0xfe8);
+	struct TASK *task = task_now();
+	struct CONSOLE *cons = (struct CONSOLE *) *((int *) 0x0fec);
+	struct SHTCTL *shtctl = (struct SHTCTL *) *((int *) 0x0fe4);
+	struct SHEET *sht;
+	int *reg = &eax + 1;	/* eaxの次の番地 */
+		/* 保存のためのPUSHADを強引に書き換える */
+		/* reg[0] : EDI,   reg[1] : ESI,   reg[2] : EBP,   reg[3] : ESP */
+		/* reg[4] : EBX,   reg[5] : EDX,   reg[6] : ECX,   reg[7] : EAX */
+	int i;
+
+	if (edx == 1) {
+		cons_putchar(cons, eax & 0xff, 1);
+	} else if (edx == 2) {
+		cons_putstr0(cons, (char *) ebx + ds_base);
+	} else if (edx == 3) {
+		cons_putstr1(cons, (char *) ebx + ds_base, ecx);
+	} else if (edx == 4) {
+		return &(task->tss.esp0);
+	} else if (edx == 5) {
+		sht = sheet_alloc(shtctl);
+		sht->task = task;
+		sht->flags |= 0x10;
+		sheet_setbuf(sht, (char *) ebx + ds_base, esi, edi, eax);
+		make_window8((char *) ebx + ds_base, esi, edi, (char *) ecx + ds_base, 0);
+		sheet_slide(sht, 100, 50);
+		sheet_updown(sht, 3);	/* 3という高さはtask_aの上 */
+		reg[7] = (int) sht;
+	} else if (edx == 6) {
+		sht = (struct SHEET *) (ebx & 0xfffffffe);
+		putfonts8_asc(sht->buf, sht->bxsize, esi, edi, eax, (char *) ebp + ds_base);
+		if ((ebx & 1) == 0) {
+			sheet_refresh(sht, esi, edi, esi + ecx * 8, edi + 16);
+		}
+	} else if (edx == 7) {
+		sht = (struct SHEET *) (ebx & 0xfffffffe);
+		boxfill8(sht->buf, sht->bxsize, ebp, eax, ecx, esi, edi);
+		if ((ebx & 1) == 0) {
+			sheet_refresh(sht, eax, ecx, esi + 1, edi + 1);
+		}
+	} else if (edx == 8) {
+		memman_init((struct MEMMAN *) (ebx + ds_base));
+		ecx &= 0xfffffff0;	/* 16バイト単位に */
+		memman_free((struct MEMMAN *) (ebx + ds_base), eax, ecx);
+	} else if (edx == 9) {
+		ecx = (ecx + 0x0f) & 0xfffffff0; /* 16バイト単位に切り上げ */
+		reg[7] = memman_alloc((struct MEMMAN *) (ebx + ds_base), ecx);
+	} else if (edx == 10) {
+		ecx = (ecx + 0x0f) & 0xfffffff0; /* 16バイト単位に切り上げ */
+		memman_free((struct MEMMAN *) (ebx + ds_base), eax, ecx);
+	} else if (edx == 11) {
+		sht = (struct SHEET *) (ebx & 0xfffffffe);
+		sht->buf[sht->bxsize * edi + esi] = eax;
+		if ((ebx & 1) == 0) {
+			sheet_refresh(sht, esi, edi, esi + 1, edi + 1);
+		}
+	} else if (edx == 12) {
+		sht = (struct SHEET *) ebx;
+		sheet_refresh(sht, eax, ecx, esi, edi);
+	} else if (edx == 13) {
+		sht = (struct SHEET *) (ebx & 0xfffffffe);
+		hrb_api_linewin(sht, eax, ecx, esi, edi, ebp);
+		if ((ebx & 1) == 0) {
+			sheet_refresh(sht, eax, ecx, esi + 1, edi + 1);
+		}
+	} else if (edx == 14) {
+		sheet_free((struct SHEET *) ebx);
+	} else if (edx == 15) {
+		for (;;) {
+			io_cli();
+			if (fifo32_status(&task->fifo) == 0) {
+				if (eax != 0) {
+					task_sleep(task);	/* FIFOが空なので寝て待つ */
+				} else {
+					io_sti();
+					reg[7] = -1;
+					return 0;
+				}
+			}
+			i = fifo32_get(&task->fifo);
+			io_sti();
+			if (i <= 1) { /* カーソル用タイマ */
+				/* アプリ実行中はカーソルが出ないので、いつも次は表示用の1を注文しておく */
+				timer_init(cons->timer, &task->fifo, 1); /* 次は1を */
+				timer_settime(cons->timer, 50);
+			}
+			if (i == 2) {	/* カーソルON */
+				cons->cur_c = COL8_FFFFFF;
+			}
+			if (i == 3) {	/* カーソルOFF */
+			cons->cur_c = -1;
+			}
+			if (i >= 256) { /* キーボードデータ（タスクA経由）など */
+				reg[7] = i - 256;
+				return 0;
+			}
+		}
+	} else if (edx == 16) {
+		reg[7] = (int) timer_alloc();
+		((struct TIMER *) reg[7])->flags2 = 1;	/* 自動キャンセル有効 */
+	} else if (edx == 17) {
+		timer_init((struct TIMER *) ebx, &task->fifo, eax + 256);
+	} else if (edx == 18) {
+		timer_settime((struct TIMER *) ebx, eax);
+	} else if (edx == 19) {
+		timer_free((struct TIMER *) ebx);
+	} else if (edx == 20) {
+		if (eax == 0) {
+			i = io_in8(0x61);
+			io_out8(0x61, i & 0x0d);
+		} else {
+			i = 1193180000 / eax;
+			io_out8(0x43, 0xb6);
+			io_out8(0x42, i & 0xff);
+			io_out8(0x42, i >> 8);
+			i = io_in8(0x61);
+			io_out8(0x61, (i | 0x03) & 0x0f);
+		}
+	}
+	return 0;
+}
+```
+
+a_nask.nas
+```nasm
+GLOBAL	_api_beep
+```
+
+```nasm
+_api_beep:			; void api_beep(int tone);
+		MOV		EDX,20
+		MOV		EAX,[ESP+4]			; tone
+		INT		0x40
+		RET
+```
+
+Makefile
+```Makefile
+beepdown.hrb : beepdown.bim Makefile
+	$(BIM2HRB) beepdown.bim beepdown.hrb 40k
+
+haribote.img : ipl10.bin haribote.sys Makefile \
+		hello.hrb hello2.hrb a.hrb hello3.hrb hello4.hrb hello5.hrb \
+		winhelo.hrb winhelo2.hrb winhelo3.hrb star1.hrb stars.hrb stars2.hrb \
+		lines.hrb walk.hrb noodle.hrb beepdown.hrb
+	$(EDIMG)   imgin:..\..\z_tools\fdimg0at.tek \
+		wbinimg src:ipl10.bin len:512 from:0 to:0 \
+		copy from:haribote.sys to:@: \
+		copy from:ipl10.nas to:@: \
+		copy from:make.bat to:@: \
+		copy from:hello.hrb to:@: \
+		copy from:hello2.hrb to:@: \
+		copy from:a.hrb to:@: \
+		copy from:hello3.hrb to:@: \
+		copy from:hello4.hrb to:@: \
+		copy from:hello5.hrb to:@: \
+		copy from:winhelo.hrb to:@: \
+		copy from:winhelo2.hrb to:@: \
+		copy from:winhelo3.hrb to:@: \
+		copy from:star1.hrb to:@: \
+		copy from:stars.hrb to:@: \
+		copy from:stars2.hrb to:@: \
+		copy from:lines.hrb to:@: \
+		copy from:walk.hrb to:@: \
+		copy from:noodle.hrb to:@: \
+		copy from:beepdown.hrb to:@: \
+		imgout:haribote.img
+```
+
+beepdown.c
+```c
+void api_end(void);
+int api_getkey(int mode);
+int api_alloctimer(void);
+void api_inittimer(int timer, int data);
+void api_settimer(int timer, int time);
+void api_beep(int tone);
+
+void HariMain(void)
+{
+    int i, timer;
+    timer = api_alloctimer();
+    api_inittimer(timer, 128);
+    for (i = 20000000; i >= 20000; i -= i / 100) {
+        /* 20KHz～20Hz : 人間に聞こえる音の範囲 */
+		/* iは1%ずつ減らされていく */
+        api_beep(i);
+        api_settimer(timer, 1);		/* 0.01秒 */
+        if (api_getkey(1) != 128) {
+            break;
+        }
+    }
+    api_beep(0);
+    api_end();
+}
+```
+16色から240色に色を増やしてみたいと思います。   
+graphic.c
+```c
+void init_palette(void)
+{
+	static unsigned char table_rgb[16 * 3] = {
+		0x00, 0x00, 0x00,	/*  0:黒 */
+		0xff, 0x00, 0x00,	/*  1:明るい赤 */
+		0x00, 0xff, 0x00,	/*  2:明るい緑 */
+		0xff, 0xff, 0x00,	/*  3:明るい黄色 */
+		0x00, 0x00, 0xff,	/*  4:明るい青 */
+		0xff, 0x00, 0xff,	/*  5:明るい紫 */
+		0x00, 0xff, 0xff,	/*  6:明るい水色 */
+		0xff, 0xff, 0xff,	/*  7:白 */
+		0xc6, 0xc6, 0xc6,	/*  8:明るい灰色 */
+		0x84, 0x00, 0x00,	/*  9:暗い赤 */
+		0x00, 0x84, 0x00,	/* 10:暗い緑 */
+		0x84, 0x84, 0x00,	/* 11:暗い黄色 */
+		0x00, 0x00, 0x84,	/* 12:暗い青 */
+		0x84, 0x00, 0x84,	/* 13:暗い紫 */
+		0x00, 0x84, 0x84,	/* 14:暗い水色 */
+		0x84, 0x84, 0x84	/* 15:暗い灰色 */
+	};
+	unsigned char table2[216 * 3];
+	int r, g, b;
+	set_palette(0, 15, table_rgb);
+	for (b = 0; b < 6; b++) {
+		for (g = 0; g < 6; g++) {
+			for (r = 0; r < 6; r++) {
+				table2[(r + g * 6 + b * 36) * 3 + 0] = r * 51;
+				table2[(r + g * 6 + b * 36) * 3 + 1] = g * 51;
+				table2[(r + g * 6 + b * 36) * 3 + 2] = b * 51;
+			}
+		}
+	}
+	set_palette(16, 231, table2);
+	return;
+}
+```
+
+Makefile
+```Makefile
+color.bim : color.obj a_nask.obj Makefile
+	$(OBJ2BIM) @$(RULEFILE) out:color.bim stack:1k map:color.map \
+		color.obj a_nask.obj
+
+color.hrb : color.bim Makefile
+	$(BIM2HRB) color.bim color.hrb 56k
+
+haribote.img : ipl10.bin haribote.sys Makefile \
+		hello.hrb hello2.hrb a.hrb hello3.hrb hello4.hrb hello5.hrb \
+		winhelo.hrb winhelo2.hrb winhelo3.hrb star1.hrb stars.hrb stars2.hrb \
+		lines.hrb walk.hrb noodle.hrb beepdown.hrb color.hrb
+	$(EDIMG)   imgin:..\..\z_tools\fdimg0at.tek \
+		wbinimg src:ipl10.bin len:512 from:0 to:0 \
+		copy from:haribote.sys to:@: \
+		copy from:ipl10.nas to:@: \
+		copy from:make.bat to:@: \
+		copy from:hello.hrb to:@: \
+		copy from:hello2.hrb to:@: \
+		copy from:a.hrb to:@: \
+		copy from:hello3.hrb to:@: \
+		copy from:hello4.hrb to:@: \
+		copy from:hello5.hrb to:@: \
+		copy from:winhelo.hrb to:@: \
+		copy from:winhelo2.hrb to:@: \
+		copy from:winhelo3.hrb to:@: \
+		copy from:star1.hrb to:@: \
+		copy from:stars.hrb to:@: \
+		copy from:stars2.hrb to:@: \
+		copy from:lines.hrb to:@: \
+		copy from:walk.hrb to:@: \
+		copy from:noodle.hrb to:@: \
+		copy from:beepdown.hrb to:@: \
+		copy from:color.hrb to:@: \
+		imgout:haribote.img
+```
+
+color.c
+```c
+int api_openwin(char *buf, int xsiz, int ysiz, int col_inv, char *title);
+void api_initmalloc(void);
+char *api_malloc(int size);
+void api_refreshwin(int win, int x0, int y0, int x1, int y1);
+void api_linewin(int win, int x0, int y0, int x1, int y1, int col);
+int api_getkey(int mode);
+void api_end(void);
+
+void HariMain(void)
+{
+    char *buf;
+    int win, x, y, r, g, b;
+    api_initmalloc();
+    buf = api_malloc(144 * 164);
+    win = api_openwin(buf, 144, 164, -1, "color");
+    for (y = 0; y < 128; y++) {
+        for (x = 0; x < 128; x++) {
+            r = x * 2;
+            g = y * 2;
+            b = 0;
+            buf[(x + 8) + (y + 28) * 144] = 16 + (r / 43) + (g / 43) * 6 + (b / 43) * 36;
+         }
+    }
+    api_refreshwin(win, 8, 28, 136, 156);
+    api_getkey(1); /* てきとうなキー入力を待つ */
+    api_end();
+}
+```
+
+**実装過程**   
+・　[22bd7ed1514f477aad924cce8e8267e68a1d3f4d](22bd7ed1514f477aad924cce8e8267e68a1d3f4d)
